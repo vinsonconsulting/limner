@@ -1,0 +1,94 @@
+{
+  "_comment": "Summoning Chamber MVP asset manifest. Used with tools/inventory/asset_inventory.py --manifest",
+  "assets_dir": "static/assets",
+  "categories": {
+    "ui/chrome": [
+      "logo.png", "logo-small.png", "favicon-16.png", "favicon-32.png",
+      "favicon-64.png", "icon-128.png", "icon-256.png", "icon-512.png",
+      "spinner.gif", "bg-pattern.png"
+    ],
+    "ui/buttons": [
+      "btn-normal.png", "btn-hover.png", "btn-active.png", "btn-disabled.png",
+      "btn-primary-normal.png", "btn-primary-hover.png", "btn-primary-active.png",
+      "btn-primary-disabled.png", "btn-danger-normal.png", "btn-danger-hover.png",
+      "btn-danger-active.png", "btn-danger-disabled.png"
+    ],
+    "ui/forms": [
+      "input-normal.png", "input-focus.png", "input-error.png", "input-disabled.png",
+      "dropdown-closed.png", "dropdown-open.png", "dropdown-arrow.png",
+      "checkbox-off.png", "checkbox-on.png", "checkbox-disabled.png",
+      "radio-off.png", "radio-on.png", "radio-disabled.png",
+      "slider-track.png", "slider-thumb.png"
+    ],
+    "ui/panels": [
+      "panel-frame.png", "panel-dark.png", "panel-light.png",
+      "card-frame.png", "card-frame-hover.png", "card-frame-selected.png",
+      "tooltip.png", "modal-frame.png", "modal-backdrop.png",
+      "sidebar-frame.png", "divider-h.png", "divider-v.png"
+    ],
+    "ui/navigation": [
+      "step-empty.png", "step-active.png", "step-complete.png",
+      "step-connector.png", "arrow-left.png", "arrow-right.png",
+      "arrow-up.png", "arrow-down.png", "close.png", "menu.png", "back.png"
+    ],
+    "ui/chat": [
+      "msg-user.png", "msg-agent.png", "msg-system.png",
+      "chat-input.png", "send-btn.png", "send-btn-hover.png",
+      "send-btn-disabled.png", "typing.gif", "scroll-top.png", "scroll-bottom.png"
+    ],
+    "icons/classes": [
+      "icon-scryer.png", "icon-magister.png", "icon-hammerer.png",
+      "icon-craftsman.png", "icon-diplomat.png", "icon-herald.png",
+      "icon-warden.png", "icon-counselor.png", "icon-merchant.png",
+      "icon-seneschal.png", "icon-bard.png"
+    ],
+    "icons/status": [
+      "status-thinking.gif", "status-research.gif", "status-idle.png",
+      "status-error.png", "status-connected.png", "status-disconnected.png"
+    ],
+    "icons/tools": [
+      "tool-search.png", "tool-gdrive.png", "tool-slack.png",
+      "tool-github.png", "tool-code.png", "tool-upload.png"
+    ],
+    "icons/actions": [
+      "icon-save.png", "icon-export.png", "icon-import.png", "icon-edit.png",
+      "icon-delete.png", "icon-copy.png", "icon-settings.png", "icon-help.png",
+      "icon-info.png", "icon-warning.png"
+    ],
+    "environments": [
+      "summoning-chamber.png", "council-chamber.png"
+    ],
+    "map": [
+      "map-base.png", "map-labels.png", "map-border.png",
+      "map-compass.png", "map-legend.png",
+      "map-region-seelie.png", "map-region-freemark.png",
+      "map-region-ironroot.png", "map-region-shire.png",
+      "map-region-vaults.png", "map-region-fenward.png",
+      "map-region-mire.png", "map-region-scoria.png",
+      "map-region-temple.png", "map-region-satchel.png"
+    ]
+  },
+  "generated_categories": {
+    "lands": {
+      "items": [
+        "seelie-groves", "freemark-reaches", "ironroot-holdings",
+        "shire-hearths", "vaults-precieux", "fenward-commons",
+        "mire-grok", "scoria-warrens", "temple-frozen", "bottomless-satchel"
+      ],
+      "per_item": ["backdrop.png", "crest.png", "crest-small.png"]
+    },
+    "characters": {
+      "items": [
+        "elf", "human", "dwarf", "smallfolk", "gnome",
+        "goblin", "orc", "scale", "monk", "spirit"
+      ],
+      "per_item": [
+        "legs-base.png", "legs-pose-a.png", "legs-pose-b.png",
+        "torso-base.png", "torso-pose-a.png", "torso-pose-b.png",
+        "arms-neutral.png", "arms-gesture-a.png", "arms-gesture-b.png",
+        "head.png"
+      ],
+      "path_template": "characters/{item}/{item}-{asset}"
+    }
+  }
+}

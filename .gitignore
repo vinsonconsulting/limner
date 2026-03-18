@@ -1,0 +1,49 @@
+# OS
+.DS_Store
+Thumbs.db
+Icon?
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Claude Code
+.claude/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Binary assets (tracked in asset_catalog.md, not in git)
+output/*.png
+output/*.gif
+output/*.jpg
+examples/*/sample_output/
+examples/*/palettes/*.png
+tools/config/*.png
+
+# Session logs (template is tracked)
+sessions/*.md
+!sessions/_template.md
+
+# Secrets
+.env
+.env.*
+*.key
+rd_style_ids.json
+
+# Build artifacts
+palettes.tar.gz
+firebase-debug.log
+
+# Learnings and catalog ARE tracked - they're institutional knowledge
+# reference/learnings.md        <- TRACKED
+# output/asset_catalog.md       <- TRACKED
+# tools/config/palettes.json    <- TRACKED

@@ -1,0 +1,13 @@
+# Limner - Pixel Art Generation Framework
+# Python dependencies for core tools and workflows
+
+# Image Processing
+Pillow>=10.0.0
+numpy>=1.24.0
+
+# API Clients
+requests>=2.31.0
+httpx>=0.24.0
+
+# Optional Dependencies
+scipy>=1.11.0  # For advanced outline dilation in vga_normalize.py
