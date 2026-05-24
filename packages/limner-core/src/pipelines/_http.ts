@@ -1,0 +1,65 @@
+// Shared machinery for API-backed pipelines. Underscore prefix marks this
+// as internal to the pipelines module; not re-exported from @limner/core.
+
+import { PipelineError, type PipelineErrorCode } from './errors.js';
+
+// Map an upstream HTTP status to a structured pipeline error code. Used by
+// every REST-client pipeline (and the Recraft adapter when its MCP
+// transport surfaces HTTP errors from the SSE/HTTP channel).
+export function mapHttpStatus(status: number): PipelineErrorCode {
+  if (status === 401 || status === 403) return 'unauthorized';
+  if (status === 429) return 'rate_limited';
+  if (status >= 500) return 'upstream_unavailable';
+  if (status >= 400) return 'upstream_error';
+  return 'unknown';
+}
+
+// Convert a non-OK Response into a PipelineError, attempting to surface the
+// upstream body in the message (truncated) for diagnostics. Caller decides
+// whether to log the full body.
+export async function httpResponseToError(
+  pipelineId: string,
+  response: Response,
+): Promise<PipelineError> {
+  const code = mapHttpStatus(response.status);
+  let body = '';
+  try {
+    body = (await response.text()).slice(0, 500);
+  } catch {
+    body = '<unreadable>';
+  }
+  return new PipelineError(
+    pipelineId,
+    code,
+    `${pipelineId}: upstream returned HTTP ${response.status}${body ? `: ${body}` : ''}`,
+  );
+}
+
+// Wrap an AbortError caught from fetch in a structured PipelineError.
+// Anything that isn't an abort gets re-thrown unchanged so the caller can
+// classify it.
+export function isAbortError(err: unknown): boolean {
+  return (
+    err instanceof DOMException && err.name === 'AbortError'
+  ) || (
+    err instanceof Error && err.name === 'AbortError'
+  );
+}
+
+// Convert base64 string to Uint8Array. Cross-runtime: works in Workers
+// (V8 isolates have global atob) and Node 22+ (atob is a global since
+// Node 16). Avoids Node-only Buffer.from(b64, 'base64').
+export function base64ToBytes(b64: string): Uint8Array {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+// Type-only helper: narrow `unknown` to a record so we can index it safely
+// in pipeline response parsers. Lighter than zod for these one-off shapes.
+export function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+}
