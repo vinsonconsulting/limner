@@ -1,0 +1,25 @@
+{
+  "name": "limner",
+  "version": "0.0.1",
+  "description": "MCP image generation agent. Foundation of the Limner family.",
+  "license": "Apache-2.0",
+  "private": false,
+  "author": "Vinson Consulting",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vinsonconsulting/limner.git"
+  },
+  "homepage": "https://github.com/vinsonconsulting/limner#readme",
+  "bugs": {
+    "url": "https://github.com/vinsonconsulting/limner/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "image-generation",
+    "claude-managed-agents",
+    "cloudflare",
+    "workers",
+    "agent"
+  ]
+}
