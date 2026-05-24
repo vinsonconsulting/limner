@@ -15,3 +15,5 @@ export { PipelineError, assertSecrets } from './errors.js';
 
 // Individual pipelines.
 export { MidjourneyPipeline, type MidjourneyOptions } from './midjourney.js';
+export { DallePipeline, type DalleOptions } from './dalle.js';
+export { RetroDiffusionPipeline, type RetroDiffusionOptions } from './retrodiffusion.js';

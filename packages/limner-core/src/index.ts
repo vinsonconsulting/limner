@@ -40,9 +40,13 @@ export type {
   PipelineImageOutput,
   PipelineErrorCode,
   MidjourneyOptions,
+  DalleOptions,
+  RetroDiffusionOptions,
 } from './pipelines/index.js';
 export {
   PipelineError,
   assertSecrets,
   MidjourneyPipeline,
+  DallePipeline,
+  RetroDiffusionPipeline,
 } from './pipelines/index.js';
