@@ -42,6 +42,11 @@ export type {
   MidjourneyOptions,
   DalleOptions,
   RetroDiffusionOptions,
+  RecraftOptions,
+  RecraftMode,
+  RecraftTransport,
+  RecraftGenerateArgs,
+  RecraftGenerateResult,
 } from './pipelines/index.js';
 export {
   PipelineError,
@@ -49,4 +54,5 @@ export {
   MidjourneyPipeline,
   DallePipeline,
   RetroDiffusionPipeline,
+  RecraftPipeline,
 } from './pipelines/index.js';

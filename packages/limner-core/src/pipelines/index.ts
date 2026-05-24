@@ -17,3 +17,11 @@ export { PipelineError, assertSecrets } from './errors.js';
 export { MidjourneyPipeline, type MidjourneyOptions } from './midjourney.js';
 export { DallePipeline, type DalleOptions } from './dalle.js';
 export { RetroDiffusionPipeline, type RetroDiffusionOptions } from './retrodiffusion.js';
+export {
+  RecraftPipeline,
+  type RecraftOptions,
+  type RecraftMode,
+  type RecraftTransport,
+  type RecraftGenerateArgs,
+  type RecraftGenerateResult,
+} from './recraft.js';
