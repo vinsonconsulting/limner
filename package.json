@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "description": "MCP image generation agent. Foundation of the Limner family.",
   "license": "Apache-2.0",
-  "private": false,
+  "private": true,
   "author": "Vinson Consulting",
   "repository": {
     "type": "git",
@@ -21,5 +21,27 @@
     "cloudflare",
     "workers",
     "agent"
-  ]
+  ],
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=10"
+  },
+  "packageManager": "pnpm@10.28.2",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "build": "pnpm -r build",
+    "clean": "pnpm -r exec rm -rf dist .tsbuildinfo"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "esbuild",
+      "sharp",
+      "workerd"
+    ]
+  }
 }
