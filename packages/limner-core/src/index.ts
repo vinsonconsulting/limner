@@ -29,3 +29,20 @@ export {
   LocalProjectStore,
   createProjectStore,
 } from './context/index.js';
+
+// Pipelines (Phase 2).
+export type {
+  PipelineRunner,
+  PipelineContext,
+  PipelineGenerateInput,
+  PipelineGenerateOutput,
+  PipelineTextOutput,
+  PipelineImageOutput,
+  PipelineErrorCode,
+  MidjourneyOptions,
+} from './pipelines/index.js';
+export {
+  PipelineError,
+  assertSecrets,
+  MidjourneyPipeline,
+} from './pipelines/index.js';
