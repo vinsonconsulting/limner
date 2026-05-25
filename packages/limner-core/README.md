@@ -89,19 +89,46 @@ existing CMA managed-memory entries.
 
 ## Testing
 
-Parity tests under `test/` run the same suites against both backends:
-
-- `test/helpers/fixtures.ts` — Local fixture uses better-sqlite3
-  in-memory; D1 fixture uses miniflare-emulated D1 inside node
-- `test/memory.parity.test.ts` — 12 cases × 2 backends = 24 tests
-- `test/context.parity.test.ts` — 8 cases × 2 backends = 16 tests
+### Unit + parity tests (default, CI-safe)
 
 ```bash
 pnpm --filter @limner/core test
 ```
 
-If a behavior diverges between backends, the test suite catches it before
-it can ship in `@limner/mcp` or `@limner/cma-tools`.
+- `test/memory.parity.test.ts` — 12 cases × 2 backends = 24 tests
+- `test/context.parity.test.ts` — 8 cases × 2 backends = 16 tests
+- `test/pipelines/midjourney.test.ts` — 25 tests (prompt composition)
+- `test/pipelines/dalle.test.ts` — 15 tests (mocked fetch)
+- `test/pipelines/retrodiffusion.test.ts` — 11 tests (mocked fetch)
+- `test/pipelines/recraft.test.ts` — 15 tests (mocked transport)
+
+All mocked. No real HTTP, no API keys required. Runs in ~2 seconds.
+
+If a behavior diverges between D1 and local SQLite backends, the parity
+suite catches it before it can ship in `@limner/mcp` or `@limner/cma-tools`.
+
+### Integration tests (opt-in, real upstream calls)
+
+Integration tests live in `test/**/*.integration.test.ts` and are
+**excluded from the default `pnpm test` run** via `vitest.config.ts`.
+
+```bash
+# Run all integration tests; each describe.skipIf()s itself when its
+# env var is absent.
+OPENAI_API_KEY=sk-... \
+RETRODIFFUSION_API_KEY=rd-... \
+pnpm --filter @limner/core test:integration
+```
+
+| Pipeline | Env var | Status |
+|---|---|---|
+| DALL-E | `OPENAI_API_KEY` | live |
+| RetroDiffusion | `RETRODIFFUSION_API_KEY` | live |
+| Recraft (remote) | `RECRAFT_API_KEY` | TODO — needs Phase 4 `McpRecraftTransport` |
+| Recraft (local stdio) | — | TODO — needs Phase 4 wiring + local server |
+
+Each live integration test makes one real API call (counts against your
+quota). Timeout is 90 seconds per test.
 
 ## License
 

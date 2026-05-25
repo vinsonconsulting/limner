@@ -20,6 +20,7 @@
   "scripts": {
     "typecheck": "tsc -p . --noEmit",
     "test": "vitest run --passWithNoTests",
+    "test:integration": "vitest run --config vitest.integration.config.ts --passWithNoTests",
     "build": "tsc -p .",
     "clean": "rm -rf dist .tsbuildinfo"
   },
