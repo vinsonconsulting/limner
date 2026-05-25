@@ -45,6 +45,7 @@ jobs:
       - name: Run integration tests
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          RETRODIFFUSION_API_KEY: ${{ secrets.RETRODIFFUSION_API_KEY }}
+          # RETRODIFFUSION_API_KEY removed: D-RA-18 moved RetroDiffusion
+          # out of rasa to limner-pixel.
           RECRAFT_API_KEY: ${{ secrets.RECRAFT_API_KEY }}
         run: pnpm --filter @limner/core test:integration

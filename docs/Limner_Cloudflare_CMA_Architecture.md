@@ -1,12 +1,12 @@
 # Limner — Cloudflare CMA Architecture
 
-> **Purpose:** Consolidated architecture and implementation plan for Limner after the May 19 2026 Claude Managed Agents self-hosted sandboxes announcement, the 11 architectural decisions locked on 2026-05-20, D-RA-12 added 2026-05-22, and D-RA-13 through D-RA-17 added 2026-05-23 (OSS pivot; Recraft via MCP adapter; D1 canonical hardened; hybrid V8 composition; Pixellab dropped from rasa to limner-pixel).
+> **Purpose:** Consolidated architecture and implementation plan for Limner after the May 19 2026 Claude Managed Agents self-hosted sandboxes announcement, the 11 architectural decisions locked on 2026-05-20, D-RA-12 added 2026-05-22, D-RA-13 through D-RA-17 added 2026-05-23 (OSS pivot; Recraft via MCP adapter; D1 canonical hardened; hybrid V8 composition; Pixellab dropped from rasa to limner-pixel), and D-RA-18 added 2026-05-25 (RetroDiffusion dropped from rasa to limner-pixel, mirroring D-RA-17).
 >
 > **Audience:** Jim (architect / operator); Cowork / Claude Code instance executing the rebuild; future collaborators.
 >
 > **Status:** Authoritative. Supersedes `Limner_MCP_Server_DevPlan.md`, `Limner_LobeHub_Runbook.md`, and `Limner_CMA_Onboarding_RunBook.md` (the latter is preserved as historical reference for the pre-rearchitecture state).
 >
-> **Source ADRs:** [Meta](https://www.notion.so/366e75a69b7e81f08871d02ff112e233) · [D-RA-01](https://www.notion.so/366e75a69b7e8131a667ffdc34a181dc) · [D-RA-02](https://www.notion.so/366e75a69b7e81a997f5ca358667c102) · [D-RA-03](https://www.notion.so/366e75a69b7e81289683d90b4df826e6) · [D-RA-04](https://www.notion.so/366e75a69b7e81178730c341e45efaf8) · [D-RA-05](https://www.notion.so/366e75a69b7e81878980ebcef8af9439) · [D-RA-06](https://www.notion.so/366e75a69b7e816a8ac4c14f7e8e3e74) · [D-RA-07](https://www.notion.so/366e75a69b7e8106b8ddcef9f226b0be) · [D-RA-08](https://www.notion.so/366e75a69b7e81d4b5adc015c401fd35) · [D-RA-09](https://www.notion.so/366e75a69b7e810ebd28cc9bb0176bf4) · [D-RA-10](https://www.notion.so/366e75a69b7e81c4b4adefa16f9d4012) · [D-RA-11](https://www.notion.so/366e75a69b7e8189bd16eb5c2d3226ad) · [D-RA-12](https://www.notion.so/368e75a69b7e8126bb03f4b9597a8f7e) · [D-RA-13](https://www.notion.so/36ae75a69b7e81b0b3c0fe8ed344a171) · [D-RA-14](https://www.notion.so/36ae75a69b7e815a8036fa308e3a4a23) · [D-RA-15](https://www.notion.so/36ae75a69b7e81ff8751febc21654d33) · [D-RA-16](https://www.notion.so/36ae75a69b7e81728a9fccb179236db6) · [D-RA-17](https://www.notion.so/36ae75a69b7e812ba4c6d8d54975012a)
+> **Source ADRs:** [Meta](https://www.notion.so/366e75a69b7e81f08871d02ff112e233) · [D-RA-01](https://www.notion.so/366e75a69b7e8131a667ffdc34a181dc) · [D-RA-02](https://www.notion.so/366e75a69b7e81a997f5ca358667c102) · [D-RA-03](https://www.notion.so/366e75a69b7e81289683d90b4df826e6) · [D-RA-04](https://www.notion.so/366e75a69b7e81178730c341e45efaf8) · [D-RA-05](https://www.notion.so/366e75a69b7e81878980ebcef8af9439) · [D-RA-06](https://www.notion.so/366e75a69b7e816a8ac4c14f7e8e3e74) · [D-RA-07](https://www.notion.so/366e75a69b7e8106b8ddcef9f226b0be) · [D-RA-08](https://www.notion.so/366e75a69b7e81d4b5adc015c401fd35) · [D-RA-09](https://www.notion.so/366e75a69b7e810ebd28cc9bb0176bf4) · [D-RA-10](https://www.notion.so/366e75a69b7e81c4b4adefa16f9d4012) · [D-RA-11](https://www.notion.so/366e75a69b7e8189bd16eb5c2d3226ad) · [D-RA-12](https://www.notion.so/368e75a69b7e8126bb03f4b9597a8f7e) · [D-RA-13](https://www.notion.so/36ae75a69b7e81b0b3c0fe8ed344a171) · [D-RA-14](https://www.notion.so/36ae75a69b7e815a8036fa308e3a4a23) · [D-RA-15](https://www.notion.so/36ae75a69b7e81ff8751febc21654d33) · [D-RA-16](https://www.notion.so/36ae75a69b7e81728a9fccb179236db6) · [D-RA-17](https://www.notion.so/36ae75a69b7e812ba4c6d8d54975012a) · D-RA-18 _(Notion link TBD)_
 
 ---
 
@@ -22,7 +22,7 @@ Limner runs on Cloudflare as a TypeScript codebase, with the agent loop on Anthr
 
 ## 2. Architectural decisions reference
 
-All 11 decisions resolved on 2026-05-20. D-RA-12 added 2026-05-22. D-RA-13 through D-RA-17 added 2026-05-23 processing the assumption-audit research report findings (OSS pivot; Recraft via MCP adapter; D1 canonical hardened; hybrid V8 composition stack replacing Sharp; Pixellab dropped from rasa to limner-pixel). Each is its own ADR in Notion. Summary:
+All 11 decisions resolved on 2026-05-20. D-RA-12 added 2026-05-22. D-RA-13 through D-RA-17 added 2026-05-23 processing the assumption-audit research report findings (OSS pivot; Recraft via MCP adapter; D1 canonical hardened; hybrid V8 composition stack replacing Sharp; Pixellab dropped from rasa to limner-pixel). D-RA-18 added 2026-05-25 surfaced by the first live integration test run (RetroDiffusion dropped from rasa to limner-pixel, mirroring D-RA-17). Each is its own ADR in Notion. Summary:
 
 | ID | Decision | Resolution |
 |---|---|---|
@@ -43,6 +43,7 @@ All 11 decisions resolved on 2026-05-20. D-RA-12 added 2026-05-22. D-RA-13 throu
 | D-RA-15 | D1 canonical state hardening | D1 is mandatory not preferred under self-hosted CMA; CMA managed memory and self-hosted sandboxes mutually exclusive; Phase 6 migration is one-way |
 | D-RA-16 | rasa v1 composition strategy | Hybrid V8 stack: Photon + jSquash + Satori/resvg + Cloudflare Images Transformations. No Containers in rasa v1; Sharp/libvips path abandoned |
 | D-RA-17 | Pixellab dropped from rasa | Specialty tools live in variants, not rasa foundation. Pixellab moves to limner-pixel (Phase C of D-RA-13 build sequencing); rasa pipeline registry shrinks to 4 |
+| D-RA-18 | RetroDiffusion dropped from rasa | Consistent application of the D-RA-17 specialty-tool placement principle. RetroDiffusion's model line (`rd_fast` / `rd_pro` / `rd_plus`) is explicitly pixel-art-focused — same category D-RA-17 used to move Pixellab out. Rasa v1 pipeline registry shrinks to 3 (Midjourney, DALL-E, Recraft); RetroDiff moves to limner-pixel where it sits alongside Pixellab and any future pixel-art tooling. The drop was surfaced by integration testing (sync inference timed out locally at 30s; initially misread as an upstream issue), but reading the actual API docs at github.com/Retro-Diffusion/api-examples showed the API is healthy and supports `async_process: true` for long-running jobs — the friction was a sync-timeout misdiagnosis, not an upstream defect. The architectural conclusion stands on the D-RA-17 principle, not on API quality |
 
 ---
 
@@ -92,7 +93,7 @@ Anthropic's framing of self-hosted sandboxes is "decoupling the brain from the h
    ┌──────────────────┐              ┌──────────────────┐
    │  Pipeline APIs   │              │  D1   │   R2     │
    │  MJ, DALL-E,     │              │  state │ artifacts│
-   │  RetroDiff, etc. │              └──────────────────┘
+   │  Recraft         │              └──────────────────┘
    └──────────────────┘
 ```
 
@@ -147,7 +148,6 @@ limner/
 │   │   │   ├── pipelines/
 │   │   │   │   ├── midjourney.ts   # prompt composition; returns text
 │   │   │   │   ├── dalle.ts
-│   │   │   │   ├── retrodiffusion.ts
 │   │   │   │   └── recraft.ts      # adapter over Recraft MCP per D-RA-14
 │   │   │   ├── compose/            # D-RA-16 hybrid V8 composition stack
 │   │   │   │   ├── photon-ops.ts   # Photon primitives (resize, crop, filters)
@@ -189,7 +189,6 @@ limner/
 │       │   ├── tools/
 │       │   │   ├── generate-midjourney.ts
 │       │   │   ├── generate-dalle.ts
-│       │   │   ├── generate-retrodiff.ts
 │       │   │   ├── generate-recraft.ts
 │       │   │   └── compose.ts      # hybrid V8 stack per D-RA-16
 │       │   └── index.ts            # exports for CMA template integration
@@ -257,14 +256,13 @@ Sequential. Each phase has a definition of done. Branch: `rebuild/cloudflare-cma
 
 ### Phase 2 — Pipeline ports (~1 week)
 
-Port the 4 HTTP-based pipelines from Python reference (Pixellab dropped per D-RA-17; lives in limner-pixel):
+Port the 3 pipelines from Python reference (Pixellab dropped per D-RA-17, RetroDiffusion dropped per D-RA-18; both live in limner-pixel):
 
 - `midjourney.ts` — prompt composition only (no API call); returns formatted prompt
 - `dalle.ts` — OpenAI Images API client
-- `retrodiffusion.ts` — RetroDiffusion API client
 - `recraft.ts` — **Adapter wrapping Recraft's first-party MCP server** per D-RA-14, not a direct API client. Two transport modes: remote (`mcp.recraft.ai/mcp` API-key auth) and local (stdio via `github.com/recraft-ai/mcp-recraft-server`). The adapter normalizes Recraft's MCP tools into rasa's pipeline surface for consistent naming, error handling, and telemetry. Sets precedent for any future composed external MCP server.
 
-Each pipeline is a class implementing the rasa pipeline contract. The contract has two interfaces: `ApiBackedPipeline` (direct REST clients: dalle, retrodiffusion) and `ComposedMcpPipeline` (adapter over external MCP: recraft today, others as vendors ship MCPs). API calls and adapter calls both use native `fetch` / MCP SDK. Credential consumption goes through the bindings layer (Cloudflare Secrets in Workers mode; env vars in local mode).
+Each pipeline is a class implementing the rasa pipeline contract. The contract has two interfaces: `ApiBackedPipeline` (direct REST client: dalle) and `ComposedMcpPipeline` (adapter over external MCP: recraft today, others as vendors ship MCPs). API calls and adapter calls both use native `fetch` / MCP SDK. Credential consumption goes through the bindings layer (Cloudflare Secrets in Workers mode; env vars in local mode).
 
 **DoD:** Each pipeline has an integration test that hits the real API or composed MCP with a test key, returns a valid response. Mocked tests run in CI.
 
@@ -297,7 +295,7 @@ Per D-RA-16, rasa v1 composition is delivered by a hybrid stack running entirely
 - Workers entry point (`worker.ts`) — for production.
 - OAuth wiring via `workers-oauth-provider`.
 - All tools from the original dev plan §4:
-  - Pipeline tools: `generate_midjourney`, `generate_dalle`, `generate_retrodiff`, `generate_recraft`, `compose` (hybrid V8 stack per D-RA-16; backed by Photon + jSquash + Satori/resvg + CF Images Transformations)
+  - Pipeline tools: `generate_midjourney`, `generate_dalle`, `generate_recraft`, `compose` (hybrid V8 stack per D-RA-16; backed by Photon + jSquash + Satori/resvg + CF Images Transformations)
   - Memory tools: `recall`, `record`, `forget`, `list_categories`
   - Project tools: `list_projects`, `get_project_context`, `record_project_note`
   - Discovery/health: `list_pipelines`, `pipeline_capabilities`, `health`, `version`

@@ -12,7 +12,7 @@
 
 Limner gives you one agent surface, multiple image-generation pipelines, and durable memory for project context. It runs on Cloudflare CMA self-hosted sandboxes, ships as an MCP server (Workers HTTP, stdio, `.mcpb`), and uses D1 for state.
 
-Where most image-generation tools wrap a single model, Limner composes across DALL·E, RetroDiffusion, Recraft, and Midjourney (prompt-only), with a hybrid V8 composition stack for layering and post-processing.
+Where most image-generation tools wrap a single model, Limner composes across DALL·E, Recraft, and Midjourney (prompt-only), with a hybrid V8 composition stack for layering and post-processing. Specialty pipelines like pixel-art generation (Pixellab, RetroDiffusion) live in the `limner-pixel` variant per D-RA-17 / D-RA-18.
 
 ## The Limner family
 
