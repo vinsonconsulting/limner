@@ -13,17 +13,22 @@ import type {
 } from './types.js';
 
 export type DalleOptions = {
-  // 'dall-e-3' (default), 'dall-e-2', or a future model id. Kept open so
-  // new model releases don't require an @limner/core update.
-  model?: 'dall-e-3' | 'dall-e-2' | (string & {});
+  // 'dall-e-3' (default), 'dall-e-2', 'gpt-image-1', or a future model id.
+  // Kept open so new model releases don't require an @limner/core update.
+  model?: 'dall-e-3' | 'dall-e-2' | 'gpt-image-1' | (string & {});
   // dall-e-3: 1024x1024 | 1792x1024 | 1024x1792
   // dall-e-2: 256x256 | 512x512 | 1024x1024
+  // gpt-image-1: 1024x1024 | 1024x1536 | 1536x1024 | auto
   size?: string;
   // dall-e-3 only
   quality?: 'standard' | 'hd';
   // dall-e-3 only
   style?: 'vivid' | 'natural';
-  // 'url' (default; expires in 1h) or 'b64_json'
+  // NOTE: response_format was removed from OpenAI's Images API in the
+  // 2025/2026 consolidation. The pipeline now auto-detects whether the
+  // upstream returned a url (dall-e-3 default) or b64_json (gpt-image-1
+  // default) and maps to PipelineImageOutput.url / .data accordingly.
+  // This field is accepted for forward compatibility but no longer sent.
   responseFormat?: 'url' | 'b64_json';
 };
 
@@ -53,14 +58,15 @@ export class DallePipeline implements PipelineRunner {
     const opts = (input.options ?? {}) as DalleOptions;
     const model = opts.model ?? 'dall-e-3';
     const size = opts.size ?? DEFAULT_SIZE;
-    const responseFormat = opts.responseFormat ?? 'url';
 
+    // response_format was deprecated in OpenAI's 2025/2026 Images API
+    // consolidation. Do NOT send it; the response shape (url vs b64_json)
+    // depends on the model and is auto-detected below.
     const body: Record<string, unknown> = {
       model,
       prompt,
       n: 1,
       size,
-      response_format: responseFormat,
     };
     // quality/style apply only to dall-e-3
     if (model === 'dall-e-3') {
@@ -101,17 +107,20 @@ export class DallePipeline implements PipelineRunner {
     const metadata: Record<string, unknown> = { pipeline: this.id, model };
     if (revisedPrompt) metadata['revisedPrompt'] = revisedPrompt;
 
-    if (responseFormat === 'url') {
-      const url = first['url'];
-      if (typeof url !== 'string') {
-        throw new PipelineError(this.id, 'upstream_error', 'response missing url');
-      }
+    // Auto-detect response shape. dall-e-3 returns url by default;
+    // gpt-image-1 returns b64_json. Handle whichever is present.
+    const url = first['url'];
+    if (typeof url === 'string') {
       return { kind: 'image', url, mimeType: 'image/png', width: w, height: h, metadata };
     }
 
     const b64 = first['b64_json'];
     if (typeof b64 !== 'string') {
-      throw new PipelineError(this.id, 'upstream_error', 'response missing b64_json');
+      throw new PipelineError(
+        this.id,
+        'upstream_error',
+        'response missing both url and b64_json',
+      );
     }
     return {
       kind: 'image',

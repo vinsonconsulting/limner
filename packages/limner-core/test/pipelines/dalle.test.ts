@@ -82,25 +82,25 @@ describe('DallePipeline — happy path', () => {
       size: '1024x1024',
       quality: 'standard',
       style: 'vivid',
-      response_format: 'url',
     });
+    // response_format was deprecated in OpenAI's 2025/2026 Images API
+    // consolidation; the pipeline must NOT send it.
+    expect(body).not.toHaveProperty('response_format');
   });
 
-  test('returns image with data when response_format is b64_json', async () => {
+  test('decodes b64_json response when upstream returns bytes (e.g. gpt-image-1)', async () => {
     // 1x1 red pixel PNG, base64-encoded.
     const onePixelPng =
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABh6FO1AAAAABJRU5ErkJggg==';
     const fetchMock = mockFetch(
       new Response(
+        // No `url` field; only b64_json. Pipeline auto-detects shape.
         JSON.stringify({ created: 1, data: [{ b64_json: onePixelPng }] }),
         { status: 200, headers: { 'content-type': 'application/json' } },
       ),
     );
     const p = new DallePipeline(fetchMock);
-    const out = (await p.generate(
-      { prompt: 'cat', options: { responseFormat: 'b64_json' } },
-      ctx,
-    )) as PipelineImageOutput;
+    const out = (await p.generate({ prompt: 'cat' }, ctx)) as PipelineImageOutput;
 
     expect(out.url).toBeUndefined();
     expect(out.data).toBeInstanceOf(Uint8Array);
