@@ -130,6 +130,42 @@ pnpm --filter @limner/core test:integration
 Each live integration test makes one real API call (counts against your
 quota). Timeout is 90 seconds per test.
 
+### Running integration tests in CI
+
+Repo-level GitHub Actions workflow: [`.github/workflows/integration.yml`](../../.github/workflows/integration.yml).
+Manual trigger only (`workflow_dispatch`) — never on push or PR — so API
+credits aren't burned per commit.
+
+**One-time maintainer setup** (run once per repo, requires the `repo`
+scope on your GitHub token):
+
+```bash
+gh secret set OPENAI_API_KEY          --body "sk-..."
+gh secret set RETRODIFFUSION_API_KEY  --body "rd-..."
+# RECRAFT_API_KEY: add when Phase 4 ships the real McpRecraftTransport
+# and the Recraft integration tests come off describe.todo.
+```
+
+**Triggering a run** from the CLI:
+
+```bash
+gh workflow run Integration --ref rebuild/cloudflare-cma
+gh run watch  # tail the latest run
+```
+
+Or from the Actions tab on GitHub: **Actions → Integration → Run workflow**,
+pick the branch, click the green button.
+
+The workflow is safe to run before any secrets are populated — each test
+`describe.skipIf()`s its own required env var, and skipped tests count as
+a pass. Verifying the workflow itself is healthy is a valid use of an
+empty-secrets run.
+
+**OSS note:** GitHub Actions Secrets are not exposed to PRs from forks
+(security policy). Community contributor PRs will see the integration
+workflow's secrets resolve to empty strings and the tests skip
+accordingly. Only maintainer-driven branches get the live keys.
+
 ## License
 
 Apache 2.0. See repo-root [LICENSE](../../LICENSE).
