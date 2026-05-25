@@ -13,22 +13,28 @@ import type {
 } from './types.js';
 
 export type DalleOptions = {
-  // 'dall-e-3' (default), 'dall-e-2', 'gpt-image-1', or a future model id.
-  // Kept open so new model releases don't require an @limner/core update.
-  model?: 'dall-e-3' | 'dall-e-2' | 'gpt-image-1' | (string & {});
-  // dall-e-3: 1024x1024 | 1792x1024 | 1024x1792
-  // dall-e-2: 256x256 | 512x512 | 1024x1024
+  // 'gpt-image-1' (default, recommended by OpenAI), 'dall-e-3', 'dall-e-2',
+  // or a future model id. Kept open so new model releases don't require an
+  // @limner/core update.
+  model?: 'gpt-image-1' | 'dall-e-3' | 'dall-e-2' | (string & {});
   // gpt-image-1: 1024x1024 | 1024x1536 | 1536x1024 | auto
+  // dall-e-3:    1024x1024 | 1792x1024 | 1024x1792
+  // dall-e-2:    256x256 | 512x512 | 1024x1024
   size?: string;
-  // dall-e-3 only
-  quality?: 'standard' | 'hd';
-  // dall-e-3 only
+  // gpt-image-1: 'low' | 'medium' | 'high' | 'auto'  (sent when model is gpt-image-1)
+  // dall-e-3 / dall-e-2: not sent — OpenAI's 2025/2026 consolidation removed
+  // legacy quality values; sending them now returns HTTP 400.
+  quality?: 'low' | 'medium' | 'high' | 'auto' | 'standard' | 'hd' | (string & {});
+  // gpt-image-1 only. Defaults server-side to 'png' if omitted.
+  outputFormat?: 'png' | 'jpeg' | 'webp';
+  // gpt-image-1 only. 'transparent' requires output_format 'png' or 'webp'.
+  background?: 'auto' | 'transparent' | 'opaque';
+  // dall-e-3-era field; accepted for forward compatibility but no longer
+  // sent. OpenAI removed `style` (and `response_format`) from the Images
+  // API in the 2025/2026 consolidation.
   style?: 'vivid' | 'natural';
-  // NOTE: response_format was removed from OpenAI's Images API in the
-  // 2025/2026 consolidation. The pipeline now auto-detects whether the
-  // upstream returned a url (dall-e-3 default) or b64_json (gpt-image-1
-  // default) and maps to PipelineImageOutput.url / .data accordingly.
-  // This field is accepted for forward compatibility but no longer sent.
+  // Deprecated; ignored. Pipeline auto-detects url vs b64_json in the
+  // response since gpt-image-1 and dall-e-3 differ on default shape.
   responseFormat?: 'url' | 'b64_json';
 };
 
@@ -56,23 +62,26 @@ export class DallePipeline implements PipelineRunner {
     }
 
     const opts = (input.options ?? {}) as DalleOptions;
-    const model = opts.model ?? 'dall-e-3';
+    const model = opts.model ?? 'gpt-image-1';
     const size = opts.size ?? DEFAULT_SIZE;
 
-    // response_format was deprecated in OpenAI's 2025/2026 Images API
-    // consolidation. Do NOT send it; the response shape (url vs b64_json)
-    // depends on the model and is auto-detected below.
+    // Build only the parameters the target model accepts. OpenAI's 2025/2026
+    // consolidation removed `response_format`, `style`, and dall-e-3's
+    // `quality` values from the Images API surface; sending any of them
+    // returns HTTP 400 "Unknown parameter."
     const body: Record<string, unknown> = {
       model,
       prompt,
       n: 1,
       size,
     };
-    // quality/style apply only to dall-e-3
-    if (model === 'dall-e-3') {
-      body.quality = opts.quality ?? 'standard';
-      body.style = opts.style ?? 'vivid';
+    if (model === 'gpt-image-1') {
+      if (opts.quality) body.quality = opts.quality;
+      if (opts.outputFormat) body.output_format = opts.outputFormat;
+      if (opts.background) body.background = opts.background;
     }
+    // dall-e-3 / dall-e-2: model+prompt+n+size only. Legacy `quality`,
+    // `style`, and `response_format` are silently dropped.
 
     let response: Response;
     try {
@@ -107,11 +116,15 @@ export class DallePipeline implements PipelineRunner {
     const metadata: Record<string, unknown> = { pipeline: this.id, model };
     if (revisedPrompt) metadata['revisedPrompt'] = revisedPrompt;
 
+    // Resolve mime type from the gpt-image-1 outputFormat when present;
+    // otherwise PNG (the format both dall-e-3 and gpt-image-1 default to).
+    const mimeType = resolveMimeType(model, opts.outputFormat);
+
     // Auto-detect response shape. dall-e-3 returns url by default;
     // gpt-image-1 returns b64_json. Handle whichever is present.
     const url = first['url'];
     if (typeof url === 'string') {
-      return { kind: 'image', url, mimeType: 'image/png', width: w, height: h, metadata };
+      return { kind: 'image', url, mimeType, width: w, height: h, metadata };
     }
 
     const b64 = first['b64_json'];
@@ -125,7 +138,7 @@ export class DallePipeline implements PipelineRunner {
     return {
       kind: 'image',
       data: base64ToBytes(b64),
-      mimeType: 'image/png',
+      mimeType,
       width: w,
       height: h,
       metadata,
@@ -133,7 +146,26 @@ export class DallePipeline implements PipelineRunner {
   }
 }
 
+function resolveMimeType(model: string, outputFormat: string | undefined): string {
+  if (model === 'gpt-image-1') {
+    switch (outputFormat) {
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'webp':
+        return 'image/webp';
+      case 'png':
+      default:
+        return 'image/png';
+    }
+  }
+  // dall-e-3 / dall-e-2 are PNG-only.
+  return 'image/png';
+}
+
 function parseSize(size: string): [number | undefined, number | undefined] {
+  // gpt-image-1 accepts size: 'auto'; we surface width/height as undefined
+  // for that case rather than guessing.
+  if (size === 'auto') return [undefined, undefined];
   const match = size.match(/^(\d+)x(\d+)$/);
   if (!match) return [undefined, undefined];
   return [Number(match[1]), Number(match[2])];
