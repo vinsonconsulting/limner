@@ -13,10 +13,11 @@ export type {
 export type { PipelineErrorCode } from './errors.js';
 export { PipelineError, assertSecrets } from './errors.js';
 
-// Individual pipelines.
+// Individual pipelines. RetroDiffusion moved to limner-pixel per D-RA-18
+// (specialty pixel-art tools live in variants, not the rasa foundation —
+// pattern-matches D-RA-17 for Pixellab).
 export { MidjourneyPipeline, type MidjourneyOptions } from './midjourney.js';
 export { DallePipeline, type DalleOptions } from './dalle.js';
-export { RetroDiffusionPipeline, type RetroDiffusionOptions } from './retrodiffusion.js';
 export {
   RecraftPipeline,
   type RecraftOptions,

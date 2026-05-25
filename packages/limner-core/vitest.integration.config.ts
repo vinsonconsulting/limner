@@ -7,9 +7,9 @@ import { defineConfig } from 'vitest/config';
 //
 // Pipelines and their env keys:
 //   dalle           - OPENAI_API_KEY
-//   retrodiffusion  - RETRODIFFUSION_API_KEY
 //   recraft (remote) - RECRAFT_API_KEY  (also needs the Phase 4 MCP transport
 //                                        wiring to actually exercise)
+// (RetroDiffusion moved to limner-pixel per D-RA-18.)
 
 export default defineConfig({
   test: {

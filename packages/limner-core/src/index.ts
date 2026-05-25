@@ -30,7 +30,7 @@ export {
   createProjectStore,
 } from './context/index.js';
 
-// Pipelines (Phase 2).
+// Pipelines (Phase 2). RetroDiffusion moved to limner-pixel per D-RA-18.
 export type {
   PipelineRunner,
   PipelineContext,
@@ -41,7 +41,6 @@ export type {
   PipelineErrorCode,
   MidjourneyOptions,
   DalleOptions,
-  RetroDiffusionOptions,
   RecraftOptions,
   RecraftMode,
   RecraftTransport,
@@ -53,6 +52,5 @@ export {
   assertSecrets,
   MidjourneyPipeline,
   DallePipeline,
-  RetroDiffusionPipeline,
   RecraftPipeline,
 } from './pipelines/index.js';

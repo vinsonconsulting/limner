@@ -99,10 +99,11 @@ pnpm --filter @limner/core test
 - `test/context.parity.test.ts` — 8 cases × 2 backends = 16 tests
 - `test/pipelines/midjourney.test.ts` — 25 tests (prompt composition)
 - `test/pipelines/dalle.test.ts` — 15 tests (mocked fetch)
-- `test/pipelines/retrodiffusion.test.ts` — 11 tests (mocked fetch)
 - `test/pipelines/recraft.test.ts` — 15 tests (mocked transport)
 
 All mocked. No real HTTP, no API keys required. Runs in ~2 seconds.
+
+(RetroDiffusion moved to `limner-pixel` per D-RA-18.)
 
 If a behavior diverges between D1 and local SQLite backends, the parity
 suite catches it before it can ship in `@limner/mcp` or `@limner/cma-tools`.
@@ -116,14 +117,12 @@ Integration tests live in `test/**/*.integration.test.ts` and are
 # Run all integration tests; each describe.skipIf()s itself when its
 # env var is absent.
 OPENAI_API_KEY=sk-... \
-RETRODIFFUSION_API_KEY=rd-... \
 pnpm --filter @limner/core test:integration
 ```
 
 | Pipeline | Env var | Status |
 |---|---|---|
 | DALL-E | `OPENAI_API_KEY` | live |
-| RetroDiffusion | `RETRODIFFUSION_API_KEY` | live |
 | Recraft (remote) | `RECRAFT_API_KEY` | TODO — needs Phase 4 `McpRecraftTransport` |
 | Recraft (local stdio) | — | TODO — needs Phase 4 wiring + local server |
 
@@ -140,8 +139,7 @@ credits aren't burned per commit.
 scope on your GitHub token):
 
 ```bash
-gh secret set OPENAI_API_KEY          --body "sk-..."
-gh secret set RETRODIFFUSION_API_KEY  --body "rd-..."
+gh secret set OPENAI_API_KEY --body "sk-..."
 # RECRAFT_API_KEY: add when Phase 4 ships the real McpRecraftTransport
 # and the Recraft integration tests come off describe.todo.
 ```
