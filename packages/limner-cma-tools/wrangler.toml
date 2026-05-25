@@ -1,0 +1,8 @@
+name = "limner-cma-tools"
+main = "src/index.ts"
+compatibility_date = "2026-05-24"
+compatibility_flags = ["nodejs_compat"]
+
+# Pipeline credentials are injected at the CMA outbound proxy, not via wrangler
+# secrets here. See architecture doc §3.3 and Phase 5 of the implementation
+# plan for the deploy flow.

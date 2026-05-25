@@ -1,0 +1,12 @@
+name = "limner-mcp"
+main = "src/index.ts"
+compatibility_date = "2026-05-24"
+compatibility_flags = ["nodejs_compat"]
+
+# D1 binding added in Phase 4 when the MCP server starts using @limner/core's
+# D1MemoryStore. Until then, this stub exists so wrangler dev/deploy work.
+#
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "limner-rasa-dev"
+# database_id = "<set after `wrangler d1 create`>"
