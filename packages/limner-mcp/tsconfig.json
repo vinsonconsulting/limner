@@ -3,7 +3,13 @@
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "dist",
-    "tsBuildInfoFile": "dist/.tsbuildinfo"
+    "tsBuildInfoFile": "dist/.tsbuildinfo",
+    // Workers runtime augments the standard Web Standard globals
+    // (Request, Response, etc.) with additional fields (webSocket,
+    // bytes, etc.). Including the workers-types triple-slash via
+    // `types` lets TS know about them, which keeps `new Response()`
+    // returning the augmented Response that ExportedHandler expects.
+    "types": ["@cloudflare/workers-types", "node"]
   },
   "include": ["src/**/*"],
   "exclude": ["dist", "node_modules", "test"],

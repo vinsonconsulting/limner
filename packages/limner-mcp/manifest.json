@@ -1,0 +1,65 @@
+{
+  "manifest_version": "0.3",
+  "name": "limner-mcp",
+  "display_name": "Limner — MCP image generation",
+  "version": "0.0.1",
+  "description": "Image generation pipelines (DALL·E, Recraft, Midjourney) plus a hybrid V8 composition stack — all behind the Model Context Protocol.",
+  "long_description": "Limner exposes a single MCP surface that orchestrates third-party image generation APIs and composition primitives:\n\n- **Pipelines**: `generate_dalle`, `generate_midjourney` (prompt-only), `generate_recraft` (composed via Recraft's first-party MCP per D-RA-14).\n- **Composition**: `compose` tool wraps a hybrid V8 stack — Photon, jSquash codecs, Satori + resvg-wasm, Cloudflare Images Transformations.\n- **Memory + projects**: durable D1-backed storage of generation context, decisions, and notes.\n- **Discovery**: `list_pipelines`, `pipeline_capabilities`, `health`, `version`.\n\nLimner is third-party software, independent of Anthropic and Cloudflare.",
+  "author": {
+    "name": "Vinson Consulting",
+    "url": "https://github.com/vinsonconsulting/limner"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vinsonconsulting/limner.git"
+  },
+  "homepage": "https://github.com/vinsonconsulting/limner#readme",
+  "documentation": "https://github.com/vinsonconsulting/limner/blob/main/packages/limner-mcp/README.md",
+  "support": "https://github.com/vinsonconsulting/limner/issues",
+  "license": "Apache-2.0",
+  "keywords": [
+    "mcp",
+    "image-generation",
+    "dall-e",
+    "recraft",
+    "midjourney",
+    "satori",
+    "composition"
+  ],
+  "server": {
+    "type": "node",
+    "entry_point": "dist/stdio.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/dist/stdio.js"],
+      "env": {
+        "OPENAI_API_KEY": "${user_config.openai_api_key}",
+        "RECRAFT_API_KEY": "${user_config.recraft_api_key}",
+        "LIMNER_DB_PATH": "${user_config.db_path}"
+      }
+    }
+  },
+  "user_config": {
+    "openai_api_key": {
+      "type": "string",
+      "title": "OpenAI API Key",
+      "description": "Required for `generate_dalle` (https://platform.openai.com/api-keys).",
+      "sensitive": true,
+      "required": false
+    },
+    "recraft_api_key": {
+      "type": "string",
+      "title": "Recraft API Key",
+      "description": "Required for `generate_recraft` in remote mode (https://www.recraft.ai/profile/api).",
+      "sensitive": true,
+      "required": false
+    },
+    "db_path": {
+      "type": "string",
+      "title": "Local SQLite DB Path",
+      "description": "Where Limner stores memory + projects + sessions. Default: ~/.limner/limner.db",
+      "default": "${HOME}/.limner/limner.db",
+      "required": false
+    }
+  }
+}

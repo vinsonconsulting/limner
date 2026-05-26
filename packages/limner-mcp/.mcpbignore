@@ -1,0 +1,45 @@
+# Exclude dev-only paths from the .mcpb bundle. Runtime deps (WASM
+# codecs, fonts, better-sqlite3 native bindings) are too large to skip
+# but everything below is dead weight at install time.
+
+# Test fixtures + helpers
+test/
+**/*.test.ts
+**/*.test.js
+**/*.spec.ts
+**/*.test.d.ts
+
+# Source maps (the bundle ships compiled dist/ — maps add ~2x size)
+**/*.js.map
+**/*.d.ts.map
+
+# Build metadata
+**/tsconfig.tsbuildinfo
+**/.tsbuildinfo
+
+# Documentation
+**/README.md
+**/CHANGELOG.md
+**/LICENSE*
+**/*.md
+docs/
+
+# IDE / editor cruft
+.vscode/
+.idea/
+**/.DS_Store
+
+# Type definitions for dev tools we don't ship at runtime
+**/node_modules/@types/
+
+# pnpm metadata
+.pnpm-debug.log
+pnpm-lock.yaml
+
+# Misc
+**/coverage/
+**/*.log
+
+# Architecture / planning docs — they live in docs/ and the resume file,
+# not the runtime bundle.
+plans/

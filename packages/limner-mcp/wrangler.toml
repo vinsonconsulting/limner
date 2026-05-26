@@ -1,12 +1,40 @@
 name = "limner-mcp"
-main = "src/index.ts"
-compatibility_date = "2026-05-24"
+main = "src/worker.ts"
+compatibility_date = "2026-05-25"
 compatibility_flags = ["nodejs_compat"]
 
-# D1 binding added in Phase 4 when the MCP server starts using @limner/core's
-# D1MemoryStore. Until then, this stub exists so wrangler dev/deploy work.
+# Phase 4 (D-RA-04, D-RA-06, D-RA-16) bindings.
+
+# D1 — durable state (memory, projects, sessions). Schema source of
+# truth at <repo-root>/migrations/0001_initial_schema.sql; consumed by
+# both `wrangler d1 migrations apply` and createLocalBindings's
+# schemaPath in stdio mode.
+[[d1_databases]]
+binding = "DB"
+database_name = "limner-rasa-dev"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "../../migrations"
+
+# KV — OAuth token storage for workers-oauth-provider (Step 8).
+# Per D-RA-06: Cloudflare KV (encrypted at rest). The binding MUST be
+# named `OAUTH_KV` — that's the name workers-oauth-provider looks up
+# at runtime (per its README).
+[[kv_namespaces]]
+binding = "OAUTH_KV"
+id = "00000000000000000000000000000000"
+
+# Cloudflare Images Transformations binding (D-RA-16). Used by the
+# compose tool's cf-images-* ops (cfTransform / cfOverlay / cfBlur /
+# cfSmartCrop / cfBackgroundFill).
 #
-# [[d1_databases]]
-# binding = "DB"
-# database_name = "limner-rasa-dev"
-# database_id = "<set after `wrangler d1 create`>"
+# Requires Images Transformations to be enabled on the account; if
+# disabled at deploy time, ctx.images stays undefined and the compose
+# handler returns 'unsupported_in_stdio' (or its Workers equivalent)
+# rather than crashing.
+[images]
+binding = "IMAGES"
+
+# Pipeline credentials live in Cloudflare Secrets, not wrangler.toml.
+# Operator runs (once per environment):
+#   wrangler secret put OPENAI_API_KEY
+#   wrangler secret put RECRAFT_API_KEY

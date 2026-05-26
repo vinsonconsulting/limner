@@ -78,6 +78,40 @@ const notes = await projects.listNotes(rasa.id);
 
 `delete()` cascades to `project_notes` via the schema's FK constraint.
 
+## Compose
+
+Hybrid V8 composition stack per D-RA-16. Functions, not pipelines — internal stages used by the Phase 4 MCP `compose` tool and the Phase 5 CMA custom tool. Four primitive modules + unified facade:
+
+```ts
+import { compose } from '@limner/core';
+
+const resized = compose.resize(inputBytes, 512, 512, 'cover');
+const asJpeg  = await compose.convert(resized, 'png', 'jpeg', { quality: 85 });
+const labeled = compose.watermark(asJpeg, logoBytes, 16, 16);
+```
+
+**The JPEG-output-size quirk** (D-RA-16): Photon balloons JPEG output after `resize` / `crop` / `watermark`. Route JPEG output through `compose.encode('jpeg', ...)` (jSquash) or `compose.cfTransform(..., {}, 'image/jpeg')` (CF Images) for the size fix.
+
+**V8 memory cap**: V8 isolates cap at 128 MB total (V8 runtime + WASM modules + image data). Practical ceiling ~10 megapixels per image. For oversize work, route through `compose.cfTransform()` (network primitive, no in-isolate memory pressure).
+
+### Primitive APIs
+
+| Function | Module | Notes |
+|---|---|---|
+| `compose.resize` | photon-ops | `fit: 'cover' \| 'contain'`. JPEG output requires re-encode (see quirk). |
+| `compose.crop` | photon-ops | Rectangular crop, `(x, y, width, height)` shape. |
+| `compose.brightness` / `contrast` / `blur` / `sharpen` | photon-ops | In-isolate filters. |
+| `compose.watermark` | photon-ops | Single-layer overlay; multi-layer = chain calls or use `cfOverlay`. |
+| `compose.encode` / `decode` / `convert` | jsquash-codecs | JPEG / PNG / WebP / AVIF. |
+| `compose.renderText` | satori-text | JSX → SVG → PNG. Default font: IBM Plex Sans (SIL OFL) in `assets/fonts/`. Call `ensureResvgInit` first in Workers; in Node tests use the helper at `test/compose/helpers/satori-init.ts`. |
+| `compose.cfTransform` / `cfOverlay` / `cfBlur` / `cfSmartCrop` / `cfBackgroundFill` | cf-images-transform | Requires the Cloudflare Images binding (wires up Phase 4). |
+
+### Known-skip categories (D-RA-16, D-RA-17)
+
+- Animation handling (GIF / WebP-animated / APNG)
+- libvips-parity advanced ops (revisit on user demand; D-RA-02 Containers off-ramp candidate)
+- Pixel-art-specific composition (NEAREST upscale, palette quantization, chroma key, grayscale tinting) — lives in `limner-pixel` post-D-RA-17 fork
+
 ## Schema
 
 Source of truth lives at the repo root: `migrations/0001_initial_schema.sql`.
@@ -98,8 +132,14 @@ pnpm --filter @limner/core test
 - `test/memory.parity.test.ts` — 12 cases × 2 backends = 24 tests
 - `test/context.parity.test.ts` — 8 cases × 2 backends = 16 tests
 - `test/pipelines/midjourney.test.ts` — 25 tests (prompt composition)
-- `test/pipelines/dalle.test.ts` — 15 tests (mocked fetch)
+- `test/pipelines/dalle.test.ts` — 18 tests (mocked fetch)
 - `test/pipelines/recraft.test.ts` — 15 tests (mocked transport)
+- `test/compose/photon-ops.test.ts` — 12 tests (raster primitives)
+- `test/compose/jsquash-codecs.test.ts` — 12 tests (codecs + roundtrip + cross-format)
+- `test/compose/satori-text.test.ts` — 2 tests (typography render + SSIM ≥ 0.98 vs reference)
+- `test/compose/cf-images-transform.test.ts` — 8 tests (mock binding)
+- `test/compose/facade.test.ts` — 20 tests (surface presence + cross-primitive round-trip)
+- `test/compose/legacy-equivalence.test.ts` — 3 active + 6 known-skip (SSIM ≥ 0.98 vs Python legacy per D-RA-16)
 
 All mocked. No real HTTP, no API keys required. Runs in ~2 seconds.
 
@@ -125,6 +165,7 @@ pnpm --filter @limner/core test:integration
 | DALL-E | `OPENAI_API_KEY` | live |
 | Recraft (remote) | `RECRAFT_API_KEY` | TODO — needs Phase 4 `McpRecraftTransport` |
 | Recraft (local stdio) | — | TODO — needs Phase 4 wiring + local server |
+| compose (`cf-images-transform`) | `CLOUDFLARE_API_TOKEN` | scaffolding — real binding lands with Phase 4 deploy work (D-RA-16) |
 
 Each live integration test makes one real API call (counts against your
 quota). Timeout is 90 seconds per test.
