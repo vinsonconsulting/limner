@@ -36,6 +36,43 @@ The legacy proprietary work that preceded the OSS pivot is preserved at `vinsonc
 
 See [`docs/Limner_Cloudflare_CMA_Architecture.md`](docs/Limner_Cloudflare_CMA_Architecture.md) for the authoritative architecture reference.
 
+## Pipelines and primitives
+
+### Generation pipelines (`@limner/core` → `packages/limner-core/src/pipelines/`)
+
+- **DALL·E** — OpenAI Images API (gpt-image-1 default; dall-e-3 / dall-e-2 supported)
+- **Recraft** — adapter over Recraft's first-party MCP server (remote `mcp.recraft.ai` + local stdio per D-RA-14)
+- **Midjourney** — prompt composition only (no API; downstream tool runs the human-in-the-loop step)
+
+RetroDiffusion (D-RA-18) and Pixellab (D-RA-17) live in `limner-pixel`, not rasa.
+
+### Composition stack (D-RA-16, `@limner/core` → `packages/limner-core/src/compose/`)
+
+Hybrid V8 stack running entirely in Cloudflare Workers isolates. No Containers (D-RA-02 reserved). No Sharp / libvips. Four modules + facade:
+
+- **photon-ops** (`@cf-wasm/photon`) — resize, crop, brightness, contrast, blur, sharpen, watermark
+- **jsquash-codecs** (`@jsquash/{jpeg,png,webp,avif}`) — encode / decode / convert (fixes Photon's JPEG-output-size quirk)
+- **satori-text** (`satori` + `@resvg/resvg-wasm`) — typography (JSX → SVG → PNG). Default font: IBM Plex Sans Regular (SIL OFL 1.1) in `packages/limner-core/assets/fonts/`.
+- **cf-images-transform** (Cloudflare Images binding) — overlay, blur, smart-crop, background fill, visual effects (network primitive; binding wires up Phase 4)
+
+Consumed via `import { compose } from '@limner/core'`. Pipeline / MCP tool code never reaches into individual primitive modules. Visual-equivalence tests vs the Python legacy assert SSIM ≥ 0.98.
+
+**Known-skip categories** (per D-RA-16, D-RA-17):
+
+- Animation handling (GIF / WebP-animated / APNG frame manipulation)
+- libvips-parity advanced ops (revisit only on user demand; Containers off-ramp candidate per D-RA-02)
+- Pixel-art-specific composition (NEAREST upscale, palette quantization, chroma key, grayscale tinting) — lives in `limner-pixel` per D-RA-17
+
+### MCP server (`@limner/mcp` → `packages/limner-mcp/`)
+
+Three transports, one tool surface:
+
+- **Workers Streamable HTTP** — production endpoint at `/mcp`, OAuth-protected via `@cloudflare/workers-oauth-provider` (D-RA-06). Deploy via `wrangler deploy`.
+- **stdio** (preview at v1 per D-RA-05 amendment) — for Claude Desktop, local dev, the `.mcpb` bundle.
+- **`.mcpb` bundle** — single-click install for Claude Desktop. Packed by `.github/workflows/build-mcpb.yml` on `mcpb-v*` tags.
+
+15 MCP tools wrap the `@limner/core` surface: 3 pipelines (`generate_dalle` / `generate_midjourney` / `generate_recraft`) + 1 composition tool (`compose`, discriminated-union over 17 ops) + 4 memory tools + 3 project tools + 4 meta tools. Full list in [`packages/limner-mcp/README.md`](packages/limner-mcp/README.md).
+
 ## Status
 
 Pre-v1. The repo is in foundational scaffolding. Code lands in phases per the architecture document:
@@ -51,7 +88,49 @@ Pre-v1. The repo is in foundational scaffolding. Code lands in phases per the ar
 
 ## Quickstart
 
-Coming in Phase 4. Until then, see the architecture document for the full design.
+### Local stdio (Claude Desktop or any stdio MCP client)
+
+```bash
+git clone https://github.com/vinsonconsulting/limner.git
+cd limner
+pnpm install --frozen-lockfile
+pnpm -r build
+
+# Run the stdio server directly:
+OPENAI_API_KEY=sk-... node packages/limner-mcp/dist/stdio.js
+```
+
+For Claude Desktop, add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+```jsonc
+{
+  "mcpServers": {
+    "limner": {
+      "command": "node",
+      "args": ["/absolute/path/to/limner/packages/limner-mcp/dist/stdio.js"],
+      "env": { "OPENAI_API_KEY": "sk-...", "RECRAFT_API_KEY": "..." }
+    }
+  }
+}
+```
+
+### Local Workers HTTP (smoke-testing the OAuth-protected surface)
+
+```bash
+cd packages/limner-mcp
+wrangler dev --local
+
+# In another shell:
+npx @modelcontextprotocol/inspector http://localhost:8787/mcp
+```
+
+### `.mcpb` bundle (Claude Desktop one-click install)
+
+Released via GitHub Actions on `mcpb-v*` tags. Download the `.mcpb` from a release, open with Claude Desktop, fill in the API-key prompts.
+
+### Production deployment
+
+Phase 7 ships the production deploy recipe (`wrangler deploy`, OAuth client registration, DNS / domain). Until then, only local dev + dogfood is in scope.
 
 ## Contributing
 

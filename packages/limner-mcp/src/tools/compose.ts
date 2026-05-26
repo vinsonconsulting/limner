@@ -1,0 +1,306 @@
+// The compose tool wraps the @limner/core compose facade (Phase 3,
+// D-RA-16) as a single MCP tool with a discriminated-union op input.
+// Inputs/outputs are base64-encoded image bytes (MCP wire format).
+//
+// Single-tool design chosen 2026-05-25 — matches the architecture's
+// single-bullet phrasing for the `compose` tool, and keeps the MCP
+// registry uncluttered (1 entry vs 17).
+//
+// cf-images-transform ops require ctx.images (Workers transport only);
+// the handler returns isError=true with a clear "unsupported_in_stdio"
+// message when invoked under the stdio transport.
+//
+// Refs: D-RA-16
+
+import { z } from 'zod';
+import {
+  compose,
+  type Format,
+  type FitMode,
+} from '@limner/core';
+import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+
+import type { Tool, ToolContext } from '../server.js';
+
+const formatSchema: z.ZodType<Format> = z.enum(['jpeg', 'png', 'webp', 'avif']);
+const fitModeSchema: z.ZodType<FitMode> = z.enum(['cover', 'contain']);
+const cfFitSchema = z.enum(['scale-down', 'contain', 'cover', 'crop', 'pad']);
+
+// ---------------- per-op schemas ----------------
+
+// In-isolate (photon) ops — base64 string in/out.
+const photonOps = [
+  z.object({
+    op: z.literal('resize'),
+    input: z.string().describe('base64-encoded image bytes (PNG/JPEG/WebP/AVIF auto-detected).'),
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
+    fit: fitModeSchema.default('cover'),
+  }),
+  z.object({
+    op: z.literal('crop'),
+    input: z.string(),
+    x: z.number().int().nonnegative(),
+    y: z.number().int().nonnegative(),
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
+  }),
+  z.object({ op: z.literal('brightness'), input: z.string(), delta: z.number() }),
+  z.object({ op: z.literal('contrast'), input: z.string(), factor: z.number() }),
+  z.object({ op: z.literal('blur'), input: z.string(), radius: z.number() }),
+  z.object({ op: z.literal('sharpen'), input: z.string() }),
+  z.object({
+    op: z.literal('watermark'),
+    base: z.string(),
+    overlay: z.string(),
+    x: z.number().int(),
+    y: z.number().int(),
+  }),
+] as const;
+
+// jSquash codec ops.
+const codecOps = [
+  z.object({
+    op: z.literal('encode'),
+    raw: z.object({
+      data: z.string().describe('base64 of raw RGBA bytes (width*height*4 length).'),
+      width: z.number().int().positive(),
+      height: z.number().int().positive(),
+    }),
+    format: formatSchema,
+    quality: z.number().int().min(1).max(100).optional(),
+  }),
+  z.object({ op: z.literal('decode'), input: z.string(), format: formatSchema }),
+  z.object({
+    op: z.literal('convert'),
+    input: z.string(),
+    from: formatSchema,
+    to: formatSchema,
+    quality: z.number().int().min(1).max(100).optional(),
+  }),
+] as const;
+
+// Satori typography op.
+const satoriOps = [
+  z.object({
+    op: z.literal('renderText'),
+    jsx: z.unknown().describe('JSX-shaped object literal: { type, props: { style, children } }.'),
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
+    fonts: z
+      .array(
+        z.object({
+          name: z.string(),
+          data: z.string().describe('base64-encoded TTF/OTF font bytes.'),
+          weight: z.number().int().min(100).max(900).optional(),
+          style: z.enum(['normal', 'italic']).optional(),
+        }),
+      )
+      .min(1)
+      .describe('Workers transport: load fonts via R2/KV binding and pass here. Stdio transport: provide the font bytes directly.'),
+  }),
+] as const;
+
+// Cloudflare Images Transformations ops — require ctx.images.
+const cfOps = [
+  z.object({
+    op: z.literal('cfTransform'),
+    input: z.string(),
+    opts: z.object({
+      width: z.number().int().positive().optional(),
+      height: z.number().int().positive().optional(),
+      fit: cfFitSchema.optional(),
+      blur: z.number().min(1).max(250).optional(),
+      brightness: z.number().min(0).max(2).optional(),
+      contrast: z.number().min(0).max(2).optional(),
+      background: z.string().optional(),
+    }),
+    outputFormat: z.enum(['image/png', 'image/jpeg', 'image/webp', 'image/avif']).optional(),
+  }),
+  z.object({
+    op: z.literal('cfOverlay'),
+    base: z.string(),
+    overlay: z.string(),
+    top: z.number().int(),
+    left: z.number().int(),
+  }),
+  z.object({ op: z.literal('cfBlur'), input: z.string(), radius: z.number() }),
+  z.object({
+    op: z.literal('cfSmartCrop'),
+    input: z.string(),
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
+  }),
+  z.object({
+    op: z.literal('cfBackgroundFill'),
+    input: z.string(),
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
+    background: z.string(),
+  }),
+] as const;
+
+const composeInputSchema = z.discriminatedUnion('op', [
+  ...photonOps,
+  ...codecOps,
+  ...satoriOps,
+  ...cfOps,
+]);
+
+type ComposeInput = z.infer<typeof composeInputSchema>;
+
+// ---------------- base64 helpers ----------------
+
+function b64decode(b64: string): Uint8Array {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+function b64encode(bytes: Uint8Array): string {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]!);
+  return btoa(bin);
+}
+
+function imageResult(bytes: Uint8Array, mimeType = 'image/png', meta: Record<string, unknown> = {}): CallToolResult {
+  return {
+    content: [{ type: 'image', data: b64encode(bytes), mimeType }],
+    structuredContent: { op: meta['op'], mimeType, ...meta },
+  };
+}
+
+function textResult(text: string, meta: Record<string, unknown> = {}): CallToolResult {
+  return {
+    content: [{ type: 'text', text }],
+    structuredContent: meta,
+  };
+}
+
+function errorResult(message: string): CallToolResult {
+  return { content: [{ type: 'text', text: message }], isError: true };
+}
+
+// ---------------- handler ----------------
+
+async function handle(input: ComposeInput, ctx: ToolContext): Promise<CallToolResult> {
+  switch (input.op) {
+    case 'resize':
+      return imageResult(compose.resize(b64decode(input.input), input.width, input.height, input.fit), 'image/png', { op: 'resize' });
+    case 'crop':
+      return imageResult(compose.crop(b64decode(input.input), input.x, input.y, input.width, input.height), 'image/png', { op: 'crop' });
+    case 'brightness':
+      return imageResult(compose.brightness(b64decode(input.input), input.delta), 'image/png', { op: 'brightness' });
+    case 'contrast':
+      return imageResult(compose.contrast(b64decode(input.input), input.factor), 'image/png', { op: 'contrast' });
+    case 'blur':
+      return imageResult(compose.blur(b64decode(input.input), input.radius), 'image/png', { op: 'blur' });
+    case 'sharpen':
+      return imageResult(compose.sharpen(b64decode(input.input)), 'image/png', { op: 'sharpen' });
+    case 'watermark':
+      return imageResult(compose.watermark(b64decode(input.base), b64decode(input.overlay), input.x, input.y), 'image/png', { op: 'watermark' });
+
+    case 'encode': {
+      const raw = {
+        data: new Uint8ClampedArray(b64decode(input.raw.data).buffer),
+        width: input.raw.width,
+        height: input.raw.height,
+      };
+      const out = await compose.encode(input.format, raw, input.quality !== undefined ? { quality: input.quality } : undefined);
+      return imageResult(out, `image/${input.format}`, { op: 'encode', format: input.format });
+    }
+    case 'decode': {
+      const decoded = await compose.decode(input.format, b64decode(input.input));
+      // Decode produces raw RGBA bytes; return as structured text since
+      // there's no MCP content block for raw pixel arrays. Caller can
+      // round-trip via compose encode.
+      return textResult(
+        JSON.stringify({
+          width: decoded.width,
+          height: decoded.height,
+          rawBase64: b64encode(new Uint8Array(decoded.data.buffer, decoded.data.byteOffset, decoded.data.byteLength)),
+        }),
+        { op: 'decode', width: decoded.width, height: decoded.height },
+      );
+    }
+    case 'convert': {
+      const out = await compose.convert(b64decode(input.input), input.from, input.to, input.quality !== undefined ? { quality: input.quality } : undefined);
+      return imageResult(out, `image/${input.to}`, { op: 'convert', from: input.from, to: input.to });
+    }
+
+    case 'renderText': {
+      // Satori's font weight is a literal union (100|200|...|900); zod's
+      // .min(100).max(900) keeps the schema readable but emits `number`,
+      // so we cast at the boundary. Out-of-range values are rejected by
+      // zod before the handler runs.
+      const fonts = input.fonts.map((f) => ({
+        name: f.name,
+        data: b64decode(f.data),
+        weight: f.weight as 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900 | undefined,
+        style: f.style,
+      }));
+      // ensureResvgInit must be called by the transport entry point
+      // before any renderText invocation; we do not load WASM here.
+      const out = await compose.renderText(input.jsx, { width: input.width, height: input.height, fonts });
+      return imageResult(out, 'image/png', { op: 'renderText' });
+    }
+
+    case 'cfTransform':
+    case 'cfOverlay':
+    case 'cfBlur':
+    case 'cfSmartCrop':
+    case 'cfBackgroundFill': {
+      if (!ctx.images) {
+        return errorResult(
+          `compose.${input.op}: unsupported_in_stdio — Cloudflare Images binding required. Use the Workers HTTP transport, or pick an in-isolate equivalent (e.g. compose.blur instead of compose.cfBlur).`,
+        );
+      }
+      switch (input.op) {
+        case 'cfTransform':
+          return imageResult(
+            await compose.cfTransform(ctx.images, b64decode(input.input), input.opts, input.outputFormat ?? 'image/png'),
+            input.outputFormat ?? 'image/png',
+            { op: 'cfTransform' },
+          );
+        case 'cfOverlay':
+          return imageResult(
+            await compose.cfOverlay(ctx.images, b64decode(input.base), b64decode(input.overlay), input.top, input.left),
+            'image/png',
+            { op: 'cfOverlay' },
+          );
+        case 'cfBlur':
+          return imageResult(
+            await compose.cfBlur(ctx.images, b64decode(input.input), input.radius),
+            'image/png',
+            { op: 'cfBlur' },
+          );
+        case 'cfSmartCrop':
+          return imageResult(
+            await compose.cfSmartCrop(ctx.images, b64decode(input.input), input.width, input.height),
+            'image/png',
+            { op: 'cfSmartCrop' },
+          );
+        case 'cfBackgroundFill':
+          return imageResult(
+            await compose.cfBackgroundFill(ctx.images, b64decode(input.input), input.width, input.height, input.background),
+            'image/png',
+            { op: 'cfBackgroundFill' },
+          );
+      }
+    }
+  }
+  // Exhaustiveness guarantee — TS should already mark this unreachable.
+  // @ts-expect-error -- unreachable
+  return errorResult(`compose: unknown op ${input.op}`);
+}
+
+// ---------------- exported tool ----------------
+
+export const composeTool: Tool<ComposeInput> = {
+  name: 'compose',
+  description:
+    'Hybrid V8 composition stack (D-RA-16). Wraps photon-ops, jsquash-codecs, satori-text, and cf-images-transform behind a single discriminated-union op input. Inputs/outputs are base64-encoded image bytes (PNG default). cf-images ops require the Workers transport (IMAGES binding).',
+  inputSchema: composeInputSchema,
+  handler: handle,
+};

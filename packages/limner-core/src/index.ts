@@ -54,3 +54,25 @@ export {
   DallePipeline,
   RecraftPipeline,
 } from './pipelines/index.js';
+
+// Composition stack (Phase 3, D-RA-16). Hybrid V8 primitives + facade.
+// Pipeline / MCP tool code imports { compose } from '@limner/core'.
+export { compose } from './compose/index.js';
+// Compose primitive types (consumed by Phase 4's compose MCP tool to
+// type ctx.images and zod schemas).
+export type {
+  Format,
+  CodecOpts,
+  DecodedImage,
+  FitMode,
+  SatoriJsx,
+  SatoriFont,
+  SatoriRenderOptions,
+  CFImagesBinding,
+  CFImagesInputHandle,
+  CFImagesTransformHandle,
+  CFImagesTransformOptions,
+  CFImagesOutputFormat,
+  CFImagesFit,
+  CFImagesDrawLayer,
+} from './compose/index.js';

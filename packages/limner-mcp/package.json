@@ -7,22 +7,32 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "limner-mcp": "./dist/stdio.js"
+  },
   "files": [
     "dist",
-    "src"
+    "src",
+    "manifest.json"
   ],
   "scripts": {
     "typecheck": "tsc -p . --noEmit",
     "test": "vitest run --passWithNoTests",
-    "build": "tsc -p .",
+    "build": "tsc -p . && chmod +x dist/stdio.js",
+    "start:stdio": "node dist/stdio.js",
     "clean": "rm -rf dist .tsbuildinfo"
   },
   "dependencies": {
+    "@cloudflare/workers-oauth-provider": "^0.7.0",
     "@limner/core": "workspace:*",
-    "@modelcontextprotocol/sdk": "^1.0.0"
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^3.25.76",
+    "zod-to-json-schema": "^3.25.2"
   },
   "devDependencies": {
+    "@anthropic-ai/mcpb": "^2.1.2",
     "@cloudflare/workers-types": "^4.20250101.0",
+    "@modelcontextprotocol/inspector": "^0.21.2",
     "@types/node": "^22.0.0",
     "typescript": "^5.6.0",
     "vitest": "^3.0.0",
