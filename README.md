@@ -73,6 +73,10 @@ Three transports, one tool surface:
 
 15 MCP tools wrap the `@limner/core` surface: 3 pipelines (`generate_dalle` / `generate_midjourney` / `generate_recraft`) + 1 composition tool (`compose`, discriminated-union over 17 ops) + 4 memory tools + 3 project tools + 4 meta tools. Full list in [`packages/limner-mcp/README.md`](packages/limner-mcp/README.md).
 
+### CMA custom tools (`@limner/cma-tools` → `packages/limner-cma-tools/`)
+
+The **Path A** surface (D-RA-12) — same 15-tool contract as `@limner/mcp`, packaged for the [cloudflare/claude-managed-agents](https://github.com/cloudflare/claude-managed-agents) template. Ships as a library exporting `LIMNER_TOOLS`; consuming Workers import and spread into their `CUSTOM_TOOLS` array. Per D-RA-12, the CMA agent dogfoods Path B in v1; migration to Path A waits for the dogfood criteria. Full setup in [`packages/limner-cma-tools/README.md`](packages/limner-cma-tools/README.md).
+
 ## Status
 
 Pre-v1. The repo is in foundational scaffolding. Code lands in phases per the architecture document:
