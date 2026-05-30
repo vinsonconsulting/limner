@@ -38,3 +38,33 @@ binding = "IMAGES"
 # Operator runs (once per environment):
 #   wrangler secret put OPENAI_API_KEY
 #   wrangler secret put RECRAFT_API_KEY
+
+# ---------------------------------------------------------------------------
+# Production environment (Phase 6). `wrangler deploy --env production` uses
+# these; top-level config above stays the dev surface (wrangler dev --local).
+#
+# Resources provisioned 2026-05-26:
+#   D1  limner-rasa-prod   0bfdc696-1e98-4aba-8e57-80f08d2594f6  (schema applied)
+#   KV  OAUTH_KV_PROD      bd9c94b480cd4376a43609a37d73c593
+#
+# No R2 binding: @limner/mcp returns images inline as base64; R2 is a
+# @limner/cma-tools (Path A) concern that lands with Phase 7 deploy work.
+# ---------------------------------------------------------------------------
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "limner-rasa-prod"
+database_id = "0bfdc696-1e98-4aba-8e57-80f08d2594f6"
+migrations_dir = "../../migrations"
+
+[[env.production.kv_namespaces]]
+# Binding name MUST stay OAUTH_KV (workers-oauth-provider looks it up by
+# name); only the underlying namespace id differs between dev and prod.
+binding = "OAUTH_KV"
+id = "bd9c94b480cd4376a43609a37d73c593"
+
+[env.production.images]
+binding = "IMAGES"
+
+# Prod secrets (operator runs once):
+#   wrangler secret put OPENAI_API_KEY  --env production
+#   wrangler secret put RECRAFT_API_KEY --env production
