@@ -20,6 +20,12 @@ worker-configuration.d.ts
 .env.local
 .env.*.local
 
+# Migration outputs — the *.ts script is the committed artifact; the
+# generated SQL (and any local CMA memory export) is regenerable and
+# may contain memory content, so it stays out of git.
+migrations/generated/
+cma-memory-export.json
+
 # IDE
 .vscode/
 .idea/
