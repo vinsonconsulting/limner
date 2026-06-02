@@ -1,0 +1,16 @@
+# Test-only wrangler config for the Phase 6c DO handshake regression test.
+# Booted by test/worker.handshake.test.ts via wrangler's unstable_dev against
+# the bare entry (test/handshake-main.ts). Declares only the LimnerMCP Durable
+# Object — no D1/KV/Images, no OAuth — keeping the test hermetic. `main` is
+# supplied as the unstable_dev() script argument, not here.
+name = "limner-mcp-handshake-test"
+compatibility_date = "2025-07-12"
+compatibility_flags = ["nodejs_compat"]
+
+[[durable_objects.bindings]]
+name = "LIMNER_MCP"
+class_name = "LimnerMCP"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["LimnerMCP"]
