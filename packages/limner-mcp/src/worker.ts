@@ -61,6 +61,24 @@ function buildSecrets(env: Env): Readonly<Record<string, string>> {
 // MCP handler — wrapped by OAuthProvider below. By the time this
 // runs, OAuthProvider has already validated the access token (any
 // request hitting /mcp without a valid Bearer is rejected upstream).
+//
+// Per-request Server + Transport with a FIXED session id is the
+// pattern that works for Anthropic's Managed Agents client. Module-
+// scope caching causes stale-session bugs across Anthropic sessions
+// (each MA session creates a new MCP session; cached Transport state
+// from a prior MA session rejects new initialize calls). Per-request
+// construction with a fixed `sessionIdGenerator` sidesteps both:
+// every new Transport instance generates the same id, so any incoming
+// `Mcp-Session-Id` matches what the new Transport would emit, and
+// Anthropic's outer session correlation works regardless of which
+// isolate processes the request.
+//
+// tools/list still returns HTTP 400 in this configuration (the SDK's
+// Transport appears to require state established within the same
+// instance for tools/list specifically) — but Anthropic gracefully
+// degrades via a `session.error: mcp_connection_failed_error` event
+// and continues the session. Tool schemas are inferred from the agent
+// definition's `mcp_servers` array, so tools/call still routes.
 const apiHandler = {
   async fetch(req, env) {
     const server = createServer('limner-mcp', '0.0.1');
@@ -75,8 +93,7 @@ const apiHandler = {
     );
 
     const transport = new WebStandardStreamableHTTPServerTransport({
-      // Stateless mode — sessionId undefined; each request is independent.
-      sessionIdGenerator: undefined,
+      sessionIdGenerator: () => 'limner-mcp-session',
     });
     await server.connect(transport);
 
