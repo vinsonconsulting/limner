@@ -1,16 +1,31 @@
 // Workers entry point. The default export is an OAuthProvider that
-// wraps the MCP handler under apiRoute=/mcp and routes everything
-// else to the defaultHandler (auto-approve /authorize + a stub root
-// page). The OAuthProvider implements /oauth/token, /oauth/register,
-// /.well-known/oauth-authorization-server itself.
+// wraps the LimnerMCP DurableObject under apiRoute=/mcp and routes
+// everything else to the defaultHandler (auto-approve /authorize + a
+// stub root page). The OAuthProvider implements /oauth/token,
+// /oauth/register, /.well-known/oauth-authorization-server itself.
+//
+// Phase 6c (2026-06-01): LimnerMCP extends McpAgent (DO-backed stateful
+// MCP). The session-id correlation that the SDK's
+// StreamableHTTPServerTransport requires across the
+// initialize → notifications/initialized → tools/list → tools/call
+// chain is delivered by routing on Mcp-Session-Id to a persistent DO
+// instance per session.
+//
+// Historical (Phase 6b, kept in git blame at commit 206f07c):
+// per-request Server+Transport with a fixed sessionIdGenerator was a
+// workaround for Anthropic Managed Agents' model_request_failed_error.
+// That unblocked the model but left tools/list returning HTTP 400
+// because the SDK's Transport keeps dispatch state on the instance.
+// Replaced wholesale in 6c.
 //
 // Refs: D-RA-05, D-RA-06, D-RA-12
 
+import { McpAgent } from 'agents/mcp';
 import { OAuthProvider } from '@cloudflare/workers-oauth-provider';
 import type { OAuthHelpers } from '@cloudflare/workers-oauth-provider';
-import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import type {
   D1Database,
+  DurableObjectNamespace,
   ExportedHandler,
   ImagesBinding,
   KVNamespace,
@@ -30,6 +45,10 @@ export interface Env {
   DB: D1Database;
   // KV — required by workers-oauth-provider; binding name is mandated.
   OAUTH_KV: KVNamespace;
+  // Phase 6c — Durable Object namespace backing LimnerMCP. One DO
+  // instance per Mcp-Session-Id. Class registered via wrangler.toml
+  // migration tag v1.
+  LIMNER_MCP: DurableObjectNamespace;
   // Cloudflare Images Transformations binding. Optional at the type
   // level so the worker still boots in accounts/zones without Images
   // enabled — compose's cf-* ops self-report unsupported when missing.
@@ -58,57 +77,58 @@ function buildSecrets(env: Env): Readonly<Record<string, string>> {
   return out;
 }
 
-// MCP handler — wrapped by OAuthProvider below. By the time this
-// runs, OAuthProvider has already validated the access token (any
-// request hitting /mcp without a valid Bearer is rejected upstream).
+// LimnerMCP — DO-backed MCP server. McpAgent's `server` abstract field
+// accepts the low-level Server (from @modelcontextprotocol/sdk/server/
+// index.js) as well as McpServer; our createServer() returns the
+// low-level Server, so registerTools() (which calls setRequestHandler
+// directly) transfers verbatim from the stdio path. Tool definitions,
+// zod schemas, and the toMcpInputSchema conversion all stay unchanged.
 //
-// Per-request Server + Transport with a FIXED session id is the
-// pattern that works for Anthropic's Managed Agents client. Module-
-// scope caching causes stale-session bugs across Anthropic sessions
-// (each MA session creates a new MCP session; cached Transport state
-// from a prior MA session rejects new initialize calls). Per-request
-// construction with a fixed `sessionIdGenerator` sidesteps both:
-// every new Transport instance generates the same id, so any incoming
-// `Mcp-Session-Id` matches what the new Transport would emit, and
-// Anthropic's outer session correlation works regardless of which
-// isolate processes the request.
+// Lifecycle: init() runs once when the MCP session establishes against
+// this DO instance. Tool registration happens there; the same Server
+// instance handles every subsequent request in the session, with
+// transport state preserved on the long-lived DO.
 //
-// tools/list still returns HTTP 400 in this configuration (the SDK's
-// Transport appears to require state established within the same
-// instance for tools/list specifically) — but Anthropic gracefully
-// degrades via a `session.error: mcp_connection_failed_error` event
-// and continues the session. Tool schemas are inferred from the agent
-// definition's `mcp_servers` array, so tools/call still routes.
-const apiHandler = {
-  async fetch(req, env) {
-    const server = createServer('limner-mcp', '0.0.1');
+// State + Props ship empty in 6c. Real user identity propagation lands
+// when external human consumers come online (D-RA-12). At that point,
+// LimnerProps grows a userId + scope; defaultHandler's
+// completeAuthorization call grows a non-empty props payload.
+type LimnerState = Record<string, never>;
+type LimnerProps = Record<string, never>;
+
+export class LimnerMCP extends McpAgent<Env, LimnerState, LimnerProps> {
+  server = createServer('limner-mcp', '0.0.1');
+
+  async init(): Promise<void> {
     registerTools(
-      server,
+      this.server,
       [...pipelineTools, composeTool, ...memoryTools, ...projectTools, ...metaTools],
       (): ToolContext => ({
-        bindings: buildWorkersBindings(env),
-        images: env.IMAGES as unknown as CFImagesBinding | undefined,
-        secrets: buildSecrets(env),
+        bindings: buildWorkersBindings(this.env),
+        images: this.env.IMAGES as unknown as CFImagesBinding | undefined,
+        secrets: buildSecrets(this.env),
       }),
     );
-
-    const transport = new WebStandardStreamableHTTPServerTransport({
-      sessionIdGenerator: () => 'limner-mcp-session',
-    });
-    await server.connect(transport);
-
-    return (await transport.handleRequest(
-      req as unknown as globalThis.Request,
-    )) as unknown as Response;
-  },
-} satisfies ExportedHandler<Env>;
+  }
+}
 
 // The OAuthProvider wraps everything. apiHandler is invoked only for
 // requests that pass the token check; defaultHandler sees everything
 // else (including the /authorize flow).
+//
+// McpAgent.serve() returns a `{ fetch }`-shaped object — compatible
+// with OAuthProvider's apiHandler field at runtime. The cast is a
+// structural-only nudge: serve()'s fetch signature is generic over
+// Env, while OAuthProvider's apiHandler wants ExportedHandlerWithFetch<Env>
+// for a specific Env. Cast through `unknown` to a non-optional-fetch
+// shape so TS accepts the assignment without losing runtime correctness.
+type ApiHandlerShape = {
+  fetch: (request: Request, env: Env, ctx: ExecutionContext) => Promise<Response>;
+};
+
 export default new OAuthProvider<Env>({
   apiRoute: '/mcp',
-  apiHandler,
+  apiHandler: LimnerMCP.serve('/mcp', { binding: 'LIMNER_MCP' }) as unknown as ApiHandlerShape,
   // The defaultHandler is typed against OAuthEnv (a narrow subset),
   // which is structurally a subset of our Env, so the OAuth provider
   // accepts it; cast to satisfy nominal type identity.
