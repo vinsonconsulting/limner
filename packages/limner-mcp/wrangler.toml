@@ -34,6 +34,19 @@ id = "00000000000000000000000000000000"
 [images]
 binding = "IMAGES"
 
+# Durable Object — McpAgent class for Phase 6c. Backed by SQLite (per
+# new_sqlite_classes migration below). One DO instance per Mcp-Session-Id,
+# keyed by Anthropic's session header so the SDK's Transport state actually
+# persists across `initialize → notifications/initialized → tools/list →
+# tools/call`. See packages/limner-mcp/src/worker.ts (LimnerMCP class).
+[[durable_objects.bindings]]
+name = "LIMNER_MCP"
+class_name = "LimnerMCP"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["LimnerMCP"]
+
 # Pipeline credentials live in Cloudflare Secrets, not wrangler.toml.
 # Operator runs (once per environment):
 #   wrangler secret put OPENAI_API_KEY
@@ -64,6 +77,18 @@ id = "00000000000000000000000000000000"
 
 [env.production.images]
 binding = "IMAGES"
+
+# Phase 6c Durable Object — production scope.
+# Wrangler does NOT inherit DO bindings/migrations across env scopes;
+# they must be redeclared here. Migration tag "v1" is per-namespace and
+# safely shared with the dev binding above.
+[[env.production.durable_objects.bindings]]
+name = "LIMNER_MCP"
+class_name = "LimnerMCP"
+
+[[env.production.migrations]]
+tag = "v1"
+new_sqlite_classes = ["LimnerMCP"]
 
 # Prod secrets (operator runs once):
 #   wrangler secret put OPENAI_API_KEY  --env production
