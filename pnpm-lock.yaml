@@ -34,7 +34,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^3.0.0
-        version: 3.2.4(@types/node@22.19.19)
+        version: 3.2.4(@types/node@22.19.19)(yaml@2.9.0)
       wrangler:
         specifier: ^4.0.0
         version: 4.94.0(@cloudflare/workers-types@4.20260524.1)
@@ -89,7 +89,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^3.0.0
-        version: 3.2.4(@types/node@22.19.19)
+        version: 3.2.4(@types/node@22.19.19)(yaml@2.9.0)
 
   packages/limner-mcp:
     dependencies:
@@ -103,8 +103,8 @@ importers:
         specifier: ^1.29.0
         version: 1.29.0(@cfworker/json-schema@4.1.1)(zod@3.25.76)
       agents:
-        specifier: ^0.12.4
-        version: 0.12.4(@babel/core@7.29.7)(@babel/runtime@7.29.7)(@cloudflare/workers-types@4.20260524.1)(ai@6.0.194(zod@3.25.76))(react@18.3.1)(rolldown@1.0.3)(vite@7.3.3(@types/node@22.19.19))(zod@3.25.76)
+        specifier: ^0.14.1
+        version: 0.14.1(@babel/core@7.29.7)(@babel/runtime@7.29.7)(@cloudflare/workers-types@4.20260524.1)(ai@6.0.194(zod@3.25.76))(react@18.3.1)(rolldown@1.0.3)(zod@3.25.76)
       zod:
         specifier: ^3.25.76
         version: 3.25.76
@@ -129,7 +129,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^3.0.0
-        version: 3.2.4(@types/node@22.19.19)
+        version: 3.2.4(@types/node@22.19.19)(yaml@2.9.0)
       wrangler:
         specifier: ^4.0.0
         version: 4.94.0(@cloudflare/workers-types@4.20260524.1)
@@ -1754,16 +1754,19 @@ packages:
     engines: {node: '>=0.4.0'}
     hasBin: true
 
-  agents@0.12.4:
-    resolution: {integrity: sha512-NWDwdZkn/422AUS3+iLd3ETIaURLF5eckpXl4INi+Y+qcupSzEDL69j9+bJ0igu5lew6f8f0LuB6uvpvbplwuw==}
+  agents@0.14.1:
+    resolution: {integrity: sha512-BZEntZYyAJRYwSqFA1/gcmTYOq72U+X7NPzYu8MMZX9CUfmS9lFYP325yK3SXDvzw+y2XLDzmW5wcvPPqHsHqw==}
     hasBin: true
     peerDependencies:
-      '@cloudflare/ai-chat': '>=0.6.1 <1.0.0'
-      '@cloudflare/codemode': '>=0.3.4 <1.0.0'
+      '@cloudflare/ai-chat': '>=0.8.0 <1.0.0'
+      '@cloudflare/codemode': '>=0.3.8 <1.0.0'
+      '@cloudflare/worker-bundler': '>=0.2.0 <1.0.0'
       '@tanstack/ai': '>=0.10.2 <1.0.0'
       '@x402/core': ^2.0.0
       '@x402/evm': ^2.0.0
       ai: ^6.0.0
+      chat: ^4.29.0
+      just-bash: ^3.0.0
       react: ^19.0.0
       vite: '>=6.0.0 <9.0.0'
       zod: ^4.0.0
@@ -1772,11 +1775,17 @@ packages:
         optional: true
       '@cloudflare/codemode':
         optional: true
+      '@cloudflare/worker-bundler':
+        optional: true
       '@tanstack/ai':
         optional: true
       '@x402/core':
         optional: true
       '@x402/evm':
+        optional: true
+      chat:
+        optional: true
+      just-bash:
         optional: true
       vite:
         optional: true
@@ -3251,6 +3260,11 @@ packages:
   yallist@3.1.1:
     resolution: {integrity: sha512-a4UGQaWPH59mOXUYnAG2ewncQS4i4F43Tv3JoAM+s2VDAmS9NsK8GpDMLrCHPksFT7h3K6TOoUNn2pb7RoXx4g==}
 
+  yaml@2.9.0:
+    resolution: {integrity: sha512-2AvhNX3mb8zd6Zy7INTtSpl1F15HW6Wnqj0srWlkKLcpYl/gMIMJiyuGq2KeI2YFxUPjdlB+3Lc10seMLtL4cA==}
+    engines: {node: '>= 14.6'}
+    hasBin: true
+
   yargs-parser@21.1.1:
     resolution: {integrity: sha512-tVpsJW7DdjecAiFpbIB1e3qxIQsE6NoPc5/eTdrbbIC4h0LVsWhnoa3g+m2HclBIujHzsxZ4VJVA+GUuc2/LBw==}
     engines: {node: '>=12'}
@@ -4474,14 +4488,13 @@ snapshots:
   '@rolldown/binding-win32-x64-msvc@1.0.3':
     optional: true
 
-  '@rolldown/plugin-babel@0.2.3(@babel/core@7.29.7)(@babel/runtime@7.29.7)(rolldown@1.0.3)(vite@7.3.3(@types/node@22.19.19))':
+  '@rolldown/plugin-babel@0.2.3(@babel/core@7.29.7)(@babel/runtime@7.29.7)(rolldown@1.0.3)':
     dependencies:
       '@babel/core': 7.29.7
       picomatch: 4.0.4
       rolldown: 1.0.3
     optionalDependencies:
       '@babel/runtime': 7.29.7
-      vite: 7.3.3(@types/node@22.19.19)
 
   '@rolldown/pluginutils@1.0.1': {}
 
@@ -4619,13 +4632,13 @@ snapshots:
       chai: 5.3.3
       tinyrainbow: 2.0.0
 
-  '@vitest/mocker@3.2.4(vite@7.3.3(@types/node@22.19.19))':
+  '@vitest/mocker@3.2.4(vite@7.3.3(@types/node@22.19.19)(yaml@2.9.0))':
     dependencies:
       '@vitest/spy': 3.2.4
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 7.3.3(@types/node@22.19.19)
+      vite: 7.3.3(@types/node@22.19.19)(yaml@2.9.0)
 
   '@vitest/pretty-format@3.2.4':
     dependencies:
@@ -4664,12 +4677,12 @@ snapshots:
 
   acorn@8.16.0: {}
 
-  agents@0.12.4(@babel/core@7.29.7)(@babel/runtime@7.29.7)(@cloudflare/workers-types@4.20260524.1)(ai@6.0.194(zod@3.25.76))(react@18.3.1)(rolldown@1.0.3)(vite@7.3.3(@types/node@22.19.19))(zod@3.25.76):
+  agents@0.14.1(@babel/core@7.29.7)(@babel/runtime@7.29.7)(@cloudflare/workers-types@4.20260524.1)(ai@6.0.194(zod@3.25.76))(react@18.3.1)(rolldown@1.0.3)(zod@3.25.76):
     dependencies:
       '@babel/plugin-proposal-decorators': 7.29.7(@babel/core@7.29.7)
       '@cfworker/json-schema': 4.1.1
       '@modelcontextprotocol/sdk': 1.29.0(@cfworker/json-schema@4.1.1)(zod@3.25.76)
-      '@rolldown/plugin-babel': 0.2.3(@babel/core@7.29.7)(@babel/runtime@7.29.7)(rolldown@1.0.3)(vite@7.3.3(@types/node@22.19.19))
+      '@rolldown/plugin-babel': 0.2.3(@babel/core@7.29.7)(@babel/runtime@7.29.7)(rolldown@1.0.3)
       ai: 6.0.194(zod@3.25.76)
       cron-schedule: 6.0.0
       mimetext: 3.0.28
@@ -4677,10 +4690,9 @@ snapshots:
       partyserver: 0.5.6(@cloudflare/workers-types@4.20260524.1)
       partysocket: 1.1.19(react@18.3.1)
       react: 18.3.1
+      yaml: 2.9.0
       yargs: 18.0.0
       zod: 3.25.76
-    optionalDependencies:
-      vite: 7.3.3(@types/node@22.19.19)
     transitivePeerDependencies:
       - '@babel/core'
       - '@babel/plugin-transform-runtime'
@@ -6042,13 +6054,13 @@ snapshots:
 
   vary@1.1.2: {}
 
-  vite-node@3.2.4(@types/node@22.19.19):
+  vite-node@3.2.4(@types/node@22.19.19)(yaml@2.9.0):
     dependencies:
       cac: 6.7.14
       debug: 4.4.3
       es-module-lexer: 1.7.0
       pathe: 2.0.3
-      vite: 7.3.3(@types/node@22.19.19)
+      vite: 7.3.3(@types/node@22.19.19)(yaml@2.9.0)
     transitivePeerDependencies:
       - '@types/node'
       - jiti
@@ -6063,7 +6075,7 @@ snapshots:
       - tsx
       - yaml
 
-  vite@7.3.3(@types/node@22.19.19):
+  vite@7.3.3(@types/node@22.19.19)(yaml@2.9.0):
     dependencies:
       esbuild: 0.27.7
       fdir: 6.5.0(picomatch@4.0.4)
@@ -6074,12 +6086,13 @@ snapshots:
     optionalDependencies:
       '@types/node': 22.19.19
       fsevents: 2.3.3
+      yaml: 2.9.0
 
-  vitest@3.2.4(@types/node@22.19.19):
+  vitest@3.2.4(@types/node@22.19.19)(yaml@2.9.0):
     dependencies:
       '@types/chai': 5.2.3
       '@vitest/expect': 3.2.4
-      '@vitest/mocker': 3.2.4(vite@7.3.3(@types/node@22.19.19))
+      '@vitest/mocker': 3.2.4(vite@7.3.3(@types/node@22.19.19)(yaml@2.9.0))
       '@vitest/pretty-format': 3.2.4
       '@vitest/runner': 3.2.4
       '@vitest/snapshot': 3.2.4
@@ -6097,8 +6110,8 @@ snapshots:
       tinyglobby: 0.2.16
       tinypool: 1.1.1
       tinyrainbow: 2.0.0
-      vite: 7.3.3(@types/node@22.19.19)
-      vite-node: 3.2.4(@types/node@22.19.19)
+      vite: 7.3.3(@types/node@22.19.19)(yaml@2.9.0)
+      vite-node: 3.2.4(@types/node@22.19.19)(yaml@2.9.0)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 22.19.19
@@ -6184,6 +6197,8 @@ snapshots:
   y18n@5.0.8: {}
 
   yallist@3.1.1: {}
+
+  yaml@2.9.0: {}
 
   yargs-parser@21.1.1: {}
 
