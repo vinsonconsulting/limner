@@ -54,21 +54,66 @@ export type Tool<TIn = any> = {
 
 export type ToolRegistry = ReadonlyMap<string, Tool>;
 
-// MCP requires every tool's `inputSchema.type` to be 'object'. zod's
-// `z.discriminatedUnion(...)` serializes via zod-to-json-schema to a
-// top-level `anyOf` (no `type` key), which the SDK rejects. We wrap
-// such schemas under `{ type: 'object', oneOf: [...] }` so the wire
-// shape stays MCP-compliant without forcing tool authors to hand-roll
-// a JSON Schema.
-function toMcpInputSchema(schema: ZodTypeAny): Record<string, unknown> {
+// MCP and the Anthropic tool API both require every tool's
+// `inputSchema.type` to be `'object'`. zod's `z.discriminatedUnion(...)`
+// serializes via zod-to-json-schema to a top-level `anyOf` (no `type`).
+//
+// We must NOT pass that through as a top-level `oneOf`/`anyOf`/`allOf`:
+// the Anthropic Messages API rejects a tool `input_schema` with a
+// top-level combinator ("input_schema does not support oneOf, allOf, or
+// anyOf at the top level"). Through Managed Agents that rejection
+// surfaces as an opaque `model_request_failed_error` (0 tokens) the
+// moment the tool loads into a model request — which is exactly how the
+// `vault_ids` 0-token failure manifested (see docs/vault-ids-findings-review.md).
+//
+// So we FLATTEN a discriminated union into a single object schema: union
+// every variant's properties, collapse the discriminator's per-variant
+// `const`s into an `enum`, and require only the fields required by every
+// variant. Strict per-variant validation still happens at call time via
+// the zod schema (`registerTools` calls `inputSchema.safeParse`), so this
+// only loosens what's *advertised*, never what's *accepted*. Nested
+// combinators (inside a property) are left untouched — the API allows
+// those; only the top level is restricted.
+function flattenUnionVariants(
+  variants: Array<Record<string, unknown>>,
+): Record<string, unknown> {
+  const properties: Record<string, unknown> = {};
+  const constValues: Record<string, Set<unknown>> = {};
+  const requiredSets: string[][] = [];
+  for (const variant of variants) {
+    const vProps = (variant.properties as Record<string, unknown>) ?? {};
+    requiredSets.push((variant.required as string[]) ?? []);
+    for (const [key, propSchema] of Object.entries(vProps)) {
+      if (propSchema && typeof propSchema === 'object' && 'const' in (propSchema as object)) {
+        (constValues[key] ??= new Set()).add((propSchema as { const: unknown }).const);
+      } else if (!(key in properties)) {
+        properties[key] = propSchema;
+      }
+    }
+  }
+  // A property that appears as a `const` (the discriminator) becomes an
+  // `enum` of all its observed values.
+  for (const [key, values] of Object.entries(constValues)) {
+    properties[key] = { type: 'string', enum: [...values] };
+  }
+  // Required = fields required by EVERY variant (intersection).
+  const required =
+    requiredSets.length === 0
+      ? []
+      : requiredSets.reduce((acc, set) => acc.filter((field) => set.includes(field)));
+  return { type: 'object', properties, required, additionalProperties: false };
+}
+
+export function toMcpInputSchema(schema: ZodTypeAny): Record<string, unknown> {
   const raw = zodToJsonSchema(schema) as Record<string, unknown> & {
     type?: string;
     anyOf?: unknown[];
     oneOf?: unknown[];
+    allOf?: unknown[];
   };
-  if (raw.type === 'object') return raw;
-  if (Array.isArray(raw.anyOf) || Array.isArray(raw.oneOf)) {
-    return { type: 'object', oneOf: raw.anyOf ?? raw.oneOf };
+  const variants = raw.anyOf ?? raw.oneOf;
+  if (Array.isArray(variants)) {
+    return flattenUnionVariants(variants as Array<Record<string, unknown>>);
   }
   return raw;
 }
