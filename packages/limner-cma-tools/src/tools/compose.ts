@@ -8,7 +8,7 @@
 
 import type { R2Bucket } from '@cloudflare/workers-types';
 import { compose, type CFImagesBinding } from '@limner/core';
-import { composeTool as mcpComposeTool } from '@limner/mcp';
+import { composeTool as mcpComposeTool, composeInputSchema } from '@limner/mcp';
 
 import { defineTool, type CustomTool } from '../runtime.js';
 import { uploadImageToR2, imageReturnEnvelope } from '../r2-upload.js';
@@ -57,6 +57,14 @@ export const composeMcpTool: CustomTool = defineTool({
   inputSchema: mcpComposeTool.inputSchema as never,
   requires: (env) => Boolean(env['BUCKET']),
   run: async (input, { env }) => {
+    // The advertised schema is intentionally loose (no top-level combinator,
+    // required by the Anthropic tool API); re-validate against the strict
+    // per-op union before dispatch — parity with Path B. See
+    // docs/vault-ids-findings-review.md.
+    const v = composeInputSchema.safeParse(input);
+    if (!v.success) {
+      throw new Error(`compose: invalid arguments: ${JSON.stringify(v.error.flatten())}`);
+    }
     const op = (input as { op: string }).op;
 
     // ---- in-isolate ops (photon + jsquash + satori) ----

@@ -11,7 +11,7 @@ export { createServer, registerTools } from './server.js';
 // Tool registries by category. Phase 5 imports these to look up zod
 // schemas by name and build Path-A wrappers around them.
 export { pipelineTools } from './tools/pipelines.js';
-export { composeTool } from './tools/compose.js';
+export { composeTool, composeInputSchema } from './tools/compose.js';
 export { memoryTools } from './tools/memory.js';
 export { projectTools } from './tools/context.js';
 export { metaTools } from './tools/meta.js';

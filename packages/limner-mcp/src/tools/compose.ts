@@ -140,7 +140,12 @@ const cfOps = [
   }),
 ] as const;
 
-const composeInputSchema = z.discriminatedUnion('op', [
+// Strict per-op schema — used for VALIDATION and handler typing, never for
+// advertising. zod serializes a discriminatedUnion to a top-level `anyOf`,
+// which the Anthropic tool API rejects (and Managed Agents masks as an opaque
+// `model_request_failed_error`). Exported so Path A (@limner/cma-tools) can
+// re-validate against the same source of truth. See docs/vault-ids-findings-review.md.
+export const composeInputSchema = z.discriminatedUnion('op', [
   ...photonOps,
   ...codecOps,
   ...satoriOps,
@@ -148,6 +153,65 @@ const composeInputSchema = z.discriminatedUnion('op', [
 ]);
 
 type ComposeInput = z.infer<typeof composeInputSchema>;
+
+// Flat ADVERTISED schema — what `tools/list` exposes to the model. Every field
+// is optional except `op`; the handler re-validates strictly against
+// `composeInputSchema`. Keeping the advertised `input_schema` free of a
+// top-level `oneOf`/`anyOf`/`allOf` is required by the Anthropic tool API,
+// while strict per-op validation is preserved at call time. Both Path B
+// (toMcpInputSchema) and Path A (the CMA template's zod->JSON conversion)
+// advertise this flat shape.
+const composeAdvertisedSchema = z.object({
+  op: z
+    .enum([
+      'resize', 'crop', 'brightness', 'contrast', 'blur', 'sharpen', 'watermark',
+      'encode', 'decode', 'convert', 'renderText',
+      'cfTransform', 'cfOverlay', 'cfBlur', 'cfSmartCrop', 'cfBackgroundFill',
+    ])
+    .describe('Composition op. The required fields differ per op (see each field).'),
+  input: z.string().optional().describe('base64 image bytes. Used by: resize, crop, brightness, contrast, blur, sharpen, decode, convert, cfTransform, cfBlur, cfSmartCrop, cfBackgroundFill.'),
+  base: z.string().optional().describe('base64 base image. Used by: watermark, cfOverlay.'),
+  overlay: z.string().optional().describe('base64 overlay image. Used by: watermark, cfOverlay.'),
+  width: z.number().int().positive().optional().describe('Used by: resize, crop, renderText, cfSmartCrop, cfBackgroundFill.'),
+  height: z.number().int().positive().optional().describe('Used by: resize, crop, renderText, cfSmartCrop, cfBackgroundFill.'),
+  x: z.number().int().optional().describe('Used by: crop, watermark.'),
+  y: z.number().int().optional().describe('Used by: crop, watermark.'),
+  top: z.number().int().optional().describe('Used by: cfOverlay.'),
+  left: z.number().int().optional().describe('Used by: cfOverlay.'),
+  fit: fitModeSchema.optional().describe('resize fit mode: cover | contain.'),
+  delta: z.number().optional().describe('brightness delta.'),
+  factor: z.number().optional().describe('contrast factor.'),
+  radius: z.number().optional().describe('Used by: blur, cfBlur.'),
+  format: formatSchema.optional().describe('Used by: encode, decode (jpeg|png|webp|avif).'),
+  from: formatSchema.optional().describe('convert source format.'),
+  to: formatSchema.optional().describe('convert target format.'),
+  quality: z.number().int().min(1).max(100).optional().describe('encode/convert quality, 1-100.'),
+  raw: z
+    .object({
+      data: z.string().describe('base64 of raw RGBA bytes (width*height*4 length).'),
+      width: z.number().int().positive(),
+      height: z.number().int().positive(),
+    })
+    .optional()
+    .describe('encode: raw RGBA source.'),
+  jsx: z.unknown().optional().describe('renderText: JSX-shaped object literal { type, props }.'),
+  fonts: z
+    .array(
+      z.object({
+        name: z.string(),
+        data: z.string().describe('base64 TTF/OTF font bytes.'),
+        weight: z.number().int().min(100).max(900).optional(),
+        style: z.enum(['normal', 'italic']).optional(),
+      }),
+    )
+    .optional()
+    .describe('renderText: fonts (at least one).'),
+  opts: z.record(z.unknown()).optional().describe('cfTransform: transform options (width/height/fit/blur/brightness/contrast/background).'),
+  outputFormat: z.enum(['image/png', 'image/jpeg', 'image/webp', 'image/avif']).optional().describe('cfTransform output format.'),
+  background: z.string().optional().describe('cfBackgroundFill background color/spec.'),
+}).describe('Single composition tool discriminated by `op`; only the chosen op\'s fields apply (validated strictly server-side).');
+
+type ComposeAdvertisedInput = z.infer<typeof composeAdvertisedSchema>;
 
 // ---------------- base64 helpers ----------------
 
@@ -184,7 +248,16 @@ function errorResult(message: string): CallToolResult {
 
 // ---------------- handler ----------------
 
-async function handle(input: ComposeInput, ctx: ToolContext): Promise<CallToolResult> {
+async function handle(raw: ComposeAdvertisedInput, ctx: ToolContext): Promise<CallToolResult> {
+  // The advertised schema is intentionally loose (no top-level combinator);
+  // re-validate against the strict per-op union before dispatch.
+  const parsed = composeInputSchema.safeParse(raw);
+  if (!parsed.success) {
+    return errorResult(
+      `compose: invalid arguments for op "${String((raw as { op?: unknown }).op)}": ${JSON.stringify(parsed.error.flatten())}`,
+    );
+  }
+  const input: ComposeInput = parsed.data;
   switch (input.op) {
     case 'resize':
       return imageResult(compose.resize(b64decode(input.input), input.width, input.height, input.fit), 'image/png', { op: 'resize' });
@@ -297,10 +370,10 @@ async function handle(input: ComposeInput, ctx: ToolContext): Promise<CallToolRe
 
 // ---------------- exported tool ----------------
 
-export const composeTool: Tool<ComposeInput> = {
+export const composeTool: Tool<ComposeAdvertisedInput> = {
   name: 'compose',
   description:
-    'Hybrid V8 composition stack (D-RA-16). Wraps photon-ops, jsquash-codecs, satori-text, and cf-images-transform behind a single discriminated-union op input. Inputs/outputs are base64-encoded image bytes (PNG default). cf-images ops require the Workers transport (IMAGES binding).',
-  inputSchema: composeInputSchema,
+    'Hybrid V8 composition stack (D-RA-16). Wraps photon-ops, jsquash-codecs, satori-text, and cf-images-transform behind a single op-discriminated input. Inputs/outputs are base64-encoded image bytes (PNG default). cf-images ops require the Workers transport (IMAGES binding).',
+  inputSchema: composeAdvertisedSchema,
   handler: handle,
 };
