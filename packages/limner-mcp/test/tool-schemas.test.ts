@@ -11,6 +11,7 @@
 // schema before it ever shipped.
 
 import { describe, expect, test } from 'vitest';
+import { zodToJsonSchema } from 'zod-to-json-schema';
 
 import { toMcpInputSchema } from '../src/server.js';
 import { pipelineTools } from '../src/tools/pipelines.js';
@@ -33,23 +34,32 @@ describe('tool input_schemas are valid for the Anthropic tool API', () => {
   });
 
   test.each(ALL_TOOLS.map((t) => [t.name, t] as const))(
-    '%s: advertised schema is an object with no top-level oneOf/anyOf/allOf',
+    '%s: no top-level oneOf/anyOf/allOf (Path B advertised + Path A source)',
     (_name, tool) => {
-      const schema = toMcpInputSchema(tool.inputSchema) as Record<string, unknown>;
-      expect(schema['type']).toBe('object');
-      expect(schema['oneOf']).toBeUndefined();
-      expect(schema['anyOf']).toBeUndefined();
-      expect(schema['allOf']).toBeUndefined();
+      // Path B: the schema advertised via toMcpInputSchema.
+      const advertised = toMcpInputSchema(tool.inputSchema) as Record<string, unknown>;
+      expect(advertised['type']).toBe('object');
+      expect(advertised['oneOf']).toBeUndefined();
+      expect(advertised['anyOf']).toBeUndefined();
+      expect(advertised['allOf']).toBeUndefined();
+      // Path A safety: @limner/cma-tools reuses these source zod schemas and
+      // the external CMA template converts them directly (no toMcpInputSchema),
+      // so the raw zod->JSON must ALSO be free of a top-level combinator.
+      const raw = zodToJsonSchema(tool.inputSchema) as Record<string, unknown>;
+      expect(raw['type']).toBe('object');
+      expect(raw['oneOf']).toBeUndefined();
+      expect(raw['anyOf']).toBeUndefined();
+      expect(raw['allOf']).toBeUndefined();
     },
   );
 
-  test('compose (discriminated union) flattens to an object with an `op` enum', () => {
+  test('compose advertises a flat object with an `op` enum (no top-level union)', () => {
     const schema = toMcpInputSchema(composeTool.inputSchema) as {
       type?: string;
       properties?: Record<string, { enum?: unknown[] }>;
     };
     expect(schema.type).toBe('object');
-    // The discriminator collapses to an enum covering every op.
+    // The op discriminator is exposed as an enum covering every op.
     const opEnum = schema.properties?.['op']?.enum ?? [];
     expect(opEnum).toEqual(
       expect.arrayContaining(['resize', 'crop', 'watermark', 'encode', 'renderText', 'cfTransform']),
