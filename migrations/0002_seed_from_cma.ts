@@ -196,8 +196,10 @@ export function toSql(rows: D1Row[]): string {
     '-- One-time CMA managed-memory -> D1 backfill (architecture §6, D-RA-15).',
     '-- Idempotent: ON CONFLICT(source_id) DO UPDATE. Safe to re-apply.',
     `-- Rows: ${rows.length}`,
-    '',
-    'BEGIN TRANSACTION;',
+    '-- No explicit BEGIN/COMMIT: D1 rejects SQL transactions in',
+    "-- `wrangler d1 execute --file` (DO-backed SQLite uses the storage",
+    '-- transaction API); the file is applied atomically and rolls back on',
+    '-- error already. Re-applying upserts on source_id.',
     '',
   ];
   const stmts = rows.map(
@@ -211,7 +213,7 @@ export function toSql(rows: D1Row[]): string {
       `  updated_at = excluded.updated_at,\n` +
       `  metadata = excluded.metadata;`,
   );
-  return [...header, stmts.join('\n\n'), '', 'COMMIT;', ''].join('\n');
+  return [...header, stmts.join('\n\n'), ''].join('\n');
 }
 
 // ---------------------------------------------------------------------------
