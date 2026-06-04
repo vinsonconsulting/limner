@@ -45,7 +45,7 @@ async function main(): Promise<void> {
     schemaPath: resolveSchemaPath(),
   });
 
-  const server = createServer('limner-mcp (preview)', '0.0.1');
+  const server = createServer('limner-mcp (preview)', '1.0.0');
 
   registerTools(
     server,

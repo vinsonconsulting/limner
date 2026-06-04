@@ -10,7 +10,7 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
 import type { Tool } from '../server.js';
 
-const SERVER_VERSION = '0.0.1';
+const SERVER_VERSION = '1.0.0';
 
 function structured(payload: unknown): CallToolResult {
   return {

@@ -1,6 +1,6 @@
 {
   "name": "@limner/cma-tools",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "Limner CMA sandbox custom tools (TS + zod) wrapping @limner/core pipelines.",
   "license": "Apache-2.0",
   "private": true,

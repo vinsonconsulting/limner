@@ -1,7 +1,7 @@
 name: Build MCPB
 
 # Packs the @limner/mcp package as a .mcpb bundle on tagged releases.
-# Tag format: mcpb-v0.0.1 (matches `mcpb-v*`). Uploads the resulting
+# Tag format: mcpb-v1.0.0 (matches `mcpb-v*`). Uploads the resulting
 # .mcpb file as a GitHub release asset.
 #
 # Refs: D-RA-05 (MCPB is one of the three v1 transports)
@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to associate with the build (e.g. mcpb-v0.0.1). Used for the release asset name only when running via workflow_dispatch.'
+        description: 'Tag to associate with the build (e.g. mcpb-v1.0.0). Used for the release asset name only when running via workflow_dispatch.'
         required: false
         default: 'mcpb-dev'
 
