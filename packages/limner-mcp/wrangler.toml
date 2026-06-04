@@ -132,6 +132,18 @@ bucket_name = "limner-rasa-artifacts-prod"
 [env.production.triggers]
 crons = ["0 3 * * *"]
 
+# RT-5 — production custom domain. Routes mcp.example.com/* to this Worker via the
+# limner.us zone. This is a *route* (not custom_domain = true), so the operator's
+# ONLY manual step is the DNS record: in the limner.us zone, add a PROXIED
+# (orange-cloud) AAAA record  mcp  ->  100::  — a placeholder target, since the
+# Worker is the handler and there is no real origin. Once that record exists,
+# `wrangler deploy --env production` attaches the route. Requires limner.us to be
+# an active zone on the account; adjust the hostname here if you prefer another.
+# (Alternative: `custom_domain = true` auto-creates the DNS + cert, no manual DNS.)
+[[env.production.routes]]
+pattern = "mcp.example.com/*"
+zone_name = "limner.us"
+
 # Prod secrets (operator runs once):
 #   wrangler secret put OPENAI_API_KEY  --env production
 #   wrangler secret put RECRAFT_API_KEY --env production
