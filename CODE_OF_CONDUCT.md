@@ -18,12 +18,9 @@ the project in public spaces.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the project maintainers for review and investigation. All reports
-will be handled promptly and fairly, and the maintainers will respect the
-privacy and security of the reporter.
-
-<!-- TODO(maintainer): add the enforcement contact (email or private channel)
-     here before the repository goes public. -->
+reported to the project maintainers at **jim@vinson.org** for review and
+investigation. All reports will be handled promptly and fairly, and the
+maintainers will respect the privacy and security of the reporter.
 
 ## Attribution
 
