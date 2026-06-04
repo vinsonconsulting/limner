@@ -1,0 +1,23 @@
+Limner
+Copyright 2026 Vinson Consulting
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+----------------------------------------------------------------------
+Bundled assets
+----------------------------------------------------------------------
+
+IBM Plex Sans (Regular) — packages/limner-core/assets/fonts/
+  Copyright (c) 2017 IBM Corp. with Reserved Font Name "Plex".
+  Licensed under the SIL Open Font License, Version 1.1.
+  Full text: packages/limner-core/assets/fonts/LICENSE.txt
+
+----------------------------------------------------------------------
+Third-party runtime dependencies
+----------------------------------------------------------------------
+
+Limner's composition stack and runtime build on open-source libraries
+installed via the package manager (not vendored in this repository),
+including @cf-wasm/photon, @jsquash/*, satori, @resvg/resvg-wasm, the
+Cloudflare Workers / agents SDKs, and the Model Context Protocol SDK.
+Each retains its own license, distributed with the package.
