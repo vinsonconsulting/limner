@@ -57,6 +57,20 @@ name = "RATE_LIMITER"
 namespace_id = "1001"
 simple = { limit = 100, period = 60 }
 
+# RT-2 (D-RA-20) — R2 bucket for image artifacts. The operator creates the
+# bucket at deploy time (`wrangler r2 bucket create limner-rasa-artifacts-dev`
+# or the dashboard); the binding name BUCKET matches @limner/cma-tools'
+# uploadImageToR2. Retention is enforced by the scheduled() sweep below, NOT a
+# native lifecycle rule (the deploy token lacks the r2 management scope).
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "limner-rasa-artifacts-dev"
+
+# RT-2 (D-RA-20) — daily cron driving the 30-day R2 retention sweep
+# (src/retention.ts, invoked from the scheduled() handler in src/worker.ts).
+[triggers]
+crons = ["0 3 * * *"]
+
 # Pipeline credentials live in Cloudflare Secrets, not wrangler.toml.
 # Operator runs (once per environment):
 #   wrangler secret put OPENAI_API_KEY
@@ -70,8 +84,10 @@ simple = { limit = 100, period = 60 }
 #   D1  limner-rasa-prod   0bfdc696-1e98-4aba-8e57-80f08d2594f6  (schema applied)
 #   KV  OAUTH_KV_PROD      bd9c94b480cd4376a43609a37d73c593
 #
-# No R2 binding: @limner/mcp returns images inline as base64; R2 is a
-# @limner/cma-tools (Path A) concern that lands with Phase 7 deploy work.
+# R2 (RT-2 / D-RA-20): BUCKET binding added for image-artifact retention.
+# The @limner/mcp tools still return images inline as base64; artifact-to-R2
+# routing stays a @limner/cma-tools (Path A) concern. The scheduled() sweep
+# hard-deletes objects older than 30 days.
 # ---------------------------------------------------------------------------
 [[env.production.d1_databases]]
 binding = "DB"
@@ -106,6 +122,15 @@ new_sqlite_classes = ["LimnerMCP"]
 name = "RATE_LIMITER"
 namespace_id = "1002"
 simple = { limit = 100, period = 60 }
+
+# RT-2 (D-RA-20) — production R2 bucket + retention cron. The operator creates
+# the bucket once: `wrangler r2 bucket create limner-rasa-artifacts-prod`.
+[[env.production.r2_buckets]]
+binding = "BUCKET"
+bucket_name = "limner-rasa-artifacts-prod"
+
+[env.production.triggers]
+crons = ["0 3 * * *"]
 
 # Prod secrets (operator runs once):
 #   wrangler secret put OPENAI_API_KEY  --env production
