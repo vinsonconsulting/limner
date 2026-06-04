@@ -84,7 +84,6 @@ describe('generate_dalle (mocked OpenAI)', () => {
       description: 'test override',
       inputSchema: pipelineTools.find((t) => t.name === 'generate_dalle')!.inputSchema,
       handler: async (input, ctx) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const p = new DallePipeline(fetchMock as any);
         const out = await p.generate(
           { prompt: input.prompt as string, options: input },
