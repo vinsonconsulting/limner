@@ -31,6 +31,7 @@
     "packages/*"
   ],
   "scripts": {
+    "lint": "eslint .",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "build": "pnpm -r build",
@@ -43,5 +44,11 @@
       "sharp",
       "workerd"
     ]
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.4.1",
+    "globals": "^17.6.0",
+    "typescript-eslint": "^8.60.1"
   }
 }

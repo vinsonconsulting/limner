@@ -34,18 +34,19 @@ export type ToolContext = {
   abortSignal?: AbortSignal;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- variance:
-//  Default to `any` so a typed Tool<{prompt: string}> remains assignable
-//  to a `Tool[]` registry without casts. Runtime safety is preserved by
-//  the zod validation inside registerTools (safeParse before handler call).
-//
-// `inputSchema` uses `ZodType<TIn, ZodTypeDef, any>` (not ZodSchema<TIn>)
-// so .default() / .transform() / .preprocess() are allowed — those
-// produce schemas where the input shape differs from the parsed output
-// shape, which is exactly what handlers should consume.
+// Variance: default `TIn` to `any` so a typed Tool<{prompt: string}> stays
+// assignable to a `Tool[]` registry without casts. Runtime safety is preserved
+// by the zod validation inside registerTools (safeParse before the handler
+// call). `inputSchema` uses `ZodType<TIn, ZodTypeDef, any>` (not ZodSchema<TIn>)
+// so .default() / .transform() / .preprocess() are allowed — those produce
+// schemas where the input shape differs from the parsed output shape, which is
+// exactly what handlers should consume. The two `any`s below are deliberate;
+// the disables sit directly on their lines so they never go stale.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Tool<TIn = any> = {
   name: string;
   description: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   inputSchema: z.ZodType<TIn, z.ZodTypeDef, any>;
   /** Handler returns the full MCP CallToolResult so pipeline tools can
    *  yield image content directly without adapter wrapping. */
