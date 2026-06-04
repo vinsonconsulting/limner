@@ -113,6 +113,80 @@ describe('memory tools', () => {
       await close();
     }
   });
+
+  test('record with the same sourceId upserts (Phase 6 backfill idempotency contract)', async () => {
+    const { client, close } = await connectedPair(memoryTools);
+    try {
+      const first = parseStructured(
+        await client.callTool({
+          name: 'record',
+          arguments: { content: 'v1', sourceId: 'sid-1', category: 'adr' },
+        }),
+      )['entry'] as { id: string };
+
+      const second = parseStructured(
+        await client.callTool({
+          name: 'record',
+          arguments: { content: 'v2', sourceId: 'sid-1', category: 'adr' },
+        }),
+      )['entry'] as { id: string; content: string };
+
+      // ON CONFLICT(source_id) DO UPDATE: same row, new content — not a 2nd insert.
+      expect(second.id).toBe(first.id);
+      expect(second.content).toBe('v2');
+
+      const all = parseStructured(await client.callTool({ name: 'recall', arguments: {} }));
+      expect(all['count']).toBe(1);
+    } finally {
+      await close();
+    }
+  });
+
+  test('recall honors q substring + limit/offset pagination', async () => {
+    const { client, close } = await connectedPair(memoryTools);
+    try {
+      for (const content of ['alpha note', 'beta note', 'gamma other']) {
+        await client.callTool({ name: 'record', arguments: { content } });
+      }
+
+      const matched = parseStructured(await client.callTool({ name: 'recall', arguments: { q: 'note' } }));
+      expect(matched['count']).toBe(2);
+
+      const page1 = parseStructured(
+        await client.callTool({ name: 'recall', arguments: { limit: 1 } }),
+      )['entries'] as Array<{ id: string }>;
+      const page2 = parseStructured(
+        await client.callTool({ name: 'recall', arguments: { limit: 1, offset: 1 } }),
+      )['entries'] as Array<{ id: string }>;
+      expect(page1.length).toBe(1);
+      expect(page2.length).toBe(1);
+      // Distinct rows across pages — pagination actually advances the window.
+      expect(page1[0]!.id).not.toBe(page2[0]!.id);
+    } finally {
+      await close();
+    }
+  });
+
+  test('recall honors the since/until timestamp window (created_at >= since, <= until)', async () => {
+    const { client, close } = await connectedPair(memoryTools);
+    try {
+      const entry = parseStructured(
+        await client.callTool({ name: 'record', arguments: { content: 'windowed' } }),
+      )['entry'] as { id: string; createdAt: number };
+      const t = entry.createdAt;
+      const has = (payload: Record<string, unknown>): boolean =>
+        (payload['entries'] as Array<{ id: string }>).some((e) => e.id === entry.id);
+
+      // since at/after the entry's own ms -> included (>= is inclusive).
+      expect(has(parseStructured(await client.callTool({ name: 'recall', arguments: { since: t } })))).toBe(true);
+      // since strictly after -> excluded.
+      expect(has(parseStructured(await client.callTool({ name: 'recall', arguments: { since: t + 1 } })))).toBe(false);
+      // until strictly before -> excluded.
+      expect(has(parseStructured(await client.callTool({ name: 'recall', arguments: { until: t - 1 } })))).toBe(false);
+    } finally {
+      await close();
+    }
+  });
 });
 
 // ---------------- Projects ----------------

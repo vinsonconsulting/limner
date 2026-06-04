@@ -14,6 +14,18 @@
 // returns the 15-tool registry: FAILS on 6b (400 at tools/list), PASSES on 6c.
 //
 // The orthogonal OAuth layer is covered by the manual MCP Inspector smoke.
+//
+// Stateful round-trips (record -> recall) are deliberately NOT exercised
+// here. This harness binds no D1, and unstable_dev does not auto-apply D1
+// migrations — a record over a D1-bound harness fails with "no such table"
+// until the schema is seeded out-of-band (RT-1 confirmed this empirically).
+// The DO dispatch -> tool context -> D1 wiring is proven sound (the record
+// call routes through the DO to D1, failing only on the missing table) and
+// is asserted green at the tool layer (test/tools/state-tools.test.ts,
+// InMemoryTransport over a local D1: record/recall/forget, sourceId upsert
+// idempotency, recall q/since/until/limit/offset) plus the @limner/core
+// parity suite and the manual prod smoke. Re-introduce a transport-level
+// state test here once local D1 schema seeding into unstable_dev is wired.
 
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
