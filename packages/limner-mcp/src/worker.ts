@@ -29,6 +29,7 @@ import type {
   ExportedHandler,
   ImagesBinding,
   KVNamespace,
+  RateLimit,
 } from '@cloudflare/workers-types';
 import type { Bindings, CFImagesBinding } from '@limner/core';
 
@@ -39,6 +40,7 @@ import { memoryTools } from './tools/memory.js';
 import { projectTools } from './tools/context.js';
 import { metaTools } from './tools/meta.js';
 import { defaultHandler } from './auth/oauth.js';
+import { withRateLimit } from './rate-limit.js';
 
 export interface Env {
   // D1 — durable state (memory + projects + sessions per D-RA-04).
@@ -58,6 +60,10 @@ export interface Env {
   // missing_credential errors from the pipeline runners.
   OPENAI_API_KEY?: string;
   RECRAFT_API_KEY?: string;
+  // RT-1 — Workers Rate Limiting binding (`[[ratelimits]]` in
+  // wrangler.toml). Optional so stdio/local/tests boot without it;
+  // withRateLimit() fails open when absent.
+  RATE_LIMITER?: RateLimit;
   // OAuthProvider injects this at runtime; declared here for the
   // apiHandler's type signature.
   OAUTH_PROVIDER: OAuthHelpers;
@@ -126,9 +132,15 @@ type ApiHandlerShape = {
   fetch: (request: Request, env: Env, ctx: ExecutionContext) => Promise<Response>;
 };
 
+// LimnerMCP.serve(...) yields the DO-backed /mcp fetch handler. RT-1 wraps
+// it with the per-caller rate limit so abuse is throttled before it reaches
+// the Durable Object / D1 / pipeline layer. OAuth validates the token first,
+// so the wrapper sees the bearer token it keys on.
+const mcpApiHandler = LimnerMCP.serve('/mcp', { binding: 'LIMNER_MCP' }) as unknown as ApiHandlerShape;
+
 export default new OAuthProvider<Env>({
   apiRoute: '/mcp',
-  apiHandler: LimnerMCP.serve('/mcp', { binding: 'LIMNER_MCP' }) as unknown as ApiHandlerShape,
+  apiHandler: withRateLimit(mcpApiHandler) as unknown as ApiHandlerShape,
   // The defaultHandler is typed against OAuthEnv (a narrow subset),
   // which is structurally a subset of our Env, so the OAuth provider
   // accepts it; cast to satisfy nominal type identity.
