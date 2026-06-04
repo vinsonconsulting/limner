@@ -4,7 +4,7 @@
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![DCO](https://img.shields.io/badge/DCO-required-orange)](https://developercertificate.org/)
-[![Status](https://img.shields.io/badge/status-pre--v1-yellow)]()
+[![Status](https://img.shields.io/badge/status-v1.0.0-blue)]()
 
 **Limner** is a Model Context Protocol (MCP) server and CMA-deployable agent for orchestrating image generation across multiple pipelines. This repository contains **rasa**, the foundation variant of the Limner family.
 
