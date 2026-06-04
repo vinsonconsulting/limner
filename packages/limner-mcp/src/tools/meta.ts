@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { DallePipeline, MidjourneyPipeline, RecraftPipeline } from '@limner/core';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
-import type { Tool, ToolContext } from '../server.js';
+import type { Tool } from '../server.js';
 
 const SERVER_VERSION = '0.0.1';
 

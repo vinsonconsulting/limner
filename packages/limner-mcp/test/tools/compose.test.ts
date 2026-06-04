@@ -6,7 +6,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import type { Bindings, CFImagesBinding } from '@limner/core';
 
-import { createServer, registerTools, type Tool, type ToolContext } from '../../src/server.js';
+import { createServer, registerTools, type ToolContext } from '../../src/server.js';
 import { composeTool } from '../../src/tools/compose.js';
 
 // jsquash WASM init helper from @limner/core's test tree. compose's

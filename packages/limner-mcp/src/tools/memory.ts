@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { createMemoryStore } from '@limner/core';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
-import type { Tool, ToolContext } from '../server.js';
+import type { Tool } from '../server.js';
 
 function structured(payload: unknown): CallToolResult {
   return {

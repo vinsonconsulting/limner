@@ -22,7 +22,8 @@ export async function httpResponseToError(
   response: Response,
 ): Promise<PipelineError> {
   const code = mapHttpStatus(response.status);
-  let body = '';
+  // Assigned in both branches below; no dead initializer.
+  let body: string;
   try {
     body = (await response.text()).slice(0, 500);
   } catch {
