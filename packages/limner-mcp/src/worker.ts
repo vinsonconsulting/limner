@@ -30,6 +30,7 @@ import type {
   ImagesBinding,
   KVNamespace,
   RateLimit,
+  R2Bucket,
 } from '@cloudflare/workers-types';
 import type { Bindings, CFImagesBinding } from '@limner/core';
 
@@ -41,6 +42,7 @@ import { projectTools } from './tools/context.js';
 import { metaTools } from './tools/meta.js';
 import { defaultHandler } from './auth/oauth.js';
 import { withRateLimit } from './rate-limit.js';
+import { sweepExpiredArtifacts } from './retention.js';
 
 export interface Env {
   // D1 — durable state (memory + projects + sessions per D-RA-04).
@@ -64,6 +66,9 @@ export interface Env {
   // wrangler.toml). Optional so stdio/local/tests boot without it;
   // withRateLimit() fails open when absent.
   RATE_LIMITER?: RateLimit;
+  // RT-2 (D-RA-20) — R2 bucket for image artifacts. Optional so local/tests
+  // boot without it; the scheduled() retention sweep no-ops when absent.
+  BUCKET?: R2Bucket;
   // OAuthProvider injects this at runtime; declared here for the
   // apiHandler's type signature.
   OAUTH_PROVIDER: OAuthHelpers;
@@ -138,7 +143,7 @@ type ApiHandlerShape = {
 // so the wrapper sees the bearer token it keys on.
 const mcpApiHandler = LimnerMCP.serve('/mcp', { binding: 'LIMNER_MCP' }) as unknown as ApiHandlerShape;
 
-export default new OAuthProvider<Env>({
+const oauthProvider = new OAuthProvider<Env>({
   apiRoute: '/mcp',
   apiHandler: withRateLimit(mcpApiHandler) as unknown as ApiHandlerShape,
   // The defaultHandler is typed against OAuthEnv (a narrow subset),
@@ -150,3 +155,22 @@ export default new OAuthProvider<Env>({
   clientRegistrationEndpoint: '/oauth/register',
   scopesSupported: ['mcp'],
 });
+
+// The default export combines the OAuthProvider's fetch handler (HTTP) with a
+// scheduled() cron handler (RT-2 / D-RA-20). The cron — `[triggers] crons` in
+// wrangler.toml — fires the 30-day R2 retention sweep. Both share Env; the
+// sweep no-ops when the BUCKET binding is absent, and runs via waitUntil so a
+// slow sweep never blocks the scheduled invocation from returning.
+export default {
+  fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    return oauthProvider.fetch(request, env, ctx);
+  },
+  async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    if (!env.BUCKET) return;
+    ctx.waitUntil(
+      sweepExpiredArtifacts(env.BUCKET, Date.now())
+        .then((result) => console.log(`r2 retention sweep: ${JSON.stringify(result)}`))
+        .catch((err) => console.error('r2 retention sweep failed', err)),
+    );
+  },
+} satisfies ExportedHandler<Env>;

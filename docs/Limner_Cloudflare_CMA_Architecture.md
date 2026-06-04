@@ -6,7 +6,7 @@
 >
 > **Status:** Authoritative. Supersedes `Limner_MCP_Server_DevPlan.md`, `Limner_LobeHub_Runbook.md`, and `Limner_CMA_Onboarding_RunBook.md` (the latter is preserved as historical reference for the pre-rearchitecture state).
 >
-> **Source ADRs:** [Meta](https://www.notion.so/366e75a69b7e81f08871d02ff112e233) · [D-RA-01](https://www.notion.so/366e75a69b7e8131a667ffdc34a181dc) · [D-RA-02](https://www.notion.so/366e75a69b7e81a997f5ca358667c102) · [D-RA-03](https://www.notion.so/366e75a69b7e81289683d90b4df826e6) · [D-RA-04](https://www.notion.so/366e75a69b7e81178730c341e45efaf8) · [D-RA-05](https://www.notion.so/366e75a69b7e81878980ebcef8af9439) · [D-RA-06](https://www.notion.so/366e75a69b7e816a8ac4c14f7e8e3e74) · [D-RA-07](https://www.notion.so/366e75a69b7e8106b8ddcef9f226b0be) · [D-RA-08](https://www.notion.so/366e75a69b7e81d4b5adc015c401fd35) · [D-RA-09](https://www.notion.so/366e75a69b7e810ebd28cc9bb0176bf4) · [D-RA-10](https://www.notion.so/366e75a69b7e81c4b4adefa16f9d4012) · [D-RA-11](https://www.notion.so/366e75a69b7e8189bd16eb5c2d3226ad) · [D-RA-12](https://www.notion.so/368e75a69b7e8126bb03f4b9597a8f7e) · [D-RA-13](https://www.notion.so/36ae75a69b7e81b0b3c0fe8ed344a171) · [D-RA-14](https://www.notion.so/36ae75a69b7e815a8036fa308e3a4a23) · [D-RA-15](https://www.notion.so/36ae75a69b7e81ff8751febc21654d33) · [D-RA-16](https://www.notion.so/36ae75a69b7e81728a9fccb179236db6) · [D-RA-17](https://www.notion.so/36ae75a69b7e812ba4c6d8d54975012a) · D-RA-18 _(Notion link TBD)_
+> **Source ADRs:** [Meta](https://www.notion.so/366e75a69b7e81f08871d02ff112e233) · [D-RA-01](https://www.notion.so/366e75a69b7e8131a667ffdc34a181dc) · [D-RA-02](https://www.notion.so/366e75a69b7e81a997f5ca358667c102) · [D-RA-03](https://www.notion.so/366e75a69b7e81289683d90b4df826e6) · [D-RA-04](https://www.notion.so/366e75a69b7e81178730c341e45efaf8) · [D-RA-05](https://www.notion.so/366e75a69b7e81878980ebcef8af9439) · [D-RA-06](https://www.notion.so/366e75a69b7e816a8ac4c14f7e8e3e74) · [D-RA-07](https://www.notion.so/366e75a69b7e8106b8ddcef9f226b0be) · [D-RA-08](https://www.notion.so/366e75a69b7e81d4b5adc015c401fd35) · [D-RA-09](https://www.notion.so/366e75a69b7e810ebd28cc9bb0176bf4) · [D-RA-10](https://www.notion.so/366e75a69b7e81c4b4adefa16f9d4012) · [D-RA-11](https://www.notion.so/366e75a69b7e8189bd16eb5c2d3226ad) · [D-RA-12](https://www.notion.so/368e75a69b7e8126bb03f4b9597a8f7e) · [D-RA-13](https://www.notion.so/36ae75a69b7e81b0b3c0fe8ed344a171) · [D-RA-14](https://www.notion.so/36ae75a69b7e815a8036fa308e3a4a23) · [D-RA-15](https://www.notion.so/36ae75a69b7e81ff8751febc21654d33) · [D-RA-16](https://www.notion.so/36ae75a69b7e81728a9fccb179236db6) · [D-RA-17](https://www.notion.so/36ae75a69b7e812ba4c6d8d54975012a) · [D-RA-18](https://www.notion.so/36be75a69b7e8111881fd2571cf48a4f) · [D-RA-19](https://www.notion.so/375e75a69b7e81b69541df817bbfbae3) · [D-RA-20](https://www.notion.so/375e75a69b7e81c8b502dac3dba5d99d) · [D-RA-21](https://www.notion.so/375e75a69b7e81b9a82bd4f2454563e1)
 
 ---
 
@@ -22,7 +22,7 @@ Limner runs on Cloudflare as a TypeScript codebase, with the agent loop on Anthr
 
 ## 2. Architectural decisions reference
 
-All 11 decisions resolved on 2026-05-20. D-RA-12 added 2026-05-22. D-RA-13 through D-RA-17 added 2026-05-23 processing the assumption-audit research report findings (OSS pivot; Recraft via MCP adapter; D1 canonical hardened; hybrid V8 composition stack replacing Sharp; Pixellab dropped from rasa to limner-pixel). D-RA-18 added 2026-05-25 surfaced by the first live integration test run (RetroDiffusion dropped from rasa to limner-pixel, mirroring D-RA-17). Each is its own ADR in Notion. Summary:
+All 11 decisions resolved on 2026-05-20. D-RA-12 added 2026-05-22. D-RA-13 through D-RA-17 added 2026-05-23 processing the assumption-audit research report findings (OSS pivot; Recraft via MCP adapter; D1 canonical hardened; hybrid V8 composition stack replacing Sharp; Pixellab dropped from rasa to limner-pixel). D-RA-18 added 2026-05-25 surfaced by the first live integration test run (RetroDiffusion dropped from rasa to limner-pixel, mirroring D-RA-17). D-RA-19 through D-RA-21 added 2026-06-03 resolving the RT-2 release-track decision gates (OAuth scope, R2 artifact retention, Workers AI fallback). Each is its own ADR in Notion. Summary:
 
 | ID | Decision | Resolution |
 |---|---|---|
@@ -44,6 +44,9 @@ All 11 decisions resolved on 2026-05-20. D-RA-12 added 2026-05-22. D-RA-13 throu
 | D-RA-16 | rasa v1 composition strategy | Hybrid V8 stack: Photon + jSquash + Satori/resvg + Cloudflare Images Transformations. No Containers in rasa v1; Sharp/libvips path abandoned |
 | D-RA-17 | Pixellab dropped from rasa | Specialty tools live in variants, not rasa foundation. Pixellab moves to limner-pixel (Phase C of D-RA-13 build sequencing); rasa pipeline registry shrinks to 4 |
 | D-RA-18 | RetroDiffusion dropped from rasa | Consistent application of the D-RA-17 specialty-tool placement principle. RetroDiffusion's model line (`rd_fast` / `rd_pro` / `rd_plus`) is explicitly pixel-art-focused — same category D-RA-17 used to move Pixellab out. Rasa v1 pipeline registry shrinks to 3 (Midjourney, DALL-E, Recraft); RetroDiff moves to limner-pixel where it sits alongside Pixellab and any future pixel-art tooling. The drop was surfaced by integration testing (sync inference timed out locally at 30s; initially misread as an upstream issue), but reading the actual API docs at github.com/Retro-Diffusion/api-examples showed the API is healthy and supports `async_process: true` for long-running jobs — the friction was a sync-timeout misdiagnosis, not an upstream defect. The architectural conclusion stands on the D-RA-17 principle, not on API quality |
+| D-RA-19 | rasa v1 OAuth scope | Flat single `mcp` scope (no per-tool/pipeline granularity); dogfood auto-approve. Per-resource scopes + consent screen deferred post-dogfood. Ratifies the implemented posture |
+| D-RA-20 | rasa v1 R2 artifact retention | 30-day hard-delete, enforced by an in-worker `scheduled()` cron sweep (not a native lifecycle rule — the deploy token lacks the r2 management scope). Per-user override deferred; buckets created by the operator at deploy |
+| D-RA-21 | Workers AI in rasa v1 | Deferred. `image_generate` (Workers AI) is not exposed as a pipeline and there is no Workers-AI fallback; external-pipeline failures surface as errors. Revisit in a future refresh or variant |
 
 ---
 
@@ -422,9 +425,7 @@ These are not architectural blockers but will need answers during the rebuild:
 
 - Exact Sharp gaps vs Pillow/Cairo for the specific operations Limner uses (Phase 3).
 - D1 schema for memory: starting minimal (id, content, category, created_at, metadata JSON), evolving as retrieval patterns emerge.
-- OAuth scope design: per-tool vs per-pipeline vs flat. Affects billing granularity later.
-- R2 retention policy for image artifacts: default lifetime, per-user override, deletion semantics.
-- Workers AI fallback: whether `image_generate` (Workers AI) is exposed as a pipeline or only as an internal fallback when external pipelines fail.
+- _OAuth scope, R2 artifact retention, and Workers AI fallback — resolved 2026-06-03 as D-RA-19 / D-RA-20 / D-RA-21 (see §2)._
 - Pricing model for marketplace distribution: subscription vs metered, BYO keys vs Limner-supplied. Deferred until functional parity exists.
 
 ---
