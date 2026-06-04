@@ -423,7 +423,7 @@ These run in parallel with Phase 0/1 rather than gating any phase:
 
 These are not architectural blockers but will need answers during the rebuild:
 
-- Exact Sharp gaps vs Pillow/Cairo for the specific operations Limner uses (Phase 3).
+- _Sharp gaps vs Pillow/Cairo — moot: D-RA-16 abandoned Sharp for the hybrid V8 stack, and Phase 3 shipped against that stack (visual-equivalence tested, SSIM ≥ 0.98)._
 - D1 schema for memory: starting minimal (id, content, category, created_at, metadata JSON), evolving as retrieval patterns emerge.
 - _OAuth scope, R2 artifact retention, and Workers AI fallback — resolved 2026-06-03 as D-RA-19 / D-RA-20 / D-RA-21 (see §2)._
 - Pricing model for marketplace distribution: subscription vs metered, BYO keys vs Limner-supplied. Deferred until functional parity exists.

@@ -79,16 +79,12 @@ The **Path A** surface (D-RA-12) — same 15-tool contract as `@limner/mcp`, pac
 
 ## Status
 
-Pre-v1. The repo is in foundational scaffolding. Code lands in phases per the architecture document:
-
-- Phase 0: Workspace setup
-- Phase 1: `@limner/core` foundation
-- Phase 2: Pipeline ports
-- Phase 3: Hybrid V8 composition stack
-- Phase 4: `limner-mcp` server
-- Phase 5: `limner-cma-tools`
-- Phase 6: End-to-end smoke and memory migration
-- Phase 7: Flag-day cutover
+Hardening toward **v1.0.0**, the first public release. The Cloudflare CMA
+rebuild (Phases 0–7) is complete: the TypeScript monorepo, the three generation
+pipelines, the hybrid V8 composition stack, the MCP server across all three
+transports, D1-canonical state, and the CMA→D1 memory migration are in place and
+verified. Current work is production hardening and OSS release readiness — see
+[CHANGELOG.md](CHANGELOG.md).
 
 ## Quickstart
 

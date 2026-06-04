@@ -32,7 +32,24 @@ git rebase --signoff HEAD~N  # N = number of commits to amend
 
 ## Code style
 
-TBD. Coming when the codebase has lint and format tooling in place.
+Limner is strict TypeScript, linted with [ESLint](https://eslint.org/) (flat
+config, `typescript-eslint` recommended). Before opening a PR, run:
+
+```bash
+pnpm lint          # eslint . — CI gates on this
+pnpm -r build      # build first: packages resolve each other via dist/
+pnpm -r typecheck  # tsc --noEmit
+pnpm -r test       # vitest
+```
+
+Conventions:
+
+- `pnpm lint` must pass. Prefix intentionally-unused bindings with `_`
+  (e.g. `_ctx`); the linter ignores those.
+- Keep `any` out of `src/`. The few deliberate uses carry an inline
+  `eslint-disable` with a rationale; tests may use `any` for fixtures.
+- Build before typecheck — packages use TypeScript project references and
+  resolve each other through their built `dist/`.
 
 ## Issues
 
