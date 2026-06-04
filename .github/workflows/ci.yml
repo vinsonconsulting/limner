@@ -35,6 +35,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Lint runs before build — typescript-eslint parses the source directly,
+      # so it needs no dist/.
+      - name: Lint
+        run: pnpm lint
+
       # Build MUST run first. Packages use TS project references and resolve
       # each other via their built dist/ (package.json `types` -> dist/index.d.ts).
       # `pnpm -r build` compiles in topological order (core -> mcp -> cma-tools),
@@ -47,5 +52,24 @@ jobs:
       - name: Typecheck
         run: pnpm -r typecheck
 
-      - name: Test
-        run: pnpm -r test
+      # Tests + coverage in one pass (vitest --coverage runs the suite).
+      - name: Test (with coverage)
+        run: pnpm test:coverage
+
+      # RT-3 artifact matrix — exercise every shipping surface on each PR, not
+      # only at release. (1) Workers config validity via a deploy dry-run on the
+      # dev (top-level) and production environments; catches a malformed
+      # binding/trigger before merge. The dry-run is local: no Cloudflare auth
+      # and no resource-existence check. (2) The .mcpb bundle validates + packs
+      # here; build-mcpb.yml otherwise only runs on release tags.
+      - name: Workers config dry-run (dev + production)
+        working-directory: packages/limner-mcp
+        run: |
+          pnpm exec wrangler deploy --dry-run
+          pnpm exec wrangler deploy --dry-run --env production
+
+      - name: Validate + pack .mcpb bundle
+        working-directory: packages/limner-mcp
+        run: |
+          ./node_modules/.bin/mcpb validate manifest.json
+          ./node_modules/.bin/mcpb pack . "$RUNNER_TEMP/limner-mcp.mcpb"
