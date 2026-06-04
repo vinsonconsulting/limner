@@ -4,9 +4,9 @@ All notable changes to Limner (rasa) are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.0] - 2026-06-04
 
-v1.0.0 will be the first public release — the foundation (`rasa`) variant of the
+v1.0.0 is the first public release — the foundation (`rasa`) variant of the
 Limner family. The pre-1.0 history (Phases 0–7 of the Cloudflare CMA rebuild)
 established the TypeScript monorepo, the three generation pipelines
 (DALL·E / Recraft / Midjourney), the hybrid V8 composition stack (D-RA-16), the
@@ -32,4 +32,4 @@ state (D-RA-04, D-RA-15), and the CMA→D1 memory migration.
 - Documentation accuracy pass: README status and architecture open questions.
   (RT-4)
 
-[Unreleased]: https://github.com/vinsonconsulting/limner/commits/main
+[1.0.0]: https://github.com/vinsonconsulting/limner/releases/tag/v1.0.0

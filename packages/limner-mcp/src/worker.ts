@@ -108,7 +108,7 @@ type LimnerState = Record<string, never>;
 type LimnerProps = Record<string, never>;
 
 export class LimnerMCP extends McpAgent<Env, LimnerState, LimnerProps> {
-  server = createServer('limner-mcp', '0.0.1');
+  server = createServer('limner-mcp', '1.0.0');
 
   async init(): Promise<void> {
     registerTools(

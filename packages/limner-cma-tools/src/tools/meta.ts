@@ -16,7 +16,7 @@ function schemaFor(name: string): z.ZodType<unknown, z.ZodTypeDef, unknown> {
   return t.inputSchema as z.ZodType<unknown, z.ZodTypeDef, unknown>;
 }
 
-const SERVER_VERSION = '0.0.1';
+const SERVER_VERSION = '1.0.0';
 
 function pipelineList() {
   return [

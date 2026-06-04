@@ -47,7 +47,7 @@ export class McpRecraftTransport implements RecraftTransport {
     secrets: Readonly<Record<string, string>>,
   ): Promise<McpRecraftTransport> {
     const client = new Client(
-      { name: 'limner-mcp', version: '0.0.1' },
+      { name: 'limner-mcp', version: '1.0.0' },
       { capabilities: {} },
     );
 
