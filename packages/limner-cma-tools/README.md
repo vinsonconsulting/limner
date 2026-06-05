@@ -62,7 +62,7 @@ export const CUSTOM_TOOLS = [
 | `limner_generate_dalle` | OpenAI Images API | BUCKET, OPENAI_API_KEY | image envelope |
 | `limner_generate_midjourney` | Midjourney prompt composition (HITL) | (none) | text envelope |
 | `limner_generate_recraft` | Recraft composed-MCP adapter (D-RA-14) | BUCKET, RECRAFT_API_KEY | image envelope |
-| `limner_compose` | Hybrid V8 stack — 17 ops behind discriminated-union | BUCKET (+ IMAGES for cf-*) | image envelope or JSON |
+| `limner_compose` | Hybrid V8 stack — 16 ops behind discriminated-union | BUCKET (+ IMAGES for cf-*) | image envelope or JSON |
 | `limner_recall` / `limner_record` / `limner_forget` / `limner_list_categories` | Memory ops | DB | structured JSON |
 | `limner_list_projects` / `limner_get_project_context` / `limner_record_project_note` | Project ops | DB | structured JSON |
 | `limner_health` / `limner_version` / `limner_list_pipelines` / `limner_pipeline_capabilities` | Meta / discovery | (none) | structured JSON |

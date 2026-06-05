@@ -318,7 +318,7 @@ Per D-RA-16, rasa v1 composition is delivered by a hybrid stack running entirely
 
 - Deploy `limner-mcp` to production Workers + OAuth.
 - Register new Anthropic CMA agent pointing at the Cloudflare environment and the public MCP server URL.
-- Smoke test all 6 pipelines through the new agent.
+- Smoke test all 3 pipelines through the new agent (historical plan said 6; D-RA-17/18 dropped Pixellab + RetroDiffusion, leaving Midjourney, DALL-E, Recraft).
 - Run `migrations/0002_seed_from_cma.ts` — exports 9 entries from the current CMA memory store, imports into D1.
 - Verify memory recall works against the migrated data.
 
