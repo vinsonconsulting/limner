@@ -163,7 +163,7 @@ cd packages/limner-mcp
 pnpm --filter @limner/mcp test
 ```
 
-34 unit tests covering server dispatch, every tool's input schema + happy path, the stdio smoke (subprocess + tools/list + health round-trip), and the compose tool's cf-images Workers / stdio split.
+The unit suite (run the command above for the live count) covers server dispatch, every tool's input schema + annotations + happy path, the stdio smoke (subprocess + tools/list + health round-trip), the compose tool's cf-images Workers / stdio split, OAuth `/authorize` scope-pinning, per-caller rate limiting, R2 retention sweeps, and the DO-backed worker handshake.
 
 ## License
 

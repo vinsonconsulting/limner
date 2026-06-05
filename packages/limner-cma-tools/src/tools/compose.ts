@@ -45,7 +45,7 @@ async function emitImage(
   return imageReturnEnvelope(url, mimeType, { op, ...extras });
 }
 
-// The compose tool's input is a discriminated union over 17 ops; the
+// The compose tool's input is a discriminated union over 16 ops; the
 // zod schema is re-used from @limner/mcp. We type the run handler as
 // `unknown` and let the per-op narrowing happen inside (zod has
 // already validated the shape; this is just TS variance escape).
