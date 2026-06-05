@@ -35,6 +35,7 @@ import type {
 import type { Bindings, CFImagesBinding } from '@limner/core';
 
 import { createServer, registerTools, type ToolContext } from './server.js';
+import { VERSION } from './version.js';
 import { pipelineTools } from './tools/pipelines.js';
 import { composeTool } from './tools/compose.js';
 import { memoryTools } from './tools/memory.js';
@@ -108,7 +109,7 @@ type LimnerState = Record<string, never>;
 type LimnerProps = Record<string, never>;
 
 export class LimnerMCP extends McpAgent<Env, LimnerState, LimnerProps> {
-  server = createServer('limner-mcp', '1.0.0');
+  server = createServer('limner-mcp', VERSION);
 
   async init(): Promise<void> {
     registerTools(

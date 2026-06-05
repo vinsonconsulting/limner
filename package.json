@@ -35,7 +35,8 @@
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "test:coverage": "pnpm -r exec vitest run --coverage --coverage.reporter=text-summary --passWithNoTests",
-    "build": "pnpm -r build",
+    "build": "node scripts/sync-version.mjs && pnpm -r build",
+    "sync-version": "node scripts/sync-version.mjs",
     "clean": "pnpm -r exec rm -rf dist .tsbuildinfo"
   },
   "pnpm": {
