@@ -44,7 +44,10 @@
       "better-sqlite3",
       "esbuild",
       "workerd"
-    ]
+    ],
+    "overrides": {
+      "tmp": ">=0.2.6"
+    }
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
