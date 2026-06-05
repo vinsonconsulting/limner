@@ -47,8 +47,8 @@ export const CUSTOM_TOOLS = [
 
 5. Set secrets (`wrangler secret put`):
 
-- `OPENAI_API_KEY` — required by `generate_dalle`
-- `RECRAFT_API_KEY` — required by `generate_recraft` (remote mode)
+- `OPENAI_API_KEY` — required by `limner_generate_dalle`
+- `RECRAFT_API_KEY` — required by `limner_generate_recraft` (remote mode)
 - `LIMNER_BUCKET_PUBLIC_URL` (optional) — if your R2 bucket has a public hostname, set this so image tools return absolute URLs instead of `r2://` handles
 
 6. `npm run deploy`. The 15 Limner tools appear in the agent form's toggle list automatically.
@@ -59,13 +59,13 @@ export const CUSTOM_TOOLS = [
 
 | Tool | Description | Required bindings | Returns |
 |---|---|---|---|
-| `generate_dalle` | OpenAI Images API | BUCKET, OPENAI_API_KEY | image envelope |
-| `generate_midjourney` | Midjourney prompt composition (HITL) | (none) | text envelope |
-| `generate_recraft` | Recraft composed-MCP adapter (D-RA-14) | BUCKET, RECRAFT_API_KEY | image envelope |
-| `compose` | Hybrid V8 stack — 17 ops behind discriminated-union | BUCKET (+ IMAGES for cf-*) | image envelope or JSON |
-| `recall` / `record` / `forget` / `list_categories` | Memory ops | DB | structured JSON |
-| `list_projects` / `get_project_context` / `record_project_note` | Project ops | DB | structured JSON |
-| `health` / `version` / `list_pipelines` / `pipeline_capabilities` | Meta / discovery | (none) | structured JSON |
+| `limner_generate_dalle` | OpenAI Images API | BUCKET, OPENAI_API_KEY | image envelope |
+| `limner_generate_midjourney` | Midjourney prompt composition (HITL) | (none) | text envelope |
+| `limner_generate_recraft` | Recraft composed-MCP adapter (D-RA-14) | BUCKET, RECRAFT_API_KEY | image envelope |
+| `limner_compose` | Hybrid V8 stack — 17 ops behind discriminated-union | BUCKET (+ IMAGES for cf-*) | image envelope or JSON |
+| `limner_recall` / `limner_record` / `limner_forget` / `limner_list_categories` | Memory ops | DB | structured JSON |
+| `limner_list_projects` / `limner_get_project_context` / `limner_record_project_note` | Project ops | DB | structured JSON |
+| `limner_health` / `limner_version` / `limner_list_pipelines` / `limner_pipeline_capabilities` | Meta / discovery | (none) | structured JSON |
 
 Image envelope shape:
 

@@ -1,4 +1,4 @@
-// Pipeline tools: generate_dalle, generate_midjourney, generate_recraft.
+// Pipeline tools: limner_generate_dalle, limner_generate_midjourney, limner_generate_recraft.
 // (compose lives in tools/compose.ts; see that file for D-RA-16 routing.)
 //
 // Each tool wraps a @limner/core PipelineRunner instance. The wrapper:
@@ -28,7 +28,7 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { Tool, ToolContext } from '../server.js';
 import { McpRecraftTransport } from '../transports/mcp-recraft.js';
 
-// ---------------- generate_dalle ----------------
+// ---------------- limner_generate_dalle ----------------
 
 const dalleInputSchema = z.object({
   prompt: z.string().min(1, 'prompt is required'),
@@ -45,14 +45,14 @@ const dalleInputSchema = z.object({
 });
 
 const generateDalle: Tool<z.infer<typeof dalleInputSchema>> = {
-  name: 'generate_dalle',
+  name: 'limner_generate_dalle',
   description: 'Generate an image via OpenAI Images API (gpt-image-1 default; dall-e-3 / dall-e-2 also supported).',
   inputSchema: dalleInputSchema,
   handler: async (input, ctx) =>
     runImagePipeline(new DallePipeline(), { prompt: input.prompt, options: input }, ctx, 'dalle'),
 };
 
-// ---------------- generate_midjourney ----------------
+// ---------------- limner_generate_midjourney ----------------
 
 const midjourneyInputSchema = z.object({
   prompt: z.string().min(1, 'prompt is required'),
@@ -65,7 +65,7 @@ const midjourneyInputSchema = z.object({
 });
 
 const generateMidjourney: Tool<z.infer<typeof midjourneyInputSchema>> = {
-  name: 'generate_midjourney',
+  name: 'limner_generate_midjourney',
   description:
     'Compose a Midjourney prompt string (prompt-only; no image generation; downstream tool runs the HITL step).',
   inputSchema: midjourneyInputSchema,
@@ -73,7 +73,7 @@ const generateMidjourney: Tool<z.infer<typeof midjourneyInputSchema>> = {
     runPipeline(new MidjourneyPipeline(), { prompt: input.prompt, options: input }, ctx, 'midjourney'),
 };
 
-// ---------------- generate_recraft ----------------
+// ---------------- limner_generate_recraft ----------------
 
 const recraftInputSchema = z.object({
   prompt: z.string().min(1, 'prompt is required'),
@@ -87,7 +87,7 @@ const recraftInputSchema = z.object({
 });
 
 const generateRecraft: Tool<z.infer<typeof recraftInputSchema>> = {
-  name: 'generate_recraft',
+  name: 'limner_generate_recraft',
   description:
     'Generate an image via Recraft (composed-MCP adapter per D-RA-14; calls Recraft\'s generate_image tool).',
   inputSchema: recraftInputSchema,

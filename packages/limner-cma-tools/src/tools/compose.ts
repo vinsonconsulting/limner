@@ -51,7 +51,7 @@ async function emitImage(
 // already validated the shape; this is just TS variance escape).
 
 export const composeMcpTool: CustomTool = defineTool({
-  name: 'compose',
+  name: 'limner_compose',
   description:
     'Hybrid V8 composition stack (D-RA-16). Single discriminated-union op input over photon / jsquash / satori / cf-images primitives. Image ops upload to R2 and return a URL envelope.',
   inputSchema: mcpComposeTool.inputSchema as never,

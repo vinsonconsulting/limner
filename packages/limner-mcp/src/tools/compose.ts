@@ -3,7 +3,7 @@
 // Inputs/outputs are base64-encoded image bytes (MCP wire format).
 //
 // Single-tool design chosen 2026-05-25 — matches the architecture's
-// single-bullet phrasing for the `compose` tool, and keeps the MCP
+// single-bullet phrasing for the `limner_compose` tool, and keeps the MCP
 // registry uncluttered (1 entry vs 17).
 //
 // cf-images-transform ops require ctx.images (Workers transport only);
@@ -371,7 +371,7 @@ async function handle(raw: ComposeAdvertisedInput, ctx: ToolContext): Promise<Ca
 // ---------------- exported tool ----------------
 
 export const composeTool: Tool<ComposeAdvertisedInput> = {
-  name: 'compose',
+  name: 'limner_compose',
   description:
     'Hybrid V8 composition stack (D-RA-16). Wraps photon-ops, jsquash-codecs, satori-text, and cf-images-transform behind a single op-discriminated input. Inputs/outputs are base64-encoded image bytes (PNG default). cf-images ops require the Workers transport (IMAGES binding).',
   inputSchema: composeAdvertisedSchema,
