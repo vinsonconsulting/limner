@@ -14,6 +14,13 @@ export class LocalMemoryStore implements MemoryStore {
   constructor(private readonly db: Database.Database) {}
 
   async record(input: MemoryRecordInput): Promise<MemoryEntry> {
+    // Reject empty / whitespace-only content (A6): an empty entry is
+    // meaningless and its content matches every recall `q LIKE` filter. The
+    // MCP boundary already enforces min(1) via zod; this guards the
+    // core-direct / CMA-tools path that bypasses that schema.
+    if (input.content.trim().length === 0) {
+      throw new Error('memory record: content must not be empty');
+    }
     const id = ulid();
     const now = Date.now();
     const metadataJson = input.metadata ? JSON.stringify(input.metadata) : null;

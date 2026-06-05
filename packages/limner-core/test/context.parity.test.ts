@@ -67,6 +67,18 @@ function runProjectSuite(name: string, makeFixture: FixtureFactory): void {
       expect(updated!.updatedAt).toBeGreaterThan(originalUpdatedAt);
     });
 
+    test('update description: null clears it; undefined leaves it unchanged (A6)', async () => {
+      const p = await store.create({ name: 'clearable', description: 'orig' });
+      // undefined → field omitted from the UPDATE, description preserved.
+      const kept = await store.update(p.id, { metadata: { v: 1 } });
+      expect(kept?.description).toBe('orig');
+      // null → bound as SQL NULL, clearing it (reads back as undefined).
+      const cleared = await store.update(p.id, { description: null });
+      expect(cleared?.description).toBeUndefined();
+      // Persisted, not just reflected in the return value.
+      expect((await store.get(p.id))?.description).toBeUndefined();
+    });
+
     test('delete returns true once, false on repeat', async () => {
       const p = await store.create({ name: 'doomed' });
       expect(await store.delete(p.id)).toBe(true);

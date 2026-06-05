@@ -78,7 +78,9 @@ export type ProjectCreateInput = {
 };
 
 export type ProjectUpdateInput = {
-  description?: string;
+  /** `null` clears the stored description; omit (undefined) to leave it
+   *  unchanged. Both store impls bind `null` as SQL NULL (A6). */
+  description?: string | null;
   metadata?: Record<string, unknown>;
 };
 

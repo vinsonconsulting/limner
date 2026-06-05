@@ -30,14 +30,15 @@ import {
   watermark as photonWatermark,
 } from '@cf-wasm/photon';
 
-export type FitMode = 'cover' | 'contain';
+export type FitMode = 'cover';
 
-// Photon's resize is target-size-driven and doesn't itself implement
-// cover / contain semantics — those are caller-side rect calculations.
-// We pre-compute the inner crop / pad so Photon just does the raster work.
-// For now, both modes resize to (width,height); contain pads via background
-// fill when the aspect mismatches. Aspect-preservation lands when a real
-// caller surfaces a use case (current MVP is cover).
+// Photon's resize is target-size-driven. This wrapper resizes to the exact
+// (width, height) and does not implement aspect-preserving rect math.
+// FitMode is pinned to 'cover' — the only mode the impl honors. A 'contain'
+// (pad) mode used to be advertised here but was never implemented, so it was
+// dropped (A6) rather than ship a type that promises behavior we don't keep.
+// If a real caller needs padding/aspect-preservation, add the mode together
+// with the inner crop/pad calculation, not before.
 
 /**
  * Resize an image to (width, height) using Lanczos3 sampling.
@@ -45,7 +46,7 @@ export type FitMode = 'cover' | 'contain';
  * @param input PNG / JPEG / WebP / AVIF bytes; format auto-detected.
  * @param width target width in pixels
  * @param height target height in pixels
- * @param fit 'cover' (default) crops to fill; 'contain' would pad — not yet implemented (resizes both modes to the exact target).
+ * @param fit only 'cover' is supported; resizes to the exact target. Aspect-preserving modes are not implemented.
  * @returns PNG bytes. JPEG output? Pipe through jsquashCodecs.encode('jpeg', ...).
  */
 export function resize(
