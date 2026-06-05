@@ -23,9 +23,9 @@ export interface OAuthEnv {
 /**
  * Default handler — receives non-API requests including the
  * `/authorize` flow. In the v1 dogfood configuration this is a
- * trivial auto-approve: any caller is immediately granted the
- * requested scope and bounced back to the redirect_uri with the
- * auth code.
+ * trivial auto-approve: any caller is immediately granted the fixed
+ * `['mcp']` scope (NOT whatever it requested) and bounced back to the
+ * redirect_uri with the auth code.
  *
  * When external human consumers come online (post-dogfood), this
  * handler grows a real consent screen and authentication step.
@@ -36,12 +36,17 @@ export const defaultHandler: ExportedHandler<OAuthEnv> = {
 
     if (url.pathname === '/authorize') {
       // Parse the inbound authorization request, then complete it
-      // immediately with a dogfood user identity.
+      // immediately with a dogfood user identity. The issued scope is
+      // PINNED to ['mcp'] (D-RA-19) — we ignore whatever the client
+      // requested, so a client cannot mint a broader-scoped token even
+      // while the dogfood build still auto-approves. A real consent step
+      // (and per-client scope policy) lands in v1.0.x. This endpoint is
+      // rate-limited at the worker wiring (withRateLimit on defaultHandler).
       const oauthReq = await env.OAUTH_PROVIDER.parseAuthRequest(req);
       const { redirectTo } = await env.OAUTH_PROVIDER.completeAuthorization({
         request: oauthReq,
         userId: 'limner-dogfood',
-        scope: oauthReq.scope ?? [],
+        scope: ['mcp'],
         metadata: { dogfood: true, ts: Date.now() },
         props: {},
       });
