@@ -16,21 +16,21 @@ describe('LIMNER_TOOLS registry', () => {
     const names = LIMNER_TOOLS.map((t) => t.name).sort();
     expect(names).toEqual(
       [
-        'compose',
-        'forget',
-        'generate_dalle',
-        'generate_midjourney',
-        'generate_recraft',
-        'get_project_context',
-        'health',
-        'list_categories',
-        'list_pipelines',
-        'list_projects',
-        'pipeline_capabilities',
-        'recall',
-        'record',
-        'record_project_note',
-        'version',
+        'limner_compose',
+        'limner_forget',
+        'limner_generate_dalle',
+        'limner_generate_midjourney',
+        'limner_generate_recraft',
+        'limner_get_project_context',
+        'limner_health',
+        'limner_list_categories',
+        'limner_list_pipelines',
+        'limner_list_projects',
+        'limner_pipeline_capabilities',
+        'limner_recall',
+        'limner_record',
+        'limner_record_project_note',
+        'limner_version',
       ],
     );
   });
@@ -42,7 +42,7 @@ describe('LIMNER_TOOLS registry', () => {
   });
 
   test('image-returning tools gate on env.BUCKET', () => {
-    const imageTools = ['generate_dalle', 'generate_recraft', 'compose'];
+    const imageTools = ['limner_generate_dalle', 'limner_generate_recraft', 'limner_compose'];
     for (const name of imageTools) {
       const t = LIMNER_TOOLS.find((x) => x.name === name);
       expect(t).toBeDefined();
@@ -52,7 +52,7 @@ describe('LIMNER_TOOLS registry', () => {
   });
 
   test('memory + project tools gate on env.DB', () => {
-    const dbTools = ['recall', 'record', 'forget', 'list_categories', 'list_projects', 'get_project_context', 'record_project_note'];
+    const dbTools = ['limner_recall', 'limner_record', 'limner_forget', 'limner_list_categories', 'limner_list_projects', 'limner_get_project_context', 'limner_record_project_note'];
     for (const name of dbTools) {
       const t = LIMNER_TOOLS.find((x) => x.name === name);
       expect(t).toBeDefined();
@@ -63,7 +63,7 @@ describe('LIMNER_TOOLS registry', () => {
   });
 
   test('meta tools have no requires gate', () => {
-    const metaToolNames = ['health', 'version', 'list_pipelines', 'pipeline_capabilities'];
+    const metaToolNames = ['limner_health', 'limner_version', 'limner_list_pipelines', 'limner_pipeline_capabilities'];
     for (const name of metaToolNames) {
       const t = LIMNER_TOOLS.find((x) => x.name === name);
       expect(t).toBeDefined();
@@ -72,7 +72,7 @@ describe('LIMNER_TOOLS registry', () => {
   });
 
   test('generate_midjourney has no requires gate (offline composition)', () => {
-    const t = LIMNER_TOOLS.find((x) => x.name === 'generate_midjourney');
+    const t = LIMNER_TOOLS.find((x) => x.name === 'limner_generate_midjourney');
     expect(t).toBeDefined();
     expect(t!.requires).toBeUndefined();
   });

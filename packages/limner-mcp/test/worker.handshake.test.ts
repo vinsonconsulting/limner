@@ -39,21 +39,21 @@ const CONFIG = resolve(__dirname, 'wrangler.handshake.toml');
 // The Phase 4 tool surface, sorted — mirrors test/stdio.smoke.test.ts so both
 // transports assert the same single-source registry.
 const EXPECTED_TOOLS = [
-  'compose',
-  'forget',
-  'generate_dalle',
-  'generate_midjourney',
-  'generate_recraft',
-  'get_project_context',
-  'health',
-  'list_categories',
-  'list_pipelines',
-  'list_projects',
-  'pipeline_capabilities',
-  'recall',
-  'record',
-  'record_project_note',
-  'version',
+  'limner_compose',
+  'limner_forget',
+  'limner_generate_dalle',
+  'limner_generate_midjourney',
+  'limner_generate_recraft',
+  'limner_get_project_context',
+  'limner_health',
+  'limner_list_categories',
+  'limner_list_pipelines',
+  'limner_list_projects',
+  'limner_pipeline_capabilities',
+  'limner_recall',
+  'limner_record',
+  'limner_record_project_note',
+  'limner_version',
 ];
 
 const ACCEPT = 'application/json, text/event-stream';
@@ -149,7 +149,7 @@ describe('worker MCP: DO-backed Streamable HTTP handshake (Phase 6c regression g
 
       // 4. tools/call health — proves dispatch routes through the DO end-to-end.
       const callRes = await post(
-        { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'health', arguments: {} } },
+        { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'limner_health', arguments: {} } },
         sessionId!,
       );
       expect(callRes.status).toBe(200);

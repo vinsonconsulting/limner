@@ -1,5 +1,5 @@
-// Project context tools: list_projects, get_project_context,
-// record_project_note. Wrap @limner/core's ProjectStore. D1-gated.
+// Project context tools: limner_list_projects, limner_get_project_context,
+// limner_record_project_note. Wrap @limner/core's ProjectStore. D1-gated.
 //
 // Refs: D-RA-04, D-RA-12
 
@@ -21,9 +21,9 @@ function bindings(env: Record<string, unknown>) {
 }
 
 const listProjects: CustomTool = defineTool({
-  name: 'list_projects',
+  name: 'limner_list_projects',
   description: 'Return projects matching q / limit / offset filters.',
-  inputSchema: schemaFor('list_projects'),
+  inputSchema: schemaFor('limner_list_projects'),
   requires: (env) => Boolean(env['DB']),
   run: async (input, { env }) => {
     const store = createProjectStore(bindings(env));
@@ -33,9 +33,9 @@ const listProjects: CustomTool = defineTool({
 });
 
 const getProjectContext: CustomTool = defineTool({
-  name: 'get_project_context',
+  name: 'limner_get_project_context',
   description: 'Return a project plus its recent notes. Identify by projectId or name.',
-  inputSchema: schemaFor('get_project_context'),
+  inputSchema: schemaFor('limner_get_project_context'),
   requires: (env) => Boolean(env['DB']),
   run: async (input, { env }) => {
     const store = createProjectStore(bindings(env));
@@ -49,9 +49,9 @@ const getProjectContext: CustomTool = defineTool({
 });
 
 const recordProjectNote: CustomTool = defineTool({
-  name: 'record_project_note',
+  name: 'limner_record_project_note',
   description: 'Append a note to a project. Returns the new note (id + timestamp).',
-  inputSchema: schemaFor('record_project_note'),
+  inputSchema: schemaFor('limner_record_project_note'),
   requires: (env) => Boolean(env['DB']),
   run: async (input, { env }) => {
     const store = createProjectStore(bindings(env));

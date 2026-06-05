@@ -54,7 +54,7 @@ describe('memory tools', () => {
     const { client, close } = await connectedPair(memoryTools);
     try {
       const recorded = await client.callTool({
-        name: 'record',
+        name: 'limner_record',
         arguments: { content: 'project decision: use D1', category: 'adr' },
       });
       const recordedPayload = parseStructured(recorded);
@@ -63,7 +63,7 @@ describe('memory tools', () => {
       expect(entry.content).toBe('project decision: use D1');
 
       const recalled = await client.callTool({
-        name: 'recall',
+        name: 'limner_recall',
         arguments: { category: 'adr' },
       });
       const payload = parseStructured(recalled);
@@ -78,15 +78,15 @@ describe('memory tools', () => {
     const { client, close } = await connectedPair(memoryTools);
     try {
       const recorded = await client.callTool({
-        name: 'record',
+        name: 'limner_record',
         arguments: { content: 'forgettable' },
       });
       const entry = (parseStructured(recorded)['entry'] as { id: string });
 
-      const forgotten = await client.callTool({ name: 'forget', arguments: { id: entry.id } });
+      const forgotten = await client.callTool({ name: 'limner_forget', arguments: { id: entry.id } });
       expect(parseStructured(forgotten)['deleted']).toBe(true);
 
-      const after = await client.callTool({ name: 'recall', arguments: {} });
+      const after = await client.callTool({ name: 'limner_recall', arguments: {} });
       expect(parseStructured(after)['count']).toBe(0);
     } finally {
       await close();
@@ -98,11 +98,11 @@ describe('memory tools', () => {
     try {
       for (const cat of ['adr', 'adr', 'note']) {
         await client.callTool({
-          name: 'record',
+          name: 'limner_record',
           arguments: { content: `entry for ${cat}`, category: cat },
         });
       }
-      const result = await client.callTool({ name: 'list_categories', arguments: {} });
+      const result = await client.callTool({ name: 'limner_list_categories', arguments: {} });
       const payload = parseStructured(result);
       const categories = payload['categories'] as Array<{ category: string; count: number }>;
       const adr = categories.find((c) => c.category === 'adr');
@@ -119,14 +119,14 @@ describe('memory tools', () => {
     try {
       const first = parseStructured(
         await client.callTool({
-          name: 'record',
+          name: 'limner_record',
           arguments: { content: 'v1', sourceId: 'sid-1', category: 'adr' },
         }),
       )['entry'] as { id: string };
 
       const second = parseStructured(
         await client.callTool({
-          name: 'record',
+          name: 'limner_record',
           arguments: { content: 'v2', sourceId: 'sid-1', category: 'adr' },
         }),
       )['entry'] as { id: string; content: string };
@@ -135,7 +135,7 @@ describe('memory tools', () => {
       expect(second.id).toBe(first.id);
       expect(second.content).toBe('v2');
 
-      const all = parseStructured(await client.callTool({ name: 'recall', arguments: {} }));
+      const all = parseStructured(await client.callTool({ name: 'limner_recall', arguments: {} }));
       expect(all['count']).toBe(1);
     } finally {
       await close();
@@ -146,17 +146,17 @@ describe('memory tools', () => {
     const { client, close } = await connectedPair(memoryTools);
     try {
       for (const content of ['alpha note', 'beta note', 'gamma other']) {
-        await client.callTool({ name: 'record', arguments: { content } });
+        await client.callTool({ name: 'limner_record', arguments: { content } });
       }
 
-      const matched = parseStructured(await client.callTool({ name: 'recall', arguments: { q: 'note' } }));
+      const matched = parseStructured(await client.callTool({ name: 'limner_recall', arguments: { q: 'note' } }));
       expect(matched['count']).toBe(2);
 
       const page1 = parseStructured(
-        await client.callTool({ name: 'recall', arguments: { limit: 1 } }),
+        await client.callTool({ name: 'limner_recall', arguments: { limit: 1 } }),
       )['entries'] as Array<{ id: string }>;
       const page2 = parseStructured(
-        await client.callTool({ name: 'recall', arguments: { limit: 1, offset: 1 } }),
+        await client.callTool({ name: 'limner_recall', arguments: { limit: 1, offset: 1 } }),
       )['entries'] as Array<{ id: string }>;
       expect(page1.length).toBe(1);
       expect(page2.length).toBe(1);
@@ -171,18 +171,18 @@ describe('memory tools', () => {
     const { client, close } = await connectedPair(memoryTools);
     try {
       const entry = parseStructured(
-        await client.callTool({ name: 'record', arguments: { content: 'windowed' } }),
+        await client.callTool({ name: 'limner_record', arguments: { content: 'windowed' } }),
       )['entry'] as { id: string; createdAt: number };
       const t = entry.createdAt;
       const has = (payload: Record<string, unknown>): boolean =>
         (payload['entries'] as Array<{ id: string }>).some((e) => e.id === entry.id);
 
       // since at/after the entry's own ms -> included (>= is inclusive).
-      expect(has(parseStructured(await client.callTool({ name: 'recall', arguments: { since: t } })))).toBe(true);
+      expect(has(parseStructured(await client.callTool({ name: 'limner_recall', arguments: { since: t } })))).toBe(true);
       // since strictly after -> excluded.
-      expect(has(parseStructured(await client.callTool({ name: 'recall', arguments: { since: t + 1 } })))).toBe(false);
+      expect(has(parseStructured(await client.callTool({ name: 'limner_recall', arguments: { since: t + 1 } })))).toBe(false);
       // until strictly before -> excluded.
-      expect(has(parseStructured(await client.callTool({ name: 'recall', arguments: { until: t - 1 } })))).toBe(false);
+      expect(has(parseStructured(await client.callTool({ name: 'limner_recall', arguments: { until: t - 1 } })))).toBe(false);
     } finally {
       await close();
     }
@@ -200,7 +200,7 @@ describe('project tools', () => {
 
     const { client, close } = await connectedPair(projectTools);
     try {
-      const result = await client.callTool({ name: 'list_projects', arguments: {} });
+      const result = await client.callTool({ name: 'limner_list_projects', arguments: {} });
       const payload = parseStructured(result);
       expect(payload['count']).toBe(2);
       const names = (payload['projects'] as Array<{ name: string }>).map((p) => p.name);
@@ -221,7 +221,7 @@ describe('project tools', () => {
     const { client, close } = await connectedPair(projectTools);
     try {
       const result = await client.callTool({
-        name: 'get_project_context',
+        name: 'limner_get_project_context',
         arguments: { name: 'rasa' },
       });
       const payload = parseStructured(result);
@@ -236,7 +236,7 @@ describe('project tools', () => {
     const { client, close } = await connectedPair(projectTools);
     try {
       const result = await client.callTool({
-        name: 'get_project_context',
+        name: 'limner_get_project_context',
         arguments: { name: 'does-not-exist' },
       });
       expect(result.isError).toBe(true);
@@ -253,7 +253,7 @@ describe('project tools', () => {
     const { client, close } = await connectedPair(projectTools);
     try {
       const result = await client.callTool({
-        name: 'record_project_note',
+        name: 'limner_record_project_note',
         arguments: { projectId: rasa.id, content: 'a new note' },
       });
       const payload = parseStructured(result);
@@ -270,7 +270,7 @@ describe('meta tools', () => {
   test('health returns bindings flavor + ok status', async () => {
     const { client, close } = await connectedPair(metaTools);
     try {
-      const result = await client.callTool({ name: 'health', arguments: {} });
+      const result = await client.callTool({ name: 'limner_health', arguments: {} });
       const payload = parseStructured(result);
       expect(payload['status']).toBe('ok');
       expect(payload['bindings']).toBe('local');
@@ -284,7 +284,7 @@ describe('meta tools', () => {
   test('version returns the server version', async () => {
     const { client, close } = await connectedPair(metaTools);
     try {
-      const result = await client.callTool({ name: 'version', arguments: {} });
+      const result = await client.callTool({ name: 'limner_version', arguments: {} });
       const payload = parseStructured(result);
       expect(typeof payload['version']).toBe('string');
     } finally {
@@ -295,7 +295,7 @@ describe('meta tools', () => {
   test('list_pipelines returns the three rasa pipelines', async () => {
     const { client, close } = await connectedPair(metaTools);
     try {
-      const result = await client.callTool({ name: 'list_pipelines', arguments: {} });
+      const result = await client.callTool({ name: 'limner_list_pipelines', arguments: {} });
       const payload = parseStructured(result);
       const pipelines = payload['pipelines'] as Array<{ id: string; kind: string }>;
       const ids = pipelines.map((p) => p.id).sort();
@@ -309,7 +309,7 @@ describe('meta tools', () => {
     const { client, close } = await connectedPair(metaTools);
     try {
       const result = await client.callTool({
-        name: 'pipeline_capabilities',
+        name: 'limner_pipeline_capabilities',
         arguments: { id: 'recraft' },
       });
       const payload = parseStructured(result);
@@ -325,7 +325,7 @@ describe('meta tools', () => {
     const { client, close } = await connectedPair(metaTools);
     try {
       const result = await client.callTool({
-        name: 'pipeline_capabilities',
+        name: 'limner_pipeline_capabilities',
         arguments: { id: 'nonsense' },
       });
       expect(result.isError).toBe(true);

@@ -1,4 +1,4 @@
-// Pipeline tools: generate_dalle, generate_midjourney, generate_recraft.
+// Pipeline tools: limner_generate_dalle, limner_generate_midjourney, limner_generate_recraft.
 //
 // Wraps the Phase 4 zod schemas (re-imported from @limner/mcp) with
 // CMA-side run handlers. Image-returning tools (dalle, recraft):
@@ -61,12 +61,12 @@ async function emitImage(
   return imageReturnEnvelope(url, mimeType, metadata);
 }
 
-// ---------------- generate_dalle ----------------
+// ---------------- limner_generate_dalle ----------------
 
 export const generateDalleTool: CustomTool = defineTool({
-  name: 'generate_dalle',
+  name: 'limner_generate_dalle',
   description: 'Generate an image via OpenAI Images API (gpt-image-1 default). Uploads result to R2 and returns the URL.',
-  inputSchema: schemaFor('generate_dalle'),
+  inputSchema: schemaFor('limner_generate_dalle'),
   requires: (env) => Boolean(env['BUCKET']) && Boolean(env['OPENAI_API_KEY']),
   run: async (input, { env }) => {
     const p = new DallePipeline();
@@ -97,13 +97,13 @@ export const generateDalleTool: CustomTool = defineTool({
   },
 });
 
-// ---------------- generate_midjourney ----------------
+// ---------------- limner_generate_midjourney ----------------
 
 export const generateMidjourneyTool: CustomTool = defineTool({
-  name: 'generate_midjourney',
+  name: 'limner_generate_midjourney',
   description:
     'Compose a Midjourney prompt string (prompt-only; no image generation; the agent runs the human-in-the-loop step).',
-  inputSchema: schemaFor('generate_midjourney'),
+  inputSchema: schemaFor('limner_generate_midjourney'),
   // No binding requirement — prompt composition is offline.
   run: async (input) => {
     const p = new MidjourneyPipeline();
@@ -115,19 +115,19 @@ export const generateMidjourneyTool: CustomTool = defineTool({
       { secrets: {} },
     );
     if (out.kind !== 'text') {
-      throw new Error('generate_midjourney: unexpected non-text pipeline output');
+      throw new Error('limner_generate_midjourney: unexpected non-text pipeline output');
     }
     return JSON.stringify({ text: out.content, ...(out.metadata ?? {}) });
   },
 });
 
-// ---------------- generate_recraft ----------------
+// ---------------- limner_generate_recraft ----------------
 
 export const generateRecraftTool: CustomTool = defineTool({
-  name: 'generate_recraft',
+  name: 'limner_generate_recraft',
   description:
     'Generate an image via Recraft (composed-MCP adapter per D-RA-14). Remote mode hits mcp.recraft.ai; local mode spawns the recraft-ai stdio binary. Uploads result to R2.',
-  inputSchema: schemaFor('generate_recraft'),
+  inputSchema: schemaFor('limner_generate_recraft'),
   requires: (env) => Boolean(env['BUCKET']) && Boolean(env['RECRAFT_API_KEY']),
   run: async (input, { env }) => {
     const mode = (input as { mode?: 'remote' | 'local' }).mode ?? 'remote';

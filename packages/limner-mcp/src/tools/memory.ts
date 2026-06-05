@@ -1,4 +1,4 @@
-// Memory tools: recall, record, forget, list_categories.
+// Memory tools: limner_recall, limner_record, limner_forget, limner_list_categories.
 // Wrap @limner/core's MemoryStore (D1 + LocalSQLite parity-tested).
 //
 // Refs: D-RA-04, D-RA-15
@@ -26,7 +26,7 @@ const recallInputSchema = z.object({
 });
 
 const recall: Tool<z.infer<typeof recallInputSchema>> = {
-  name: 'recall',
+  name: 'limner_recall',
   description: 'List memory entries matching the given filters.',
   inputSchema: recallInputSchema,
   handler: async (input, ctx) => {
@@ -44,7 +44,7 @@ const recordInputSchema = z.object({
 });
 
 const record: Tool<z.infer<typeof recordInputSchema>> = {
-  name: 'record',
+  name: 'limner_record',
   description: 'Persist a new memory entry. Returns the assigned id + timestamps.',
   inputSchema: recordInputSchema,
   handler: async (input, ctx) => {
@@ -59,7 +59,7 @@ const forgetInputSchema = z.object({
 });
 
 const forget: Tool<z.infer<typeof forgetInputSchema>> = {
-  name: 'forget',
+  name: 'limner_forget',
   description: 'Delete a memory entry by id. Returns { deleted: boolean }.',
   inputSchema: forgetInputSchema,
   handler: async (input, ctx) => {
@@ -70,7 +70,7 @@ const forget: Tool<z.infer<typeof forgetInputSchema>> = {
 };
 
 const listCategories: Tool<Record<string, never>> = {
-  name: 'list_categories',
+  name: 'limner_list_categories',
   description: 'Return all memory categories with their entry counts.',
   inputSchema: z.object({}).strict(),
   handler: async (_, ctx) => {

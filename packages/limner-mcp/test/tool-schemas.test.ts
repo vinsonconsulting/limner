@@ -6,7 +6,7 @@
 // `model_request_failed_error` (0 tokens) the instant the tool loads into a
 // model request — the exact `vault_ids` failure fixed in PR #8.
 //
-// This is the test that would have caught the `compose` discriminated-union
+// This is the test that would have caught the `limner_compose` discriminated-union
 // schema before it ever shipped.
 
 import { describe, expect, test } from 'vitest';

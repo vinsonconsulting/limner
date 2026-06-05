@@ -1,5 +1,5 @@
-// Project context tools: list_projects, get_project_context,
-// record_project_note. Wrap @limner/core's ProjectStore.
+// Project context tools: limner_list_projects, limner_get_project_context,
+// limner_record_project_note. Wrap @limner/core's ProjectStore.
 //
 // Refs: D-RA-04, D-RA-15
 
@@ -23,7 +23,7 @@ const listInputSchema = z.object({
 });
 
 const listProjects: Tool<z.infer<typeof listInputSchema>> = {
-  name: 'list_projects',
+  name: 'limner_list_projects',
   description: 'Return projects matching the given filters.',
   inputSchema: listInputSchema,
   handler: async (input, ctx) => {
@@ -43,7 +43,7 @@ const getContextInputSchema = z.object({
 });
 
 const getProjectContext: Tool<z.infer<typeof getContextInputSchema>> = {
-  name: 'get_project_context',
+  name: 'limner_get_project_context',
   description:
     'Return a project plus its recent notes. Identify by projectId or name.',
   inputSchema: getContextInputSchema,
@@ -73,7 +73,7 @@ const recordNoteInputSchema = z.object({
 });
 
 const recordProjectNote: Tool<z.infer<typeof recordNoteInputSchema>> = {
-  name: 'record_project_note',
+  name: 'limner_record_project_note',
   description: 'Append a note to a project. Returns the new note (id + timestamp).',
   inputSchema: recordNoteInputSchema,
   handler: async (input, ctx) => {

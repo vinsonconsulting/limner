@@ -179,9 +179,9 @@ limner/
 │   │   │   │   └── oauth.ts        # workers-oauth-provider wiring
 │   │   │   └── tools/
 │   │   │       ├── pipelines.ts    # generate_* tools
-│   │   │       ├── memory.ts       # recall/record/forget/list_categories
+│   │   │       ├── memory.ts       # limner_recall/limner_record/limner_forget/limner_list_categories
 │   │   │       ├── context.ts      # project tools
-│   │   │       └── meta.ts         # health/version/list_pipelines
+│   │   │       └── meta.ts         # limner_health/limner_version/limner_list_pipelines
 │   │   ├── manifest.json           # mcpb pack manifest
 │   │   ├── wrangler.toml
 │   │   ├── package.json
@@ -298,10 +298,10 @@ Per D-RA-16, rasa v1 composition is delivered by a hybrid stack running entirely
 - Workers entry point (`worker.ts`) — for production.
 - OAuth wiring via `workers-oauth-provider`.
 - All tools from the original dev plan §4:
-  - Pipeline tools: `generate_midjourney`, `generate_dalle`, `generate_recraft`, `compose` (hybrid V8 stack per D-RA-16; backed by Photon + jSquash + Satori/resvg + CF Images Transformations)
-  - Memory tools: `recall`, `record`, `forget`, `list_categories`
-  - Project tools: `list_projects`, `get_project_context`, `record_project_note`
-  - Discovery/health: `list_pipelines`, `pipeline_capabilities`, `health`, `version`
+  - Pipeline tools: `limner_generate_midjourney`, `limner_generate_dalle`, `limner_generate_recraft`, `limner_compose` (hybrid V8 stack per D-RA-16; backed by Photon + jSquash + Satori/resvg + CF Images Transformations)
+  - Memory tools: `limner_recall`, `limner_record`, `limner_forget`, `limner_list_categories`
+  - Project tools: `limner_list_projects`, `limner_get_project_context`, `limner_record_project_note`
+  - Discovery/health: `limner_list_pipelines`, `limner_pipeline_capabilities`, `limner_health`, `limner_version`
 - MCPB manifest + `mcpb pack` CI workflow.
 
 **DoD:** MCP Inspector passes against both stdio and Workers HTTP transports. Auth flow works end-to-end.

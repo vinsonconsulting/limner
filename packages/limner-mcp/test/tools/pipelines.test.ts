@@ -36,17 +36,17 @@ const localBindings = { kind: 'local' } as unknown as Bindings;
 describe('pipelineTools registry surface', () => {
   test('exposes generate_dalle, generate_midjourney, generate_recraft', () => {
     const names = pipelineTools.map((t) => t.name);
-    expect(names).toEqual(['generate_dalle', 'generate_midjourney', 'generate_recraft']);
+    expect(names).toEqual(['limner_generate_dalle', 'limner_generate_midjourney', 'limner_generate_recraft']);
   });
 });
 
-describe('generate_midjourney', () => {
+describe('limner_generate_midjourney', () => {
   test('returns text content with the composed prompt', async () => {
     const ctx: ToolContext = { bindings: localBindings, secrets: {} };
     const { client, close } = await connectedPair(pipelineTools, ctx);
     try {
       const result = await client.callTool({
-        name: 'generate_midjourney',
+        name: 'limner_generate_midjourney',
         arguments: { prompt: 'a serene mountain landscape', aspectRatio: '16:9', stylize: 200 },
       });
       // Midjourney pipeline composes a prompt string and returns it as text.
@@ -80,9 +80,9 @@ describe('generate_dalle (mocked OpenAI)', () => {
     // (The dispatch contract is identical; we're testing the wiring.)
     const { DallePipeline } = await import('@limner/core');
     const customTool: Tool = {
-      name: 'generate_dalle',
+      name: 'limner_generate_dalle',
       description: 'test override',
-      inputSchema: pipelineTools.find((t) => t.name === 'generate_dalle')!.inputSchema,
+      inputSchema: pipelineTools.find((t) => t.name === 'limner_generate_dalle')!.inputSchema,
       handler: async (input, ctx) => {
         const p = new DallePipeline(fetchMock as any);
         const out = await p.generate(
@@ -106,7 +106,7 @@ describe('generate_dalle (mocked OpenAI)', () => {
     const { client, close } = await connectedPair([customTool], ctx);
     try {
       const result = await client.callTool({
-        name: 'generate_dalle',
+        name: 'limner_generate_dalle',
         arguments: { prompt: 'a single red apple', size: '1024x1024' },
       });
       const content = result.content as Array<{ type: string; data?: string; mimeType?: string }>;
@@ -124,7 +124,7 @@ describe('generate_dalle (mocked OpenAI)', () => {
     const { client, close } = await connectedPair(pipelineTools, ctx);
     try {
       const result = await client.callTool({
-        name: 'generate_dalle',
+        name: 'limner_generate_dalle',
         arguments: { prompt: 'cat' },
       });
       expect(result.isError).toBe(true);
@@ -135,13 +135,13 @@ describe('generate_dalle (mocked OpenAI)', () => {
   });
 });
 
-describe('generate_recraft', () => {
+describe('limner_generate_recraft', () => {
   test('missing RECRAFT_API_KEY (remote mode) surfaces as isError=true', async () => {
     const ctx: ToolContext = { bindings: localBindings, secrets: {} };
     const { client, close } = await connectedPair(pipelineTools, ctx);
     try {
       const result = await client.callTool({
-        name: 'generate_recraft',
+        name: 'limner_generate_recraft',
         arguments: { prompt: 'logo', mode: 'remote' },
       });
       expect(result.isError).toBe(true);

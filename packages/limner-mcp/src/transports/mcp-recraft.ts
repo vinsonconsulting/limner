@@ -9,7 +9,7 @@
 // Recraft's MCP server exposes nine tools (confirmed against
 // github.com/recraft-ai/mcp-recraft-server README, 2026-05-25). This
 // adapter wires `generate_image` only — the rasa-relevant surface per
-// the architecture's `generate_recraft` tool spec. Additional Recraft
+// the architecture's `limner_generate_recraft` tool spec. Additional Recraft
 // tools (vectorize_image, remove_background, etc.) can be exposed as
 // a "recraft passthrough" surface in a later phase if demand surfaces.
 //
