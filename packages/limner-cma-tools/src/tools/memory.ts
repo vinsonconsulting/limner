@@ -1,4 +1,4 @@
-// Memory tools: recall, record, forget, list_categories.
+// Memory tools: limner_recall, limner_record, limner_forget, limner_list_categories.
 // Wrap @limner/core's MemoryStore. `requires: (env) => Boolean(env.DB)`
 // gates each on the consuming Worker's D1 binding.
 //
@@ -22,9 +22,9 @@ function bindings(env: Record<string, unknown>) {
 }
 
 const recall: CustomTool = defineTool({
-  name: 'recall',
+  name: 'limner_recall',
   description: 'List memory entries matching q / category / since / until / limit / offset filters.',
-  inputSchema: schemaFor('recall'),
+  inputSchema: schemaFor('limner_recall'),
   requires: (env) => Boolean(env['DB']),
   run: async (input, { env }) => {
     const store = createMemoryStore(bindings(env));
@@ -34,9 +34,9 @@ const recall: CustomTool = defineTool({
 });
 
 const record: CustomTool = defineTool({
-  name: 'record',
+  name: 'limner_record',
   description: 'Persist a new memory entry. Returns the assigned id + timestamps. Idempotent via sourceId.',
-  inputSchema: schemaFor('record'),
+  inputSchema: schemaFor('limner_record'),
   requires: (env) => Boolean(env['DB']),
   run: async (input, { env }) => {
     const store = createMemoryStore(bindings(env));
@@ -46,9 +46,9 @@ const record: CustomTool = defineTool({
 });
 
 const forget: CustomTool = defineTool({
-  name: 'forget',
+  name: 'limner_forget',
   description: 'Delete a memory entry by id. Returns { deleted: boolean }.',
-  inputSchema: schemaFor('forget'),
+  inputSchema: schemaFor('limner_forget'),
   requires: (env) => Boolean(env['DB']),
   run: async (input, { env }) => {
     const store = createMemoryStore(bindings(env));
@@ -58,9 +58,9 @@ const forget: CustomTool = defineTool({
 });
 
 const listCategories: CustomTool = defineTool({
-  name: 'list_categories',
+  name: 'limner_list_categories',
   description: 'Return all memory categories with their entry counts.',
-  inputSchema: schemaFor('list_categories'),
+  inputSchema: schemaFor('limner_list_categories'),
   requires: (env) => Boolean(env['DB']),
   run: async (_, { env }) => {
     const store = createMemoryStore(bindings(env));

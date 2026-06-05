@@ -47,21 +47,21 @@ describe('stdio entry point smoke', () => {
         const names = result.tools.map((t) => t.name).sort();
         expect(names).toEqual(
           [
-            'compose',
-            'forget',
-            'generate_dalle',
-            'generate_midjourney',
-            'generate_recraft',
-            'get_project_context',
-            'health',
-            'list_categories',
-            'list_pipelines',
-            'list_projects',
-            'pipeline_capabilities',
-            'recall',
-            'record',
-            'record_project_note',
-            'version',
+            'limner_compose',
+            'limner_forget',
+            'limner_generate_dalle',
+            'limner_generate_midjourney',
+            'limner_generate_recraft',
+            'limner_get_project_context',
+            'limner_health',
+            'limner_list_categories',
+            'limner_list_pipelines',
+            'limner_list_projects',
+            'limner_pipeline_capabilities',
+            'limner_recall',
+            'limner_record',
+            'limner_record_project_note',
+            'limner_version',
           ],
         );
       } finally {
@@ -86,7 +86,7 @@ describe('stdio entry point smoke', () => {
       const client = new Client({ name: 'smoke-test', version: '0.0.1' }, { capabilities: {} });
       await client.connect(transport);
       try {
-        const result = await client.callTool({ name: 'health', arguments: {} });
+        const result = await client.callTool({ name: 'limner_health', arguments: {} });
         const r = result as {
           content: Array<{ text?: string }>;
           structuredContent?: Record<string, unknown>;

@@ -70,7 +70,7 @@ describe('compose tool — photon ops', () => {
     const { client, close } = await connectedPair(localCtx);
     try {
       const result = await client.callTool({
-        name: 'compose',
+        name: 'limner_compose',
         arguments: {
           op: 'resize',
           input: b64encode(corefix('checker-64.png')),
@@ -89,7 +89,7 @@ describe('compose tool — photon ops', () => {
     const { client, close } = await connectedPair(localCtx);
     try {
       const result = await client.callTool({
-        name: 'compose',
+        name: 'limner_compose',
         arguments: {
           op: 'crop',
           input: b64encode(corefix('checker-64.png')),
@@ -111,7 +111,7 @@ describe('compose tool — photon ops', () => {
     try {
       const input = b64encode(corefix('checker-64.png'));
       const result = await client.callTool({
-        name: 'compose',
+        name: 'limner_compose',
         arguments: { op: 'watermark', base: input, overlay: input, x: 8, y: 8 },
       });
       const bytes = decodeImageContent(result);
@@ -127,7 +127,7 @@ describe('compose tool — jsquash ops', () => {
     const { client, close } = await connectedPair(localCtx);
     try {
       const result = await client.callTool({
-        name: 'compose',
+        name: 'limner_compose',
         arguments: {
           op: 'convert',
           input: b64encode(corefix('checker-64.png')),
@@ -150,7 +150,7 @@ describe('compose tool — jsquash ops', () => {
     const { client, close } = await connectedPair(localCtx);
     try {
       const result = await client.callTool({
-        name: 'compose',
+        name: 'limner_compose',
         arguments: { op: 'decode', input: b64encode(corefix('checker-64.png')), format: 'png' },
       });
       const r = result as { content: Array<{ type: string; text?: string }> };
@@ -170,7 +170,7 @@ describe('compose tool — cf-images ops (stdio: unsupported)', () => {
     const { client, close } = await connectedPair(localCtx);
     try {
       const result = await client.callTool({
-        name: 'compose',
+        name: 'limner_compose',
         arguments: { op: 'cfTransform', input: b64encode(corefix('checker-64.png')), opts: { blur: 5 } },
       });
       expect(result.isError).toBe(true);
@@ -196,7 +196,7 @@ describe('compose tool — cf-images ops (workers: with mock binding)', () => {
     const { client, close } = await connectedPair(workersCtx);
     try {
       const result = await client.callTool({
-        name: 'compose',
+        name: 'limner_compose',
         arguments: {
           op: 'cfBlur',
           input: b64encode(new Uint8Array([99])),
@@ -217,7 +217,7 @@ describe('compose tool — schema validation', () => {
     const { client, close } = await connectedPair(localCtx);
     try {
       const result = await client.callTool({
-        name: 'compose',
+        name: 'limner_compose',
         arguments: { op: 'no_such_op' },
       });
       expect(result.isError).toBe(true);
@@ -231,7 +231,7 @@ describe('compose tool — schema validation', () => {
     const { client, close } = await connectedPair(localCtx);
     try {
       const result = await client.callTool({
-        name: 'compose',
+        name: 'limner_compose',
         arguments: { op: 'resize', input: 'abc', height: 32 },
       });
       expect(result.isError).toBe(true);

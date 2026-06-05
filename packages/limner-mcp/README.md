@@ -12,23 +12,23 @@ Phase 4 of the rebuild. Code lands by phase per [`docs/Limner_Cloudflare_CMA_Arc
 
 | Tool | Description | Output |
 |---|---|---|
-| `generate_dalle` | OpenAI Images (gpt-image-1 default; dall-e-3 / dall-e-2 also supported) | image |
-| `generate_midjourney` | Compose a Midjourney prompt string (HITL; no API call) | text |
-| `generate_recraft` | Recraft composed-MCP adapter per D-RA-14 (`mcp.recraft.ai` remote or local stdio) | image |
-| `compose` | Hybrid V8 stack (D-RA-16) — single tool, discriminated-union op over 16 primitives | image / text |
-| `recall` | Memory query by q / category / since / until / limit | structured |
-| `record` | Persist a new memory entry (idempotent via `sourceId`) | structured |
-| `forget` | Delete a memory entry by id | structured |
-| `list_categories` | Memory categories with counts | structured |
-| `list_projects` | Project list by q / limit / offset | structured |
-| `get_project_context` | Project + recent notes (identify by id or name) | structured |
-| `record_project_note` | Append a note to a project | structured |
-| `health` | bindings flavor + version + timestamp | structured |
-| `version` | server version | structured |
-| `list_pipelines` | id/displayName/kind/requiredSecrets per pipeline | structured |
-| `pipeline_capabilities` | per-pipeline detail | structured |
+| `limner_generate_dalle` | OpenAI Images (gpt-image-1 default; dall-e-3 / dall-e-2 also supported) | image |
+| `limner_generate_midjourney` | Compose a Midjourney prompt string (HITL; no API call) | text |
+| `limner_generate_recraft` | Recraft composed-MCP adapter per D-RA-14 (`mcp.recraft.ai` remote or local stdio) | image |
+| `limner_compose` | Hybrid V8 stack (D-RA-16) — single tool, discriminated-union op over 16 primitives | image / text |
+| `limner_recall` | Memory query by q / category / since / until / limit | structured |
+| `limner_record` | Persist a new memory entry (idempotent via `sourceId`) | structured |
+| `limner_forget` | Delete a memory entry by id | structured |
+| `limner_list_categories` | Memory categories with counts | structured |
+| `limner_list_projects` | Project list by q / limit / offset | structured |
+| `limner_get_project_context` | Project + recent notes (identify by id or name) | structured |
+| `limner_record_project_note` | Append a note to a project | structured |
+| `limner_health` | bindings flavor + version + timestamp | structured |
+| `limner_version` | server version | structured |
+| `limner_list_pipelines` | id/displayName/kind/requiredSecrets per pipeline | structured |
+| `limner_pipeline_capabilities` | per-pipeline detail | structured |
 
-The `compose` tool's op surface covers `resize`, `crop`, `brightness`, `contrast`, `blur`, `sharpen`, `watermark`, `encode`, `decode`, `convert`, `renderText`, `cfTransform`, `cfOverlay`, `cfBlur`, `cfSmartCrop`, `cfBackgroundFill`. The `cf*` ops require the Workers transport (Cloudflare Images binding); the stdio transport returns an `unsupported_in_stdio` error for those.
+The `limner_compose` tool's op surface covers `resize`, `crop`, `brightness`, `contrast`, `blur`, `sharpen`, `watermark`, `encode`, `decode`, `convert`, `renderText`, `cfTransform`, `cfOverlay`, `cfBlur`, `cfSmartCrop`, `cfBackgroundFill`. The `cf*` ops require the Workers transport (Cloudflare Images binding); the stdio transport returns an `unsupported_in_stdio` error for those.
 
 ## Transports
 
@@ -50,8 +50,8 @@ npx -y limner-mcp
 
 Env vars consumed at startup:
 
-- `OPENAI_API_KEY` — for `generate_dalle`
-- `RECRAFT_API_KEY` — for `generate_recraft` (remote mode)
+- `OPENAI_API_KEY` — for `limner_generate_dalle`
+- `RECRAFT_API_KEY` — for `limner_generate_recraft` (remote mode)
 - `LIMNER_DB_PATH` — local SQLite path (default `~/.limner/limner.db`)
 - `LIMNER_SCHEMA_PATH` — schema source (default resolved relative to dist)
 
@@ -106,8 +106,8 @@ Bindings in `wrangler.toml`:
 
 Secrets (`wrangler secret put ...`):
 
-- `OPENAI_API_KEY` — for `generate_dalle`
-- `RECRAFT_API_KEY` — for `generate_recraft` (remote mode)
+- `OPENAI_API_KEY` — for `limner_generate_dalle`
+- `RECRAFT_API_KEY` — for `limner_generate_recraft` (remote mode)
 
 ### 3. `.mcpb` bundle
 

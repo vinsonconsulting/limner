@@ -1,5 +1,5 @@
-// Meta / discovery tools: health, version, list_pipelines,
-// pipeline_capabilities. No binding gates — pure tool surface
+// Meta / discovery tools: limner_health, limner_version, limner_list_pipelines,
+// limner_pipeline_capabilities. No binding gates — pure tool surface
 // reflection (matches Path B's meta surface).
 //
 // Refs: D-RA-12
@@ -27,9 +27,9 @@ function pipelineList() {
 }
 
 const health: CustomTool = defineTool({
-  name: 'health',
+  name: 'limner_health',
   description: 'Server health snapshot — surface flavor, version, timestamp.',
-  inputSchema: schemaFor('health'),
+  inputSchema: schemaFor('limner_health'),
   run: async (_, { env }) => {
     return JSON.stringify({
       status: 'ok',
@@ -44,16 +44,16 @@ const health: CustomTool = defineTool({
 });
 
 const version: CustomTool = defineTool({
-  name: 'version',
+  name: 'limner_version',
   description: 'Return the @limner/cma-tools library version.',
-  inputSchema: schemaFor('version'),
+  inputSchema: schemaFor('limner_version'),
   run: async () => JSON.stringify({ version: SERVER_VERSION }),
 });
 
 const listPipelines: CustomTool = defineTool({
-  name: 'list_pipelines',
+  name: 'limner_list_pipelines',
   description: 'List the pipelines available to this surface. For each pipeline returns id, displayName, kind, and required secrets.',
-  inputSchema: schemaFor('list_pipelines'),
+  inputSchema: schemaFor('limner_list_pipelines'),
   run: async () =>
     JSON.stringify({
       pipelines: pipelineList().map((p) => ({
@@ -67,9 +67,9 @@ const listPipelines: CustomTool = defineTool({
 });
 
 const pipelineCapabilities: CustomTool = defineTool({
-  name: 'pipeline_capabilities',
+  name: 'limner_pipeline_capabilities',
   description: "Describe a specific pipeline's capability surface (kind / transport / required secrets / input options shape).",
-  inputSchema: schemaFor('pipeline_capabilities'),
+  inputSchema: schemaFor('limner_pipeline_capabilities'),
   run: async (input) => {
     const id = String((input as { id: string }).id);
     const found = pipelineList().find((p) => p.id === id);
@@ -81,7 +81,7 @@ const pipelineCapabilities: CustomTool = defineTool({
       requiredSecrets: found.requiredSecrets,
       ...('transport' in found ? { transport: (found as { transport: string }).transport } : {}),
       inputDescription:
-        'See generate_' + found.id + ' tool input schema for option details.',
+        'See limner_generate_' + found.id + ' tool input schema for option details.',
     });
   },
 });

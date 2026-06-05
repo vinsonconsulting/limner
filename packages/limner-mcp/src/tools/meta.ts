@@ -1,5 +1,5 @@
-// Meta / discovery tools: health, version, list_pipelines,
-// pipeline_capabilities. These don't touch durable state and are
+// Meta / discovery tools: limner_health, limner_version, limner_list_pipelines,
+// limner_pipeline_capabilities. These don't touch durable state and are
 // safe to call without authenticated scopes.
 //
 // Refs: D-RA-05
@@ -30,7 +30,7 @@ function pipelineList() {
 }
 
 const health: Tool<Record<string, never>> = {
-  name: 'health',
+  name: 'limner_health',
   description: 'Server health snapshot — bindings flavor, timestamp, version.',
   inputSchema: z.object({}).strict(),
   handler: async (_, ctx) => {
@@ -45,14 +45,14 @@ const health: Tool<Record<string, never>> = {
 };
 
 const version: Tool<Record<string, never>> = {
-  name: 'version',
+  name: 'limner_version',
   description: 'Return the @limner/mcp server version.',
   inputSchema: z.object({}).strict(),
   handler: async () => structured({ version: SERVER_VERSION }),
 };
 
 const listPipelines: Tool<Record<string, never>> = {
-  name: 'list_pipelines',
+  name: 'limner_list_pipelines',
   description: 'List the pipelines registered with this server. For each pipeline returns id, displayName, kind, and required secrets.',
   inputSchema: z.object({}).strict(),
   handler: async () =>
@@ -72,7 +72,7 @@ const pipelineCapabilitiesInputSchema = z.object({
 });
 
 const pipelineCapabilities: Tool<z.infer<typeof pipelineCapabilitiesInputSchema>> = {
-  name: 'pipeline_capabilities',
+  name: 'limner_pipeline_capabilities',
   description:
     'Describe a specific pipeline\'s capability surface. Returns kind + transport + required secrets + the input options shape (heuristic; not a strict zod export).',
   inputSchema: pipelineCapabilitiesInputSchema,
@@ -91,10 +91,10 @@ const pipelineCapabilities: Tool<z.infer<typeof pipelineCapabilitiesInputSchema>
       requiredSecrets: found.requiredSecrets,
       ...('transport' in found ? { transport: (found as { transport: string }).transport } : {}),
       // Note: per-pipeline option shapes live in the tool input schemas
-      // (generate_dalle / generate_recraft / generate_midjourney);
+      // (limner_generate_dalle / limner_generate_recraft / limner_generate_midjourney);
       // call tools/list for the full discovery surface.
       inputDescription:
-        'See generate_' + found.id + ' tool input schema for option details.',
+        'See limner_generate_' + found.id + ' tool input schema for option details.',
     });
   },
 };

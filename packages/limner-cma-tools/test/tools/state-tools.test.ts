@@ -51,7 +51,7 @@ const env = () => ({ DB: db });
 
 describe('memory cma-tools', () => {
   test('record returns the new entry id + timestamps', async () => {
-    const recordTool = toolByName('record', memoryTools);
+    const recordTool = toolByName('limner_record', memoryTools);
     const out = await recordTool.run({ content: 'project decision: use D1', category: 'adr' }, { env: env() });
     const parsed = JSON.parse(out);
     expect(parsed.entry.id).toBeTruthy();
@@ -59,8 +59,8 @@ describe('memory cma-tools', () => {
   });
 
   test('recall lists matching entries', async () => {
-    const recordTool = toolByName('record', memoryTools);
-    const recallTool = toolByName('recall', memoryTools);
+    const recordTool = toolByName('limner_record', memoryTools);
+    const recallTool = toolByName('limner_recall', memoryTools);
     await recordTool.run({ content: 'entry 1', category: 'note' }, { env: env() });
     await recordTool.run({ content: 'entry 2', category: 'note' }, { env: env() });
     const out = await recallTool.run({ category: 'note' }, { env: env() });
@@ -69,16 +69,16 @@ describe('memory cma-tools', () => {
   });
 
   test('forget deletes the entry', async () => {
-    const recordTool = toolByName('record', memoryTools);
-    const forgetTool = toolByName('forget', memoryTools);
+    const recordTool = toolByName('limner_record', memoryTools);
+    const forgetTool = toolByName('limner_forget', memoryTools);
     const created = JSON.parse(await recordTool.run({ content: 'forgettable' }, { env: env() }));
     const out = await forgetTool.run({ id: created.entry.id }, { env: env() });
     expect(JSON.parse(out).deleted).toBe(true);
   });
 
   test('list_categories returns counts', async () => {
-    const recordTool = toolByName('record', memoryTools);
-    const listCategoriesTool = toolByName('list_categories', memoryTools);
+    const recordTool = toolByName('limner_record', memoryTools);
+    const listCategoriesTool = toolByName('limner_list_categories', memoryTools);
     for (const c of ['adr', 'adr', 'note']) {
       await recordTool.run({ content: 'e', category: c }, { env: env() });
     }
@@ -98,7 +98,7 @@ describe('project cma-tools', () => {
     await store.create({ name: 'rasa' });
     await store.create({ name: 'pixel' });
 
-    const listTool = toolByName('list_projects', projectTools);
+    const listTool = toolByName('limner_list_projects', projectTools);
     const out = await listTool.run({}, { env: env() });
     const parsed = JSON.parse(out);
     expect(parsed.count).toBe(2);
@@ -110,7 +110,7 @@ describe('project cma-tools', () => {
     const rasa = await store.create({ name: 'rasa', description: 'foundation' });
     await store.addNote({ projectId: rasa.id, content: 'first note' });
 
-    const getTool = toolByName('get_project_context', projectTools);
+    const getTool = toolByName('limner_get_project_context', projectTools);
     const out = await getTool.run({ name: 'rasa' }, { env: env() });
     const parsed = JSON.parse(out);
     expect(parsed.project.name).toBe('rasa');
@@ -121,7 +121,7 @@ describe('project cma-tools', () => {
     const { createProjectStore } = await import('@limner/core');
     const store = createProjectStore({ kind: 'workers', DB: db } as never);
     const rasa = await store.create({ name: 'rasa' });
-    const recordNoteTool = toolByName('record_project_note', projectTools);
+    const recordNoteTool = toolByName('limner_record_project_note', projectTools);
     const out = await recordNoteTool.run({ projectId: rasa.id, content: 'a note' }, { env: env() });
     expect(JSON.parse(out).note.content).toBe('a note');
   });
@@ -131,7 +131,7 @@ describe('project cma-tools', () => {
 
 describe('meta cma-tools', () => {
   test('health reports surface = cma-tools + binding flags', async () => {
-    const tool = toolByName('health', metaTools);
+    const tool = toolByName('limner_health', metaTools);
     const out = await tool.run({}, { env: env() });
     const parsed = JSON.parse(out);
     expect(parsed.status).toBe('ok');
@@ -141,7 +141,7 @@ describe('meta cma-tools', () => {
   });
 
   test('list_pipelines returns the three rasa pipelines', async () => {
-    const tool = toolByName('list_pipelines', metaTools);
+    const tool = toolByName('limner_list_pipelines', metaTools);
     const out = await tool.run({}, { env: env() });
     const parsed = JSON.parse(out);
     const ids = parsed.pipelines.map((p: { id: string }) => p.id).sort();
@@ -149,7 +149,7 @@ describe('meta cma-tools', () => {
   });
 
   test('pipeline_capabilities returns details for a known pipeline', async () => {
-    const tool = toolByName('pipeline_capabilities', metaTools);
+    const tool = toolByName('limner_pipeline_capabilities', metaTools);
     const out = await tool.run({ id: 'recraft' }, { env: env() });
     const parsed = JSON.parse(out);
     expect(parsed.id).toBe('recraft');
@@ -157,7 +157,7 @@ describe('meta cma-tools', () => {
   });
 
   test('pipeline_capabilities returns error for unknown pipeline', async () => {
-    const tool = toolByName('pipeline_capabilities', metaTools);
+    const tool = toolByName('limner_pipeline_capabilities', metaTools);
     const out = await tool.run({ id: 'nonsense' }, { env: env() });
     expect(JSON.parse(out).error).toMatch(/not found/);
   });

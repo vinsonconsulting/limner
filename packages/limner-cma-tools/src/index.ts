@@ -15,8 +15,8 @@
 //   DB      (D1)        memory + project tools read/write here
 //   IMAGES  (optional)  cf-* compose ops use this
 // Required secrets:
-//   OPENAI_API_KEY      generate_dalle
-//   RECRAFT_API_KEY     generate_recraft (remote mode)
+//   OPENAI_API_KEY      limner_generate_dalle
+//   RECRAFT_API_KEY     limner_generate_recraft (remote mode)
 //
 // Refs: D-RA-12
 
