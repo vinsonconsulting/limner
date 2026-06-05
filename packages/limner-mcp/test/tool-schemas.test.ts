@@ -4,8 +4,7 @@
 // ("input_schema does not support oneOf, allOf, or anyOf at the top level"),
 // and through Managed Agents that rejection surfaces as an opaque
 // `model_request_failed_error` (0 tokens) the instant the tool loads into a
-// model request — the exact `vault_ids` failure documented in
-// docs/vault-ids-findings-review.md.
+// model request — the exact `vault_ids` failure fixed in PR #8.
 //
 // This is the test that would have caught the `compose` discriminated-union
 // schema before it ever shipped.

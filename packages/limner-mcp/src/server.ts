@@ -65,7 +65,7 @@ export type ToolRegistry = ReadonlyMap<string, Tool>;
 // anyOf at the top level"). Through Managed Agents that rejection
 // surfaces as an opaque `model_request_failed_error` (0 tokens) the
 // moment the tool loads into a model request — which is exactly how the
-// `vault_ids` 0-token failure manifested (see docs/vault-ids-findings-review.md).
+// `vault_ids` 0-token failure manifested (see PR #8, which fixed it).
 //
 // So we FLATTEN a discriminated union into a single object schema: union
 // every variant's properties, collapse the discriminator's per-variant

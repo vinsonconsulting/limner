@@ -59,8 +59,7 @@ export const composeMcpTool: CustomTool = defineTool({
   run: async (input, { env }) => {
     // The advertised schema is intentionally loose (no top-level combinator,
     // required by the Anthropic tool API); re-validate against the strict
-    // per-op union before dispatch — parity with Path B. See
-    // docs/vault-ids-findings-review.md.
+    // per-op union before dispatch — parity with Path B. See PR #8.
     const v = composeInputSchema.safeParse(input);
     if (!v.success) {
       throw new Error(`compose: invalid arguments: ${JSON.stringify(v.error.flatten())}`);
