@@ -16,6 +16,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { createLocalBindings } from '@limner/core';
 
 import { createServer, registerTools, type ToolContext } from './server.js';
+import { VERSION } from './version.js';
 import { pipelineTools } from './tools/pipelines.js';
 import { composeTool } from './tools/compose.js';
 import { memoryTools } from './tools/memory.js';
@@ -45,7 +46,7 @@ async function main(): Promise<void> {
     schemaPath: resolveSchemaPath(),
   });
 
-  const server = createServer('limner-mcp (preview)', '1.0.0');
+  const server = createServer('limner-mcp (preview)', VERSION);
 
   registerTools(
     server,

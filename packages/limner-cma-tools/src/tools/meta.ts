@@ -9,6 +9,7 @@ import { metaTools as mcpMetaTools } from '@limner/mcp';
 import type { z } from 'zod';
 
 import { defineTool, type CustomTool } from '../runtime.js';
+import { VERSION } from '../version.js';
 
 function schemaFor(name: string): z.ZodType<unknown, z.ZodTypeDef, unknown> {
   const t = mcpMetaTools.find((x) => x.name === name);
@@ -16,7 +17,7 @@ function schemaFor(name: string): z.ZodType<unknown, z.ZodTypeDef, unknown> {
   return t.inputSchema as z.ZodType<unknown, z.ZodTypeDef, unknown>;
 }
 
-const SERVER_VERSION = '1.0.0';
+const SERVER_VERSION = VERSION;
 
 function pipelineList() {
   return [

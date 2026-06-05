@@ -9,8 +9,9 @@ import { DallePipeline, MidjourneyPipeline, RecraftPipeline } from '@limner/core
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
 import { type Tool, READ_ONLY } from '../server.js';
+import { VERSION } from '../version.js';
 
-const SERVER_VERSION = '1.0.0';
+const SERVER_VERSION = VERSION;
 
 function structured(payload: unknown): CallToolResult {
   return {

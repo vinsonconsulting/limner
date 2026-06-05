@@ -35,6 +35,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # A7: root package.json `version` is the single source of truth. Regenerate
+      # the derived version sites (generated version.ts, manifest.json, the
+      # sub-package versions) and fail if anything drifted — i.e. the root
+      # version was bumped without running `pnpm sync-version`.
+      - name: Version single-source check
+        run: |
+          node scripts/sync-version.mjs
+          git diff --exit-code
+
       # Lint runs before build — typescript-eslint parses the source directly,
       # so it needs no dist/.
       - name: Lint
