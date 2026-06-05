@@ -13,6 +13,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
   type CallToolResult,
+  type ToolAnnotations,
 } from '@modelcontextprotocol/sdk/types.js';
 import { z, type ZodTypeAny } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
@@ -48,12 +49,25 @@ export type Tool<TIn = any> = {
   description: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   inputSchema: z.ZodType<TIn, z.ZodTypeDef, any>;
+  /** MCP behavioral hints surfaced in tools/list (readOnlyHint,
+   *  destructiveHint, idempotentHint, openWorldHint). Advisory only —
+   *  they describe side-effect posture so clients can decide e.g. whether
+   *  to auto-approve a call; the server enforces nothing from them. */
+  annotations?: ToolAnnotations;
   /** Handler returns the full MCP CallToolResult so pipeline tools can
    *  yield image content directly without adapter wrapping. */
   handler: (input: TIn, ctx: ToolContext) => Promise<CallToolResult>;
 };
 
 export type ToolRegistry = ReadonlyMap<string, Tool>;
+
+/** Shared annotation for pure-read tools: no mutation, repeat-safe,
+ *  closed-world (no external/unpredictable side-effects). */
+export const READ_ONLY: ToolAnnotations = {
+  readOnlyHint: true,
+  idempotentHint: true,
+  openWorldHint: false,
+};
 
 // MCP and the Anthropic tool API both require every tool's
 // `inputSchema.type` to be `'object'`. zod's `z.discriminatedUnion(...)`
@@ -148,6 +162,7 @@ export function registerTools(
       name: t.name,
       description: t.description,
       inputSchema: toMcpInputSchema(t.inputSchema as ZodTypeAny),
+      ...(t.annotations ? { annotations: t.annotations } : {}),
     })),
   }));
 
