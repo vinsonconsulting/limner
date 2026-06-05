@@ -41,7 +41,7 @@ import { memoryTools } from './tools/memory.js';
 import { projectTools } from './tools/context.js';
 import { metaTools } from './tools/meta.js';
 import { defaultHandler } from './auth/oauth.js';
-import { withRateLimit } from './rate-limit.js';
+import { withRateLimit, type FetchHandler } from './rate-limit.js';
 import { sweepExpiredArtifacts } from './retention.js';
 
 export interface Env {
@@ -146,10 +146,15 @@ const mcpApiHandler = LimnerMCP.serve('/mcp', { binding: 'LIMNER_MCP' }) as unkn
 const oauthProvider = new OAuthProvider<Env>({
   apiRoute: '/mcp',
   apiHandler: withRateLimit(mcpApiHandler) as unknown as ApiHandlerShape,
-  // The defaultHandler is typed against OAuthEnv (a narrow subset),
-  // which is structurally a subset of our Env, so the OAuth provider
-  // accepts it; cast to satisfy nominal type identity.
-  defaultHandler: defaultHandler as unknown as ExportedHandler<Env>,
+  // The defaultHandler serves the unauthenticated /authorize flow
+  // (auto-approve + ['mcp'] scope pin) and the root page. RT-1 + A1: wrap it
+  // with the same per-caller rate limit as /mcp so /authorize can't be
+  // hammered to mint tokens. These requests carry no bearer token, so
+  // deriveRateLimitKey falls back to the client IP. It's typed against
+  // OAuthEnv (a structural subset of Env); cast for nominal type identity.
+  defaultHandler: withRateLimit(
+    defaultHandler as unknown as FetchHandler<Env>,
+  ) as unknown as ExportedHandler<Env>,
   authorizeEndpoint: '/authorize',
   tokenEndpoint: '/oauth/token',
   clientRegistrationEndpoint: '/oauth/register',
