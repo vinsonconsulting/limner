@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { createProjectStore } from '@limner/core';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
-import type { Tool } from '../server.js';
+import { type Tool, READ_ONLY } from '../server.js';
 
 function structured(payload: unknown): CallToolResult {
   return {
@@ -26,6 +26,7 @@ const listProjects: Tool<z.infer<typeof listInputSchema>> = {
   name: 'limner_list_projects',
   description: 'Return projects matching the given filters.',
   inputSchema: listInputSchema,
+  annotations: READ_ONLY,
   handler: async (input, ctx) => {
     const store = createProjectStore(ctx.bindings);
     const projects = await store.list(input);
@@ -47,6 +48,7 @@ const getProjectContext: Tool<z.infer<typeof getContextInputSchema>> = {
   description:
     'Return a project plus its recent notes. Identify by projectId or name.',
   inputSchema: getContextInputSchema,
+  annotations: READ_ONLY,
   handler: async (input, ctx) => {
     const store = createProjectStore(ctx.bindings);
     const project = input.projectId
@@ -76,6 +78,8 @@ const recordProjectNote: Tool<z.infer<typeof recordNoteInputSchema>> = {
   name: 'limner_record_project_note',
   description: 'Append a note to a project. Returns the new note (id + timestamp).',
   inputSchema: recordNoteInputSchema,
+  // Appends a new note each call — not idempotent, but non-destructive.
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
   handler: async (input, ctx) => {
     const store = createProjectStore(ctx.bindings);
     const note = await store.addNote(input);

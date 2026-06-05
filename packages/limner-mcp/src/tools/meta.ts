@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { DallePipeline, MidjourneyPipeline, RecraftPipeline } from '@limner/core';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
-import type { Tool } from '../server.js';
+import { type Tool, READ_ONLY } from '../server.js';
 
 const SERVER_VERSION = '1.0.0';
 
@@ -33,6 +33,7 @@ const health: Tool<Record<string, never>> = {
   name: 'limner_health',
   description: 'Server health snapshot — bindings flavor, timestamp, version.',
   inputSchema: z.object({}).strict(),
+  annotations: READ_ONLY,
   handler: async (_, ctx) => {
     return structured({
       status: 'ok',
@@ -48,6 +49,7 @@ const version: Tool<Record<string, never>> = {
   name: 'limner_version',
   description: 'Return the @limner/mcp server version.',
   inputSchema: z.object({}).strict(),
+  annotations: READ_ONLY,
   handler: async () => structured({ version: SERVER_VERSION }),
 };
 
@@ -55,6 +57,7 @@ const listPipelines: Tool<Record<string, never>> = {
   name: 'limner_list_pipelines',
   description: 'List the pipelines registered with this server. For each pipeline returns id, displayName, kind, and required secrets.',
   inputSchema: z.object({}).strict(),
+  annotations: READ_ONLY,
   handler: async () =>
     structured({
       pipelines: pipelineList().map((p) => ({
@@ -76,6 +79,7 @@ const pipelineCapabilities: Tool<z.infer<typeof pipelineCapabilitiesInputSchema>
   description:
     'Describe a specific pipeline\'s capability surface. Returns kind + transport + required secrets + the input options shape (heuristic; not a strict zod export).',
   inputSchema: pipelineCapabilitiesInputSchema,
+  annotations: READ_ONLY,
   handler: async (input) => {
     const found = pipelineList().find((p) => p.id === input.id);
     if (!found) {

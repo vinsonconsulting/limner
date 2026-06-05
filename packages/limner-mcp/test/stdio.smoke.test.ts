@@ -64,6 +64,14 @@ describe('stdio entry point smoke', () => {
             'limner_version',
           ],
         );
+        // A5: behavioral annotations round-trip through the wire. Read-only
+        // tools advertise readOnlyHint; generate_* hit external APIs
+        // (open-world); forget is destructive.
+        const byName = new Map(result.tools.map((t) => [t.name, t]));
+        expect(byName.get('limner_recall')?.annotations?.readOnlyHint).toBe(true);
+        expect(byName.get('limner_generate_dalle')?.annotations?.readOnlyHint).toBe(false);
+        expect(byName.get('limner_generate_dalle')?.annotations?.openWorldHint).toBe(true);
+        expect(byName.get('limner_forget')?.annotations?.destructiveHint).toBe(true);
       } finally {
         await client.close();
       }
