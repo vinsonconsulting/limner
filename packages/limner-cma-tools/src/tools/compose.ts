@@ -7,7 +7,7 @@
 // Refs: D-RA-12, D-RA-16
 
 import type { R2Bucket } from '@cloudflare/workers-types';
-import { compose, type CFImagesBinding } from '@limner/core';
+import { compose, type CFImagesBinding, type FitMode } from '@limner/core';
 import { composeTool as mcpComposeTool, composeInputSchema } from '@limner/mcp';
 
 import { defineTool, type CustomTool } from '../runtime.js';
@@ -69,7 +69,7 @@ export const composeMcpTool: CustomTool = defineTool({
     // ---- in-isolate ops (photon + jsquash + satori) ----
     switch (op) {
       case 'resize': {
-        const i = input as { input: string; width: number; height: number; fit?: 'cover' | 'contain' };
+        const i = input as { input: string; width: number; height: number; fit?: FitMode };
         const bytes = compose.resize(b64decode(i.input), i.width, i.height, i.fit ?? 'cover');
         return emitImage(env, bytes, 'image/png', 'resize');
       }
