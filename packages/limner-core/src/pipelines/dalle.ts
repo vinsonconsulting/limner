@@ -4,6 +4,7 @@ import {
   base64ToBytes,
   httpResponseToError,
   isAbortError,
+  parseSize,
 } from './_http.js';
 import type {
   PipelineContext,
@@ -160,15 +161,6 @@ function resolveMimeType(model: string, outputFormat: string | undefined): strin
   }
   // dall-e-3 / dall-e-2 are PNG-only.
   return 'image/png';
-}
-
-function parseSize(size: string): [number | undefined, number | undefined] {
-  // gpt-image-1 accepts size: 'auto'; we surface width/height as undefined
-  // for that case rather than guessing.
-  if (size === 'auto') return [undefined, undefined];
-  const match = size.match(/^(\d+)x(\d+)$/);
-  if (!match) return [undefined, undefined];
-  return [Number(match[1]), Number(match[2])];
 }
 
 function stringifyError(err: unknown): string {

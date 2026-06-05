@@ -1,4 +1,5 @@
 import { assertSecrets, PipelineError } from './errors.js';
+import { parseSize } from './_http.js';
 import type {
   PipelineContext,
   PipelineGenerateInput,
@@ -169,12 +170,6 @@ function makePlaceholderTransport(mode: RecraftMode): RecraftTransport {
       );
     },
   };
-}
-
-function parseSize(size: string): [number | undefined, number | undefined] {
-  const match = size.match(/^(\d+)x(\d+)$/);
-  if (!match) return [undefined, undefined];
-  return [Number(match[1]), Number(match[2])];
 }
 
 function stringifyError(err: unknown): string {

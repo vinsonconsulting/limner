@@ -64,3 +64,13 @@ export function base64ToBytes(b64: string): Uint8Array {
 export function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
 }
+
+// Parse a "WIDTHxHEIGHT" size string into [width, height]. Anything that
+// isn't that exact shape — including DALL-E's `size: 'auto'` — yields
+// [undefined, undefined], so callers surface width/height as unknown rather
+// than guessing. Shared by the DALL-E and Recraft pipelines.
+export function parseSize(size: string): [number | undefined, number | undefined] {
+  const match = size.match(/^(\d+)x(\d+)$/);
+  if (!match) return [undefined, undefined];
+  return [Number(match[1]), Number(match[2])];
+}

@@ -95,13 +95,3 @@ export type ProjectQuery = {
   limit?: number;
   offset?: number;
 };
-
-// ---------------- Sessions ----------------
-
-export type Session = {
-  id: string;
-  projectId?: string;
-  startedAt: number;
-  endedAt?: number;
-  metadata?: Record<string, unknown>;
-};
