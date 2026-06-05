@@ -71,7 +71,7 @@ Three transports, one tool surface:
 - **stdio** (preview at v1 per D-RA-05 amendment) — for Claude Desktop, local dev, the `.mcpb` bundle.
 - **`.mcpb` bundle** — single-click install for Claude Desktop. Packed by `.github/workflows/build-mcpb.yml` on `mcpb-v*` tags.
 
-15 MCP tools wrap the `@limner/core` surface: 3 pipelines (`generate_dalle` / `generate_midjourney` / `generate_recraft`) + 1 composition tool (`compose`, discriminated-union over 17 ops) + 4 memory tools + 3 project tools + 4 meta tools. Full list in [`packages/limner-mcp/README.md`](packages/limner-mcp/README.md).
+15 MCP tools wrap the `@limner/core` surface: 3 pipelines (`generate_dalle` / `generate_midjourney` / `generate_recraft`) + 1 composition tool (`compose`, discriminated-union over 16 ops) + 4 memory tools + 3 project tools + 4 meta tools. Full list in [`packages/limner-mcp/README.md`](packages/limner-mcp/README.md).
 
 ### CMA custom tools (`@limner/cma-tools` → `packages/limner-cma-tools/`)
 
