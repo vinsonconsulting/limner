@@ -65,3 +65,42 @@ describe('tool input_schemas are valid for the Anthropic tool API', () => {
     );
   });
 });
+
+describe('tool annotations (A5) — behavioral hints', () => {
+  // The pure read / discovery surface. Everything else mutates state or
+  // calls out to an external service.
+  const READ_ONLY = new Set([
+    'limner_recall',
+    'limner_list_categories',
+    'limner_list_projects',
+    'limner_get_project_context',
+    'limner_health',
+    'limner_version',
+    'limner_list_pipelines',
+    'limner_pipeline_capabilities',
+  ]);
+
+  test.each(ALL_TOOLS.map((t) => [t.name, t] as const))(
+    '%s: defines annotations whose readOnlyHint matches its category',
+    (name, tool) => {
+      expect(tool.annotations).toBeDefined();
+      expect(typeof tool.annotations?.readOnlyHint).toBe('boolean');
+      expect(tool.annotations?.readOnlyHint).toBe(READ_ONLY.has(name));
+    },
+  );
+
+  test('exactly the 8 read/discovery tools are read-only', () => {
+    const readOnly = ALL_TOOLS.filter((t) => t.annotations?.readOnlyHint).map((t) => t.name).sort();
+    expect(readOnly).toEqual([...READ_ONLY].sort());
+  });
+
+  test('limner_forget is the only destructive tool', () => {
+    const destructive = ALL_TOOLS.filter((t) => t.annotations?.destructiveHint).map((t) => t.name);
+    expect(destructive).toEqual(['limner_forget']);
+  });
+
+  test('only the external-API generate tools are open-world', () => {
+    const openWorld = ALL_TOOLS.filter((t) => t.annotations?.openWorldHint).map((t) => t.name).sort();
+    expect(openWorld).toEqual(['limner_generate_dalle', 'limner_generate_recraft']);
+  });
+});

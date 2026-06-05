@@ -375,5 +375,7 @@ export const composeTool: Tool<ComposeAdvertisedInput> = {
   description:
     'Hybrid V8 composition stack (D-RA-16). Wraps photon-ops, jsquash-codecs, satori-text, and cf-images-transform behind a single op-discriminated input. Inputs/outputs are base64-encoded image bytes (PNG default). cf-images ops require the Workers transport (IMAGES binding).',
   inputSchema: composeAdvertisedSchema,
+  // Pure image transform: deterministic, no durable mutation, closed-world.
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   handler: handle,
 };

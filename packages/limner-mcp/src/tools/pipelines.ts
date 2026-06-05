@@ -48,6 +48,8 @@ const generateDalle: Tool<z.infer<typeof dalleInputSchema>> = {
   name: 'limner_generate_dalle',
   description: 'Generate an image via OpenAI Images API (gpt-image-1 default; dall-e-3 / dall-e-2 also supported).',
   inputSchema: dalleInputSchema,
+  // Calls a paid external API (OpenAI) — open-world, non-idempotent.
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
   handler: async (input, ctx) =>
     runImagePipeline(new DallePipeline(), { prompt: input.prompt, options: input }, ctx, 'dalle'),
 };
@@ -69,6 +71,8 @@ const generateMidjourney: Tool<z.infer<typeof midjourneyInputSchema>> = {
   description:
     'Compose a Midjourney prompt string (prompt-only; no image generation; downstream tool runs the HITL step).',
   inputSchema: midjourneyInputSchema,
+  // Prompt-only string composition: no external call, deterministic.
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   handler: async (input, ctx) =>
     runPipeline(new MidjourneyPipeline(), { prompt: input.prompt, options: input }, ctx, 'midjourney'),
 };
@@ -91,6 +95,8 @@ const generateRecraft: Tool<z.infer<typeof recraftInputSchema>> = {
   description:
     'Generate an image via Recraft (composed-MCP adapter per D-RA-14; calls Recraft\'s generate_image tool).',
   inputSchema: recraftInputSchema,
+  // Calls a paid external service (Recraft) — open-world, non-idempotent.
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
   handler: async (input, ctx) => {
     const transport = await McpRecraftTransport.connect(input.mode, ctx.secrets);
     try {

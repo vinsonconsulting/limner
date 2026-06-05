@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { createMemoryStore } from '@limner/core';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
-import type { Tool } from '../server.js';
+import { type Tool, READ_ONLY } from '../server.js';
 
 function structured(payload: unknown): CallToolResult {
   return {
@@ -29,6 +29,7 @@ const recall: Tool<z.infer<typeof recallInputSchema>> = {
   name: 'limner_recall',
   description: 'List memory entries matching the given filters.',
   inputSchema: recallInputSchema,
+  annotations: READ_ONLY,
   handler: async (input, ctx) => {
     const store = createMemoryStore(ctx.bindings);
     const entries = await store.recall(input);
@@ -47,6 +48,8 @@ const record: Tool<z.infer<typeof recordInputSchema>> = {
   name: 'limner_record',
   description: 'Persist a new memory entry. Returns the assigned id + timestamps.',
   inputSchema: recordInputSchema,
+  // Writes durable state, but re-recording with the same sourceId upserts.
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   handler: async (input, ctx) => {
     const store = createMemoryStore(ctx.bindings);
     const entry = await store.record(input);
@@ -62,6 +65,8 @@ const forget: Tool<z.infer<typeof forgetInputSchema>> = {
   name: 'limner_forget',
   description: 'Delete a memory entry by id. Returns { deleted: boolean }.',
   inputSchema: forgetInputSchema,
+  // Destructive (deletes), but idempotent — deleting an absent id is a no-op.
+  annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
   handler: async (input, ctx) => {
     const store = createMemoryStore(ctx.bindings);
     const deleted = await store.forget(input.id);
@@ -73,6 +78,7 @@ const listCategories: Tool<Record<string, never>> = {
   name: 'limner_list_categories',
   description: 'Return all memory categories with their entry counts.',
   inputSchema: z.object({}).strict(),
+  annotations: READ_ONLY,
   handler: async (_, ctx) => {
     const store = createMemoryStore(ctx.bindings);
     const categories = await store.listCategories();
