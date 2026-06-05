@@ -144,7 +144,7 @@ const cfOps = [
 // advertising. zod serializes a discriminatedUnion to a top-level `anyOf`,
 // which the Anthropic tool API rejects (and Managed Agents masks as an opaque
 // `model_request_failed_error`). Exported so Path A (@limner/cma-tools) can
-// re-validate against the same source of truth. See docs/vault-ids-findings-review.md.
+// re-validate against the same source of truth. See PR #8.
 export const composeInputSchema = z.discriminatedUnion('op', [
   ...photonOps,
   ...codecOps,
