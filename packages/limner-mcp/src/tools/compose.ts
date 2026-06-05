@@ -23,7 +23,7 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { Tool, ToolContext } from '../server.js';
 
 const formatSchema: z.ZodType<Format> = z.enum(['jpeg', 'png', 'webp', 'avif']);
-const fitModeSchema: z.ZodType<FitMode> = z.enum(['cover', 'contain']);
+const fitModeSchema: z.ZodType<FitMode> = z.enum(['cover']);
 const cfFitSchema = z.enum(['scale-down', 'contain', 'cover', 'crop', 'pad']);
 
 // ---------------- per-op schemas ----------------
@@ -178,7 +178,7 @@ const composeAdvertisedSchema = z.object({
   y: z.number().int().optional().describe('Used by: crop, watermark.'),
   top: z.number().int().optional().describe('Used by: cfOverlay.'),
   left: z.number().int().optional().describe('Used by: cfOverlay.'),
-  fit: fitModeSchema.optional().describe('resize fit mode: cover | contain.'),
+  fit: fitModeSchema.optional().describe('resize fit mode: cover (only supported mode).'),
   delta: z.number().optional().describe('brightness delta.'),
   factor: z.number().optional().describe('contrast factor.'),
   radius: z.number().optional().describe('Used by: blur, cfBlur.'),

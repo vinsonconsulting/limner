@@ -32,6 +32,13 @@ function runMemorySuite(name: string, makeFixture: FixtureFactory): void {
       expect(entry.metadata).toBeUndefined();
     });
 
+    test('record rejects empty / whitespace-only content (A6 guard)', async () => {
+      await expect(store.record({ content: '' })).rejects.toThrow(/content must not be empty/);
+      await expect(store.record({ content: '   ' })).rejects.toThrow(/content must not be empty/);
+      // The guard fires before any write — nothing is persisted.
+      expect(await store.recall()).toHaveLength(0);
+    });
+
     test('record with category and metadata round-trips', async () => {
       const entry = await store.record({
         content: 'tagged',
