@@ -201,7 +201,7 @@ limner/
 │
 ├── migrations/
 │   ├── 0001_initial_schema.sql     # D1 schema for memory, projects, sessions
-│   └── 0002_seed_from_cma.ts       # one-time port of 21 CMA memory entries
+│   └── 0002_seed_from_cma.ts       # one-time port of 9 CMA memory entries
 │
 ├── docs/
 │   ├── Limner_Cloudflare_CMA_Architecture.md   # this file
@@ -319,10 +319,10 @@ Per D-RA-16, rasa v1 composition is delivered by a hybrid stack running entirely
 - Deploy `limner-mcp` to production Workers + OAuth.
 - Register new Anthropic CMA agent pointing at the Cloudflare environment and the public MCP server URL.
 - Smoke test all 6 pipelines through the new agent.
-- Run `migrations/0002_seed_from_cma.ts` — exports 21 entries from the current CMA memory store, imports into D1.
+- Run `migrations/0002_seed_from_cma.ts` — exports 9 entries from the current CMA memory store, imports into D1.
 - Verify memory recall works against the migrated data.
 
-**DoD:** New CMA agent can generate via every pipeline, recall any of the 21 migrated memories, and record new memories that persist in D1.
+**DoD:** New CMA agent can generate via every pipeline, recall any of the 9 migrated memories, and record new memories that persist in D1.
 
 ### Phase 7 — Flag-day cutover (~1 day)
 
@@ -340,7 +340,7 @@ Per D-RA-16, rasa v1 composition is delivered by a hybrid stack running entirely
 
 ## 6. Data migration
 
-The only durable artifact crossing from the old architecture to the new is the 21 seeded memory entries in the current CMA memory store. The migration script (`migrations/0002_seed_from_cma.ts`) does:
+The only durable artifact crossing from the old architecture to the new is the 9 seeded memory entries in the current CMA memory store. The migration script (`migrations/0002_seed_from_cma.ts`) does:
 
 1. Authenticate against Anthropic Memory Stores API using the existing `ANTHROPIC_API_KEY`.
 2. List all entries in the `/_global/` path.

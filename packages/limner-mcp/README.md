@@ -15,7 +15,7 @@ Phase 4 of the rebuild. Code lands by phase per [`docs/Limner_Cloudflare_CMA_Arc
 | `generate_dalle` | OpenAI Images (gpt-image-1 default; dall-e-3 / dall-e-2 also supported) | image |
 | `generate_midjourney` | Compose a Midjourney prompt string (HITL; no API call) | text |
 | `generate_recraft` | Recraft composed-MCP adapter per D-RA-14 (`mcp.recraft.ai` remote or local stdio) | image |
-| `compose` | Hybrid V8 stack (D-RA-16) — single tool, discriminated-union op over 17 primitives | image / text |
+| `compose` | Hybrid V8 stack (D-RA-16) — single tool, discriminated-union op over 16 primitives | image / text |
 | `recall` | Memory query by q / category / since / until / limit | structured |
 | `record` | Persist a new memory entry (idempotent via `sourceId`) | structured |
 | `forget` | Delete a memory entry by id | structured |
