@@ -17,14 +17,14 @@ function asString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
 
-function b64decode(b64: string): Uint8Array {
+function base64ToBytes(b64: string): Uint8Array {
   const bin = atob(b64);
   const out = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
   return out;
 }
 
-function b64encode(bytes: Uint8Array): string {
+function bytesToBase64(bytes: Uint8Array): string {
   let bin = '';
   for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]!);
   return btoa(bin);
@@ -70,37 +70,37 @@ export const composeMcpTool: CustomTool = defineTool({
     switch (op) {
       case 'resize': {
         const i = input as { input: string; width: number; height: number; fit?: FitMode };
-        const bytes = compose.resize(b64decode(i.input), i.width, i.height, i.fit ?? 'cover');
+        const bytes = compose.resize(base64ToBytes(i.input), i.width, i.height, i.fit ?? 'cover');
         return emitImage(env, bytes, 'image/png', 'resize');
       }
       case 'crop': {
         const i = input as { input: string; x: number; y: number; width: number; height: number };
-        const bytes = compose.crop(b64decode(i.input), i.x, i.y, i.width, i.height);
+        const bytes = compose.crop(base64ToBytes(i.input), i.x, i.y, i.width, i.height);
         return emitImage(env, bytes, 'image/png', 'crop');
       }
       case 'brightness': {
         const i = input as { input: string; delta: number };
-        const bytes = compose.brightness(b64decode(i.input), i.delta);
+        const bytes = compose.brightness(base64ToBytes(i.input), i.delta);
         return emitImage(env, bytes, 'image/png', 'brightness');
       }
       case 'contrast': {
         const i = input as { input: string; factor: number };
-        const bytes = compose.contrast(b64decode(i.input), i.factor);
+        const bytes = compose.contrast(base64ToBytes(i.input), i.factor);
         return emitImage(env, bytes, 'image/png', 'contrast');
       }
       case 'blur': {
         const i = input as { input: string; radius: number };
-        const bytes = compose.blur(b64decode(i.input), i.radius);
+        const bytes = compose.blur(base64ToBytes(i.input), i.radius);
         return emitImage(env, bytes, 'image/png', 'blur');
       }
       case 'sharpen': {
         const i = input as { input: string };
-        const bytes = compose.sharpen(b64decode(i.input));
+        const bytes = compose.sharpen(base64ToBytes(i.input));
         return emitImage(env, bytes, 'image/png', 'sharpen');
       }
       case 'watermark': {
         const i = input as { base: string; overlay: string; x: number; y: number };
-        const bytes = compose.watermark(b64decode(i.base), b64decode(i.overlay), i.x, i.y);
+        const bytes = compose.watermark(base64ToBytes(i.base), base64ToBytes(i.overlay), i.x, i.y);
         return emitImage(env, bytes, 'image/png', 'watermark');
       }
 
@@ -111,7 +111,7 @@ export const composeMcpTool: CustomTool = defineTool({
           quality?: number;
         };
         const raw = {
-          data: new Uint8ClampedArray(b64decode(i.raw.data).buffer),
+          data: new Uint8ClampedArray(base64ToBytes(i.raw.data).buffer),
           width: i.raw.width,
           height: i.raw.height,
         };
@@ -122,12 +122,12 @@ export const composeMcpTool: CustomTool = defineTool({
         // Raw RGBA bytes don't fit an MCP / CMA "image content" shape;
         // return as structured JSON. Callers round-trip via encode.
         const i = input as { input: string; format: 'jpeg' | 'png' | 'webp' | 'avif' };
-        const decoded = await compose.decode(i.format, b64decode(i.input));
+        const decoded = await compose.decode(i.format, base64ToBytes(i.input));
         return JSON.stringify({
           op: 'decode',
           width: decoded.width,
           height: decoded.height,
-          rawBase64: b64encode(
+          rawBase64: bytesToBase64(
             new Uint8Array(decoded.data.buffer, decoded.data.byteOffset, decoded.data.byteLength),
           ),
         });
@@ -140,7 +140,7 @@ export const composeMcpTool: CustomTool = defineTool({
           quality?: number;
         };
         const bytes = await compose.convert(
-          b64decode(i.input),
+          base64ToBytes(i.input),
           i.from,
           i.to,
           i.quality !== undefined ? { quality: i.quality } : undefined,
@@ -157,7 +157,7 @@ export const composeMcpTool: CustomTool = defineTool({
         };
         const fonts = i.fonts.map((f) => ({
           name: f.name,
-          data: b64decode(f.data),
+          data: base64ToBytes(f.data),
           weight: f.weight as 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900 | undefined,
           style: f.style,
         }));
@@ -188,22 +188,22 @@ export const composeMcpTool: CustomTool = defineTool({
           mimeType = i.outputFormat ?? 'image/png';
           bytes = await compose.cfTransform(
             images,
-            b64decode(i.input),
+            base64ToBytes(i.input),
             i.opts as never,
             mimeType as 'image/png' | 'image/jpeg' | 'image/webp' | 'image/avif',
           );
         } else if (op === 'cfOverlay') {
           const i = input as unknown as { base: string; overlay: string; top: number; left: number };
-          bytes = await compose.cfOverlay(images, b64decode(i.base), b64decode(i.overlay), i.top, i.left);
+          bytes = await compose.cfOverlay(images, base64ToBytes(i.base), base64ToBytes(i.overlay), i.top, i.left);
         } else if (op === 'cfBlur') {
           const i = input as unknown as { input: string; radius: number };
-          bytes = await compose.cfBlur(images, b64decode(i.input), i.radius);
+          bytes = await compose.cfBlur(images, base64ToBytes(i.input), i.radius);
         } else if (op === 'cfSmartCrop') {
           const i = input as unknown as { input: string; width: number; height: number };
-          bytes = await compose.cfSmartCrop(images, b64decode(i.input), i.width, i.height);
+          bytes = await compose.cfSmartCrop(images, base64ToBytes(i.input), i.width, i.height);
         } else {
           const i = input as unknown as { input: string; width: number; height: number; background: string };
-          bytes = await compose.cfBackgroundFill(images, b64decode(i.input), i.width, i.height, i.background);
+          bytes = await compose.cfBackgroundFill(images, base64ToBytes(i.input), i.width, i.height, i.background);
         }
         return emitImage(env, bytes, mimeType, op);
       }

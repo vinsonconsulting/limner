@@ -48,8 +48,11 @@ const record: Tool<z.infer<typeof recordInputSchema>> = {
   name: 'limner_record',
   description: 'Persist a new memory entry. Returns the assigned id + timestamps.',
   inputSchema: recordInputSchema,
-  // Writes durable state, but re-recording with the same sourceId upserts.
-  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  // Writes durable state. NOT idempotent in general: the sourceId upsert
+  // only applies when the caller supplies one; a plain record appends a
+  // fresh entry every call (precedent: recordProjectNote). r5 corrected
+  // this from an unconditional idempotentHint: true.
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
   handler: async (input, ctx) => {
     const store = createMemoryStore(ctx.bindings);
     const entry = await store.record(input);

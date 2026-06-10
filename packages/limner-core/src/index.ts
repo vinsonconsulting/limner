@@ -8,6 +8,10 @@ export * from './types.js';
 // default to this so published artifacts are self-contained.
 export { INITIAL_SCHEMA_SQL } from './schema.generated.js';
 
+// Shared base64 codecs (r5) — chunked encode for multi-MB images under
+// isolate CPU limits. Single source for the mcp + cma tool layers.
+export { bytesToBase64, base64ToBytes } from './base64.js';
+
 // Bindings layer (Workers vs local stdio).
 export type {
   Bindings,

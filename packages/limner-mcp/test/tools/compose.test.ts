@@ -180,6 +180,29 @@ describe('compose tool — cf-images ops (stdio: unsupported)', () => {
       await close();
     }
   });
+
+  // r5: a Worker deployed WITHOUT the IMAGES binding is not "stdio" — the
+  // gate message must say the binding is missing, not blame the transport.
+  test('cf op on workers without IMAGES -> images_binding_missing (not unsupported_in_stdio)', async () => {
+    const workersNoImagesCtx: ToolContext = {
+      bindings: { kind: 'workers' } as unknown as Bindings,
+      secrets: {},
+    };
+    const { client, close } = await connectedPair(workersNoImagesCtx);
+    try {
+      const result = await client.callTool({
+        name: 'limner_compose',
+        arguments: { op: 'cfBlur', input: b64encode(corefix('checker-64.png')), radius: 5 },
+      });
+      expect(result.isError).toBe(true);
+      const text = JSON.stringify(result.content);
+      expect(text).toMatch(/images_binding_missing/);
+      expect(text).toMatch(/IMAGES binding/);
+      expect(text).not.toMatch(/unsupported_in_stdio/);
+    } finally {
+      await close();
+    }
+  });
 });
 
 describe('compose tool — cf-images ops (workers: with mock binding)', () => {

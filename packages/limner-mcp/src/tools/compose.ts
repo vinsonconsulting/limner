@@ -15,6 +15,8 @@
 import { z } from 'zod';
 import {
   compose,
+  base64ToBytes,
+  bytesToBase64,
   type Format,
   type FitMode,
 } from '@limner/core';
@@ -213,24 +215,9 @@ const composeAdvertisedSchema = z.object({
 
 type ComposeAdvertisedInput = z.infer<typeof composeAdvertisedSchema>;
 
-// ---------------- base64 helpers ----------------
-
-function b64decode(b64: string): Uint8Array {
-  const bin = atob(b64);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
-}
-
-function b64encode(bytes: Uint8Array): string {
-  let bin = '';
-  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]!);
-  return btoa(bin);
-}
-
 function imageResult(bytes: Uint8Array, mimeType = 'image/png', meta: Record<string, unknown> = {}): CallToolResult {
   return {
-    content: [{ type: 'image', data: b64encode(bytes), mimeType }],
+    content: [{ type: 'image', data: bytesToBase64(bytes), mimeType }],
     structuredContent: { op: meta['op'], mimeType, ...meta },
   };
 }
@@ -260,23 +247,23 @@ async function handle(raw: ComposeAdvertisedInput, ctx: ToolContext): Promise<Ca
   const input: ComposeInput = parsed.data;
   switch (input.op) {
     case 'resize':
-      return imageResult(compose.resize(b64decode(input.input), input.width, input.height, input.fit), 'image/png', { op: 'resize' });
+      return imageResult(compose.resize(base64ToBytes(input.input), input.width, input.height, input.fit), 'image/png', { op: 'resize' });
     case 'crop':
-      return imageResult(compose.crop(b64decode(input.input), input.x, input.y, input.width, input.height), 'image/png', { op: 'crop' });
+      return imageResult(compose.crop(base64ToBytes(input.input), input.x, input.y, input.width, input.height), 'image/png', { op: 'crop' });
     case 'brightness':
-      return imageResult(compose.brightness(b64decode(input.input), input.delta), 'image/png', { op: 'brightness' });
+      return imageResult(compose.brightness(base64ToBytes(input.input), input.delta), 'image/png', { op: 'brightness' });
     case 'contrast':
-      return imageResult(compose.contrast(b64decode(input.input), input.factor), 'image/png', { op: 'contrast' });
+      return imageResult(compose.contrast(base64ToBytes(input.input), input.factor), 'image/png', { op: 'contrast' });
     case 'blur':
-      return imageResult(compose.blur(b64decode(input.input), input.radius), 'image/png', { op: 'blur' });
+      return imageResult(compose.blur(base64ToBytes(input.input), input.radius), 'image/png', { op: 'blur' });
     case 'sharpen':
-      return imageResult(compose.sharpen(b64decode(input.input)), 'image/png', { op: 'sharpen' });
+      return imageResult(compose.sharpen(base64ToBytes(input.input)), 'image/png', { op: 'sharpen' });
     case 'watermark':
-      return imageResult(compose.watermark(b64decode(input.base), b64decode(input.overlay), input.x, input.y), 'image/png', { op: 'watermark' });
+      return imageResult(compose.watermark(base64ToBytes(input.base), base64ToBytes(input.overlay), input.x, input.y), 'image/png', { op: 'watermark' });
 
     case 'encode': {
       const raw = {
-        data: new Uint8ClampedArray(b64decode(input.raw.data).buffer),
+        data: new Uint8ClampedArray(base64ToBytes(input.raw.data).buffer),
         width: input.raw.width,
         height: input.raw.height,
       };
@@ -284,7 +271,7 @@ async function handle(raw: ComposeAdvertisedInput, ctx: ToolContext): Promise<Ca
       return imageResult(out, `image/${input.format}`, { op: 'encode', format: input.format });
     }
     case 'decode': {
-      const decoded = await compose.decode(input.format, b64decode(input.input));
+      const decoded = await compose.decode(input.format, base64ToBytes(input.input));
       // Decode produces raw RGBA bytes; return as structured text since
       // there's no MCP content block for raw pixel arrays. Caller can
       // round-trip via compose encode.
@@ -292,13 +279,13 @@ async function handle(raw: ComposeAdvertisedInput, ctx: ToolContext): Promise<Ca
         JSON.stringify({
           width: decoded.width,
           height: decoded.height,
-          rawBase64: b64encode(new Uint8Array(decoded.data.buffer, decoded.data.byteOffset, decoded.data.byteLength)),
+          rawBase64: bytesToBase64(new Uint8Array(decoded.data.buffer, decoded.data.byteOffset, decoded.data.byteLength)),
         }),
         { op: 'decode', width: decoded.width, height: decoded.height },
       );
     }
     case 'convert': {
-      const out = await compose.convert(b64decode(input.input), input.from, input.to, input.quality !== undefined ? { quality: input.quality } : undefined);
+      const out = await compose.convert(base64ToBytes(input.input), input.from, input.to, input.quality !== undefined ? { quality: input.quality } : undefined);
       return imageResult(out, `image/${input.to}`, { op: 'convert', from: input.from, to: input.to });
     }
 
@@ -309,7 +296,7 @@ async function handle(raw: ComposeAdvertisedInput, ctx: ToolContext): Promise<Ca
       // zod before the handler runs.
       const fonts = input.fonts.map((f) => ({
         name: f.name,
-        data: b64decode(f.data),
+        data: base64ToBytes(f.data),
         weight: f.weight as 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900 | undefined,
         style: f.style,
       }));
@@ -325,38 +312,43 @@ async function handle(raw: ComposeAdvertisedInput, ctx: ToolContext): Promise<Ca
     case 'cfSmartCrop':
     case 'cfBackgroundFill': {
       if (!ctx.images) {
+        // r5: a missing IMAGES binding means different things per
+        // transport — stdio can never have it (use Workers or an
+        // in-isolate op), while a Worker simply hasn't wired it.
         return errorResult(
-          `compose.${input.op}: unsupported_in_stdio — Cloudflare Images binding required. Use the Workers HTTP transport, or pick an in-isolate equivalent (e.g. compose.blur instead of compose.cfBlur).`,
+          ctx.bindings.kind === 'workers'
+            ? `compose.${input.op}: images_binding_missing — the IMAGES binding is not configured on this Worker. Enable Cloudflare Images Transformations and add the [images] binding in wrangler.toml, or use an in-isolate equivalent (e.g. compose.blur instead of compose.cfBlur).`
+            : `compose.${input.op}: unsupported_in_stdio — Cloudflare Images binding required. Use the Workers HTTP transport, or pick an in-isolate equivalent (e.g. compose.blur instead of compose.cfBlur).`,
         );
       }
       switch (input.op) {
         case 'cfTransform':
           return imageResult(
-            await compose.cfTransform(ctx.images, b64decode(input.input), input.opts, input.outputFormat ?? 'image/png'),
+            await compose.cfTransform(ctx.images, base64ToBytes(input.input), input.opts, input.outputFormat ?? 'image/png'),
             input.outputFormat ?? 'image/png',
             { op: 'cfTransform' },
           );
         case 'cfOverlay':
           return imageResult(
-            await compose.cfOverlay(ctx.images, b64decode(input.base), b64decode(input.overlay), input.top, input.left),
+            await compose.cfOverlay(ctx.images, base64ToBytes(input.base), base64ToBytes(input.overlay), input.top, input.left),
             'image/png',
             { op: 'cfOverlay' },
           );
         case 'cfBlur':
           return imageResult(
-            await compose.cfBlur(ctx.images, b64decode(input.input), input.radius),
+            await compose.cfBlur(ctx.images, base64ToBytes(input.input), input.radius),
             'image/png',
             { op: 'cfBlur' },
           );
         case 'cfSmartCrop':
           return imageResult(
-            await compose.cfSmartCrop(ctx.images, b64decode(input.input), input.width, input.height),
+            await compose.cfSmartCrop(ctx.images, base64ToBytes(input.input), input.width, input.height),
             'image/png',
             { op: 'cfSmartCrop' },
           );
         case 'cfBackgroundFill':
           return imageResult(
-            await compose.cfBackgroundFill(ctx.images, b64decode(input.input), input.width, input.height, input.background),
+            await compose.cfBackgroundFill(ctx.images, base64ToBytes(input.input), input.width, input.height, input.background),
             'image/png',
             { op: 'cfBackgroundFill' },
           );

@@ -31,15 +31,28 @@ export interface FetchHandler<E> {
   fetch(request: Request, env: E, ctx: ExecutionContext): Promise<Response>;
 }
 
+// 32-bit FNV-1a. Not cryptographic — the requirement is a stable,
+// well-distributed bucket key that does NOT embed the raw credential
+// (r5: keys flow into the rate-limiter binding and any diagnostics
+// around it; a bearer token has no business living there in plaintext).
+function fnv1a(str: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16).padStart(8, '0');
+}
+
 /**
  * Derive the rate-limit key for a request. Prefers the OAuth bearer
- * token, falls back to the Cloudflare connecting IP, then a shared
- * `anon` bucket. Never throws.
+ * token (hashed — never the raw credential), falls back to the
+ * Cloudflare connecting IP, then a shared `anon` bucket. Never throws.
  */
 export function deriveRateLimitKey(request: Request): string {
   const auth = request.headers.get('authorization');
   if (auth && auth.slice(0, 7).toLowerCase() === 'bearer ') {
-    return `tok:${auth.slice(7).trim()}`;
+    return `tok:${fnv1a(auth.slice(7).trim())}`;
   }
   const ip = request.headers.get('cf-connecting-ip');
   if (ip) return `ip:${ip}`;

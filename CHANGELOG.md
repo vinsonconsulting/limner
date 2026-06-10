@@ -6,6 +6,16 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- Hygiene pass: shared chunked base64 codecs in `@limner/core` replace five
+  duplicated per-byte loops; the Recraft MCP client handshake reports the real
+  `VERSION` instead of a hardcoded literal; `limner_record` corrects
+  `idempotentHint` to `false` (plain records append; only `sourceId` upserts);
+  the compose cf-op gate distinguishes a Worker missing the IMAGES binding
+  (`images_binding_missing`) from the stdio transport
+  (`unsupported_in_stdio`); rate-limit keys hash the bearer token (FNV-1a)
+  instead of embedding the raw credential. (r5)
+
 ### Added
 - Compose schema parity is now exact-set: the advertised `op` enum must equal
   the strict 16-op union, advertised property keys must cover every variant

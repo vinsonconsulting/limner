@@ -18,12 +18,15 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import type {
-  RecraftMode,
-  RecraftTransport,
-  RecraftGenerateArgs,
-  RecraftGenerateResult,
+import {
+  base64ToBytes,
+  type RecraftMode,
+  type RecraftTransport,
+  type RecraftGenerateArgs,
+  type RecraftGenerateResult,
 } from '@limner/core';
+
+import { VERSION } from '../version.js';
 
 const REMOTE_URL = 'https://mcp.recraft.ai/mcp';
 const LOCAL_COMMAND = 'npx';
@@ -46,8 +49,10 @@ export class McpRecraftTransport implements RecraftTransport {
     mode: RecraftMode,
     secrets: Readonly<Record<string, string>>,
   ): Promise<McpRecraftTransport> {
+    // VERSION is the A7 single-source constant (sync-version.mjs) — a
+    // hardcoded literal here silently drifts on every release.
     const client = new Client(
-      { name: 'limner-mcp', version: '1.0.0' },
+      { name: 'limner-mcp', version: VERSION },
       { capabilities: {} },
     );
 
@@ -128,11 +133,7 @@ function parseRecraftResponse(response: unknown): RecraftGenerateResult {
     const b = block as Record<string, unknown>;
 
     if (b['type'] === 'image' && typeof b['data'] === 'string') {
-      // base64 -> Uint8Array
-      const bin = atob(b['data']);
-      const bytes = new Uint8Array(bin.length);
-      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-      out.data = bytes;
+      out.data = base64ToBytes(b['data']);
       if (typeof b['mimeType'] === 'string') out.mimeType = b['mimeType'];
     }
     if (b['type'] === 'text' && typeof b['text'] === 'string') {

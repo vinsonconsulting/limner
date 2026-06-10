@@ -14,12 +14,31 @@ function limiter(success: boolean) {
 }
 
 describe('deriveRateLimitKey', () => {
-  test('prefers the OAuth bearer token (per-client fairness)', () => {
-    expect(deriveRateLimitKey(req({ authorization: 'Bearer abc123' }))).toBe('tok:abc123');
+  // r5: bearer tokens are hashed (32-bit FNV-1a, hex) before becoming
+  // rate-limit keys — the raw credential must never flow into the
+  // limiter binding or diagnostics around it. Expected literals were
+  // generated with:
+  //   node -e "function f(s){let h=0x811c9dc5;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,0x01000193)}return(h>>>0).toString(16).padStart(8,'0')};console.log(f('abc123'))"
+  test('prefers the OAuth bearer token, hashed (per-client fairness)', () => {
+    expect(deriveRateLimitKey(req({ authorization: 'Bearer abc123' }))).toBe('tok:38b29a05');
+  });
+
+  test('never embeds the raw token in the key', () => {
+    const key = deriveRateLimitKey(req({ authorization: 'Bearer abc123' }));
+    expect(key).not.toContain('abc123');
+    expect(key).toMatch(/^tok:[0-9a-f]{8}$/);
+  });
+
+  test('is deterministic and distinct across tokens', () => {
+    const a1 = deriveRateLimitKey(req({ authorization: 'Bearer token-a' }));
+    const a2 = deriveRateLimitKey(req({ authorization: 'Bearer token-a' }));
+    const b = deriveRateLimitKey(req({ authorization: 'Bearer token-b' }));
+    expect(a1).toBe(a2);
+    expect(a1).not.toBe(b);
   });
 
   test('is case-insensitive on the Bearer scheme', () => {
-    expect(deriveRateLimitKey(req({ authorization: 'bearer ZZ' }))).toBe('tok:ZZ');
+    expect(deriveRateLimitKey(req({ authorization: 'bearer ZZ' }))).toBe('tok:37181735');
   });
 
   test('falls back to the connecting IP when no bearer token', () => {
@@ -44,8 +63,8 @@ describe('withRateLimit', () => {
     expect(body.jsonrpc).toBe('2.0');
     expect(body.error.code).toBe(-32029);
     expect(inner.fetch).not.toHaveBeenCalled();
-    // Keyed on the bearer token derived from the request.
-    expect((env.RATE_LIMITER as ReturnType<typeof limiter>).limit).toHaveBeenCalledWith({ key: 'tok:t' });
+    // Keyed on the HASHED bearer token derived from the request (fnv1a('t')).
+    expect((env.RATE_LIMITER as ReturnType<typeof limiter>).limit).toHaveBeenCalledWith({ key: 'tok:f10c3da3' });
   });
 
   test('delegates to the inner handler when the limiter allows', async () => {

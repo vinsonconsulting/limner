@@ -119,4 +119,21 @@ describe('tool annotations (A5) — behavioral hints', () => {
     const openWorld = ALL_TOOLS.filter((t) => t.annotations?.openWorldHint).map((t) => t.name).sort();
     expect(openWorld).toEqual(['limner_generate_dalle', 'limner_generate_recraft']);
   });
+
+  // r5: exactly the appending/external-effect tools are non-idempotent.
+  // limner_record was corrected from an unconditional idempotentHint:true —
+  // the sourceId upsert only applies when the caller supplies one; a plain
+  // record appends a fresh entry every call (recordProjectNote precedent).
+  test('exactly the appending/external tools are non-idempotent', () => {
+    const nonIdempotent = ALL_TOOLS
+      .filter((t) => t.annotations?.idempotentHint === false)
+      .map((t) => t.name)
+      .sort();
+    expect(nonIdempotent).toEqual([
+      'limner_generate_dalle',
+      'limner_generate_recraft',
+      'limner_record',
+      'limner_record_project_note',
+    ]);
+  });
 });

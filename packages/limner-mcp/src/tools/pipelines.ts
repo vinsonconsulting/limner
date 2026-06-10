@@ -15,6 +15,7 @@
 
 import { z } from 'zod';
 import {
+  bytesToBase64,
   DallePipeline,
   MidjourneyPipeline,
   RecraftPipeline,
@@ -134,12 +135,6 @@ function buildPipelineContext(ctx: ToolContext): PipelineContext {
   };
 }
 
-function toBase64(bytes: Uint8Array): string {
-  let bin = '';
-  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]!);
-  return btoa(bin);
-}
-
 async function runImagePipeline(
   runner: PipelineRunner,
   input: PipelineGenerateInput,
@@ -191,7 +186,7 @@ function formatImageOutput(out: PipelineGenerateOutput, pipelineId: string): Cal
   };
   if (out.data) {
     return {
-      content: [{ type: 'image', data: toBase64(out.data), mimeType: out.mimeType }],
+      content: [{ type: 'image', data: bytesToBase64(out.data), mimeType: out.mimeType }],
       structuredContent: meta,
     };
   }

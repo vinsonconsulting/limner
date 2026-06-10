@@ -1,7 +1,7 @@
 import { assertSecrets, PipelineError } from './errors.js';
+import { base64ToBytes } from '../base64.js';
 import {
   asRecord,
-  base64ToBytes,
   httpResponseToError,
   isAbortError,
   parseSize,
