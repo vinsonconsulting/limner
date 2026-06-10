@@ -13,7 +13,9 @@
   "files": [
     "dist",
     "src",
-    "manifest.json"
+    "manifest.json",
+    "LICENSE",
+    "NOTICE"
   ],
   "scripts": {
     "typecheck": "tsc -p . --noEmit",

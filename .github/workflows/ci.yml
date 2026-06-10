@@ -38,10 +38,12 @@ jobs:
       # A7: root package.json `version` is the single source of truth. Regenerate
       # the derived version sites (generated version.ts, manifest.json, the
       # sub-package versions) and fail if anything drifted — i.e. the root
-      # version was bumped without running `pnpm sync-version`.
-      - name: Version single-source check
+      # version was bumped without running `pnpm sync-version`. r2 extends the
+      # same drift check to the packaging sync (embedded schema + license copies).
+      - name: Generated-files drift check (version + packaging)
         run: |
           node scripts/sync-version.mjs
+          node scripts/sync-packaging.mjs
           git diff --exit-code
 
       # Lint runs before build — typescript-eslint parses the source directly,
@@ -78,7 +80,13 @@ jobs:
           pnpm exec wrangler deploy --dry-run --env production
 
       - name: Validate + pack .mcpb bundle
-        working-directory: packages/limner-mcp
         run: |
-          ./node_modules/.bin/mcpb validate manifest.json
-          ./node_modules/.bin/mcpb pack . "$RUNNER_TEMP/limner-mcp.mcpb"
+          ./packages/limner-mcp/node_modules/.bin/mcpb validate packages/limner-mcp/manifest.json
+          node scripts/pack-mcpb.mjs "$RUNNER_TEMP/limner-mcp.mcpb"
+
+      # r2: BOOT the packed artifact, not just pack it. Unzips to a temp dir
+      # outside the repo and drives tools/list over stdio with no
+      # LIMNER_SCHEMA_PATH — the embedded-schema default and the full bundled
+      # dependency closure must hold, exactly like an end-user install.
+      - name: Smoke packed .mcpb (boot + tools/list)
+        run: node scripts/smoke-mcpb.mjs "$RUNNER_TEMP/limner-mcp.mcpb"

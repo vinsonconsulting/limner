@@ -3,6 +3,11 @@
 
 export * from './types.js';
 
+// Embedded initial schema (generated from migrations/0001_initial_schema.sql
+// by scripts/sync-packaging.mjs). The stdio entry point and the .mcpb bundle
+// default to this so published artifacts are self-contained.
+export { INITIAL_SCHEMA_SQL } from './schema.generated.js';
+
 // Bindings layer (Workers vs local stdio).
 export type {
   Bindings,

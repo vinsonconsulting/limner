@@ -7,6 +7,12 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Fixed
+- `.mcpb` boot integrity: the packed bundle now boots standalone — the D1
+  schema is embedded at build time (generated `INITIAL_SCHEMA_SQL`;
+  `LIMNER_SCHEMA_PATH` still overrides), the bundle packs from a hoisted
+  `pnpm deploy --prod` output so the full dependency closure ships, LICENSE
+  and NOTICE are included (Apache-2.0 §4), and CI boot-smokes every packed
+  bundle. (r2)
 - WASM initialization for the jSquash codecs and resvg on both transports —
   compose `encode`/`decode`/`convert`/`renderText` previously failed at runtime
   outside the test suite (Workers: modules now statically imported and attached

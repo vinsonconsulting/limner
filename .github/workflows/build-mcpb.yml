@@ -49,12 +49,15 @@ jobs:
         run: pnpm -r build
 
       - name: Pack .mcpb bundle
-        run: |
-          cd packages/limner-mcp
-          ./node_modules/.bin/mcpb pack . ../../limner-mcp.mcpb
+        run: node scripts/pack-mcpb.mjs limner-mcp.mcpb
 
       - name: Validate the packed manifest
         run: ./packages/limner-mcp/node_modules/.bin/mcpb validate packages/limner-mcp/manifest.json
+
+      # r2: boot the artifact before it ships — embedded schema + bundled
+      # dependency closure, no workspace escape hatches.
+      - name: Smoke packed .mcpb (boot + tools/list)
+        run: node scripts/smoke-mcpb.mjs limner-mcp.mcpb
 
       - name: Upload bundle as workflow artifact (always)
         uses: actions/upload-artifact@v7

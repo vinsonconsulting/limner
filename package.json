@@ -35,8 +35,11 @@
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "test:coverage": "pnpm -r exec vitest run --coverage --coverage.reporter=text-summary --passWithNoTests",
-    "build": "node scripts/sync-version.mjs && pnpm -r build",
+    "build": "node scripts/sync-version.mjs && node scripts/sync-packaging.mjs && pnpm -r build",
     "sync-version": "node scripts/sync-version.mjs",
+    "sync-packaging": "node scripts/sync-packaging.mjs",
+    "pack:mcpb": "node scripts/pack-mcpb.mjs",
+    "smoke:mcpb": "node scripts/smoke-mcpb.mjs",
     "clean": "pnpm -r exec rm -rf dist .tsbuildinfo"
   },
   "pnpm": {

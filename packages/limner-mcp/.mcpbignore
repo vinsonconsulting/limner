@@ -17,10 +17,11 @@ test/
 **/tsconfig.tsbuildinfo
 **/.tsbuildinfo
 
-# Documentation
+# Documentation. LICENSE/NOTICE are deliberately NOT excluded — the
+# bundle redistributes the work plus Apache/MIT deps, so the license
+# texts must ship (Apache-2.0 §4).
 **/README.md
 **/CHANGELOG.md
-**/LICENSE*
 **/*.md
 docs/
 
@@ -40,11 +41,10 @@ pnpm-lock.yaml
 **/coverage/
 **/*.log
 
-# r1: the wasm codec packages are direct deps of @limner/mcp (resolved
-# from the bundle root); mcpb pack dereferences the @limner/core symlink,
-# which would otherwise ship a second ~8 MB copy nested under core.
-node_modules/@limner/core/node_modules/@jsquash/
-node_modules/@limner/core/node_modules/@resvg/
+# r2 note: the pack root is now a hoisted `pnpm deploy --prod` output
+# (scripts/pack-mcpb.mjs) — flat real dirs, full dependency closure, no
+# devDependencies, no symlinks. The r1-era de-dup rules for wasm nested
+# under the dereferenced @limner/core symlink are obsolete in that layout.
 
 # Architecture / planning docs — they live in docs/ and the resume file,
 # not the runtime bundle.

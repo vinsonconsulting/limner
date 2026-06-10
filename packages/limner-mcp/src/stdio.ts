@@ -8,12 +8,9 @@
 
 import process from 'node:process';
 import { homedir } from 'node:os';
-import { resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { dirname } from 'node:path';
 
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { createLocalBindings } from '@limner/core';
+import { createLocalBindings, INITIAL_SCHEMA_SQL } from '@limner/core';
 
 import { createServer, registerTools, type ToolContext } from './server.js';
 import { VERSION } from './version.js';
@@ -24,16 +21,16 @@ import { memoryTools } from './tools/memory.js';
 import { projectTools } from './tools/context.js';
 import { metaTools } from './tools/meta.js';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-// Schema path lookup:
-//   - LIMNER_SCHEMA_PATH overrides everything.
-//   - Otherwise the published package's dist/ tree expects the schema
-//     adjacent to it; in the workspace the schema is at the repo root.
-function resolveSchemaPath(): string {
-  if (process.env['LIMNER_SCHEMA_PATH']) return process.env['LIMNER_SCHEMA_PATH'];
-  // dist/stdio.js -> packages/limner-mcp/dist -> packages/limner-mcp -> packages -> repo root.
-  return resolve(__dirname, '../../../migrations/0001_initial_schema.sql');
+// Schema selection (review r2):
+//   - LIMNER_SCHEMA_PATH overrides everything (advanced/dev escape hatch).
+//   - Default: the schema generated into @limner/core at build time.
+//     The old default resolved a repo-relative path that exists in the
+//     workspace but NOT in the packed .mcpb / published npm artifact —
+//     ENOENT on every end-user install.
+function schemaOption(): { schemaSql: string } | { schemaPath: string } {
+  const override = process.env['LIMNER_SCHEMA_PATH'];
+  if (override) return { schemaPath: override };
+  return { schemaSql: INITIAL_SCHEMA_SQL };
 }
 
 function resolveDbPath(): string {
@@ -49,7 +46,7 @@ async function main(): Promise<void> {
 
   const bindings = createLocalBindings({
     dbPath: resolveDbPath(),
-    schemaPath: resolveSchemaPath(),
+    ...schemaOption(),
   });
 
   const server = createServer('limner-mcp (preview)', VERSION);

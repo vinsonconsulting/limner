@@ -79,6 +79,35 @@ describe('stdio entry point smoke', () => {
   );
 
   test(
+    'boots on the embedded schema when LIMNER_SCHEMA_PATH is unset (r2)',
+    { timeout: 30_000 },
+    async () => {
+      // The packed .mcpb / published npm artifact has no migrations/
+      // directory — the embedded INITIAL_SCHEMA_SQL default must carry
+      // boot. (The packed-bundle equivalent runs in scripts/smoke-mcpb.mjs.)
+      const transport = new StdioClientTransport({
+        command: 'node',
+        args: [STDIO_BIN],
+        env: {
+          LIMNER_DB_PATH: dbPath,
+          PATH: process.env['PATH'] ?? '',
+        },
+      });
+      const client = new Client({ name: 'smoke-test', version: '0.0.1' }, { capabilities: {} });
+      await client.connect(transport);
+      try {
+        const result = await client.listTools();
+        expect(result.tools.length).toBeGreaterThanOrEqual(15);
+        // A real DB round-trip proves the schema actually applied.
+        const recall = await client.callTool({ name: 'limner_recall', arguments: {} });
+        expect(recall.isError).toBeFalsy();
+      } finally {
+        await client.close();
+      }
+    },
+  );
+
+  test(
     'health tool round-trip through stdio',
     { timeout: 30_000 },
     async () => {
