@@ -14,7 +14,7 @@ import { zodToJsonSchema } from 'zod-to-json-schema';
 
 import { toMcpInputSchema } from '../src/server.js';
 import { pipelineTools } from '../src/tools/pipelines.js';
-import { composeTool } from '../src/tools/compose.js';
+import { composeTool, composeInputSchema } from '../src/tools/compose.js';
 import { memoryTools } from '../src/tools/memory.js';
 import { projectTools } from '../src/tools/context.js';
 import { metaTools } from '../src/tools/meta.js';
@@ -52,17 +52,33 @@ describe('tool input_schemas are valid for the Anthropic tool API', () => {
     },
   );
 
-  test('compose advertises a flat object with an `op` enum (no top-level union)', () => {
+  // r4: the compose op surface lives in four hand-synced sites (strict
+  // union, advertised schema, mcp switch, cma switch). The old sample-based
+  // check (arrayContaining over 6 of 16 ops) let an op added to the union
+  // but missed in the advertised enum pass CI and silently disappear — the
+  // advertised-schema safeParse in registerTools rejects it before the
+  // strict union ever runs. Exact-set equality closes that hole.
+  test('compose advertised `op` enum EXACTLY equals the strict union op set', () => {
     const schema = toMcpInputSchema(composeTool.inputSchema) as {
       type?: string;
-      properties?: Record<string, { enum?: unknown[] }>;
+      properties?: Record<string, { enum?: string[] }>;
     };
     expect(schema.type).toBe('object');
-    // The op discriminator is exposed as an enum covering every op.
-    const opEnum = schema.properties?.['op']?.enum ?? [];
-    expect(opEnum).toEqual(
-      expect.arrayContaining(['resize', 'crop', 'watermark', 'encode', 'renderText', 'cfTransform']),
-    );
+    const unionOps = composeInputSchema.options.map((v) => v.shape.op.value).sort();
+    const advertisedOps = [...(schema.properties?.['op']?.enum ?? [])].sort();
+    expect(advertisedOps).toEqual(unionOps);
+    expect(unionOps).toHaveLength(16);
+  });
+
+  test('compose advertised property keys cover every strict-union variant key', () => {
+    const schema = toMcpInputSchema(composeTool.inputSchema) as {
+      properties?: Record<string, unknown>;
+    };
+    const advertisedKeys = Object.keys(schema.properties ?? {});
+    const variantKeys = [...new Set(composeInputSchema.options.flatMap((v) => Object.keys(v.shape)))];
+    for (const key of variantKeys) {
+      expect(advertisedKeys, `advertised schema is missing variant key "${key}"`).toContain(key);
+    }
   });
 });
 

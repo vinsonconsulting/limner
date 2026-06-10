@@ -7,6 +7,7 @@ import type { Bindings } from '@limner/core';
 import {
   createServer,
   registerTools,
+  toMcpInputSchema,
   type Tool,
   type ToolContext,
 } from '../src/server.js';
@@ -162,5 +163,67 @@ describe('mcp server: ToolContext factory', () => {
     } finally {
       await close();
     }
+  });
+});
+
+// r4: pin toMcpInputSchema's union-flattening semantics with a synthetic
+// discriminated union. These document EXISTING behavior (first-wins on
+// colliding property names, discriminator hardcoded to type:"string",
+// required = intersection) — they are characterization tests, not a spec
+// for new behavior. Tested through the exported toMcpInputSchema rather
+// than exporting the private flattenUnionVariants helper, because this is
+// the contract tools/list actually uses.
+describe('toMcpInputSchema: discriminated-union flattening (r4)', () => {
+  const synthetic = z.discriminatedUnion('op', [
+    z.object({ op: z.literal('alpha'), x: z.string(), shared: z.string() }),
+    z.object({ op: z.literal('beta'), x: z.number(), y: z.number(), shared: z.string() }),
+  ]);
+  const flat = toMcpInputSchema(synthetic) as {
+    type?: string;
+    properties?: Record<string, { type?: string; enum?: unknown[] }>;
+    required?: string[];
+    additionalProperties?: boolean;
+    anyOf?: unknown;
+    oneOf?: unknown;
+    allOf?: unknown;
+  };
+
+  test('emits a flat object schema with no top-level combinator', () => {
+    expect(flat.type).toBe('object');
+    expect(flat.anyOf).toBeUndefined();
+    expect(flat.oneOf).toBeUndefined();
+    expect(flat.allOf).toBeUndefined();
+    expect(flat.additionalProperties).toBe(false);
+  });
+
+  test('collapses the discriminator to a string enum over every variant literal', () => {
+    // The type is hardcoded "string" regardless of the variants' literal
+    // types — documented existing behavior (all current discriminators
+    // are string literals).
+    expect(flat.properties?.['op']).toEqual({ type: 'string', enum: ['alpha', 'beta'] });
+  });
+
+  test('first variant wins on colliding non-discriminator property names', () => {
+    // `x` is string in alpha (first) and number in beta — alpha wins.
+    expect(flat.properties?.['x']?.type).toBe('string');
+  });
+
+  test('property keys are the union of all variant keys', () => {
+    expect(Object.keys(flat.properties ?? {}).sort()).toEqual(['op', 'shared', 'x', 'y']);
+  });
+
+  test('required is the intersection of the variants\' required sets', () => {
+    // alpha requires [op, x, shared]; beta requires [op, x, y, shared];
+    // `y` drops out of the advertised required set.
+    expect([...(flat.required ?? [])].sort()).toEqual(['op', 'shared', 'x']);
+  });
+
+  test('non-union object schemas pass through unchanged', () => {
+    const out = toMcpInputSchema(z.object({ a: z.string() })) as {
+      type?: string;
+      properties?: Record<string, unknown>;
+    };
+    expect(out.type).toBe('object');
+    expect(Object.keys(out.properties ?? {})).toEqual(['a']);
   });
 });

@@ -6,6 +6,14 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- Compose schema parity is now exact-set: the advertised `op` enum must equal
+  the strict 16-op union, advertised property keys must cover every variant
+  key, and `toMcpInputSchema`'s union-flattening semantics (first-wins,
+  string-enum discriminator, intersection `required`) are pinned by
+  characterization tests; `@limner/cma-tools`' compose dispatch gains direct
+  coverage (R2 envelope, cf-op gate, strict validation). (r4)
+
 ### Fixed
 - `limner_generate_recraft`: `mode:"local"` now returns a clear
   `unsupported_in_workers` tool error on the Workers transport instead of
