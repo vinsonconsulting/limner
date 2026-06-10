@@ -27,6 +27,7 @@
 // parity suite and the manual prod smoke. Re-introduce a transport-level
 // state test here once local D1 schema seeding into unstable_dev is wired.
 
+import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
@@ -35,6 +36,17 @@ import { unstable_dev, type UnstableDevWorker } from 'wrangler';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ENTRY = resolve(__dirname, 'handshake-main.ts');
 const CONFIG = resolve(__dirname, 'wrangler.handshake.toml');
+
+const FIXTURE = readFileSync(
+  resolve(__dirname, '../../limner-core/test/compose/fixtures/checker-64.png'),
+);
+const FONT = readFileSync(
+  resolve(__dirname, '../../limner-core/assets/fonts/IBMPlexSans-Regular.ttf'),
+);
+
+function b64(bytes: Uint8Array | Buffer): string {
+  return Buffer.from(bytes).toString('base64');
+}
 
 // The Phase 4 tool surface, sorted — mirrors test/stdio.smoke.test.ts so both
 // transports assert the same single-source registry.
@@ -159,6 +171,62 @@ describe('worker MCP: DO-backed Streamable HTTP handshake (Phase 6c regression g
         JSON.parse(callBody.result?.content?.[0]?.text ?? '{}');
       expect(payload.status).toBe('ok');
       expect(payload.bindings).toBe('workers');
+
+      // 5. Review r1 regression guard — compose's WASM-backed ops inside the
+      //    real workerd isolate. Before r1, the jsquash wasm never shipped in
+      //    the bundle (the glue's fetch(import.meta.url) had nothing to
+      //    fetch) and resvg was never initialized, so both calls below failed
+      //    at runtime while CI stayed green. This boots the same esbuild
+      //    bundle as `wrangler deploy`, so it proves wasm attachment +
+      //    initComposeWasmWorkers() end-to-end.
+      const convertRes = await post(
+        {
+          jsonrpc: '2.0',
+          id: 4,
+          method: 'tools/call',
+          params: {
+            name: 'limner_compose',
+            arguments: { op: 'convert', input: b64(FIXTURE), from: 'png', to: 'jpeg', quality: 80 },
+          },
+        },
+        sessionId!,
+      );
+      expect(convertRes.status).toBe(200);
+      const convertBody = parseRpc(await convertRes.text());
+      expect(convertBody.result?.isError, JSON.stringify(convertBody.result?.content)).toBeFalsy();
+      const jpegBytes = Buffer.from(convertBody.result?.content?.[0]?.data ?? '', 'base64');
+      expect(jpegBytes[0]).toBe(0xff); // JPEG magic FF D8 FF
+      expect(jpegBytes[1]).toBe(0xd8);
+
+      const renderRes = await post(
+        {
+          jsonrpc: '2.0',
+          id: 5,
+          method: 'tools/call',
+          params: {
+            name: 'limner_compose',
+            arguments: {
+              op: 'renderText',
+              jsx: {
+                type: 'div',
+                props: {
+                  style: { display: 'flex', width: '100%', height: '100%', fontSize: 24 },
+                  children: 'r1',
+                },
+              },
+              width: 120,
+              height: 60,
+              fonts: [{ name: 'IBM Plex Sans', data: b64(FONT) }],
+            },
+          },
+        },
+        sessionId!,
+      );
+      expect(renderRes.status).toBe(200);
+      const renderBody = parseRpc(await renderRes.text());
+      expect(renderBody.result?.isError, JSON.stringify(renderBody.result?.content)).toBeFalsy();
+      const pngBytes = Buffer.from(renderBody.result?.content?.[0]?.data ?? '', 'base64');
+      expect([...pngBytes.subarray(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47]);
     },
   );
 });

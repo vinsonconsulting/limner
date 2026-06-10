@@ -40,6 +40,12 @@ pnpm-lock.yaml
 **/coverage/
 **/*.log
 
+# r1: the wasm codec packages are direct deps of @limner/mcp (resolved
+# from the bundle root); mcpb pack dereferences the @limner/core symlink,
+# which would otherwise ship a second ~8 MB copy nested under core.
+node_modules/@limner/core/node_modules/@jsquash/
+node_modules/@limner/core/node_modules/@resvg/
+
 # Architecture / planning docs — they live in docs/ and the resume file,
 # not the runtime bundle.
 plans/

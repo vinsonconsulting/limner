@@ -17,6 +17,7 @@ import { createLocalBindings } from '@limner/core';
 
 import { createServer, registerTools, type ToolContext } from './server.js';
 import { VERSION } from './version.js';
+import { initComposeWasmNode } from './wasm-init-node.js';
 import { pipelineTools } from './tools/pipelines.js';
 import { composeTool } from './tools/compose.js';
 import { memoryTools } from './tools/memory.js';
@@ -41,6 +42,11 @@ function resolveDbPath(): string {
 }
 
 async function main(): Promise<void> {
+  // Eager WASM init for compose's jsquash/resvg ops (review r1). A
+  // resolution failure here is fatal-by-design: better a clear boot
+  // error than a broken limner_compose at first invocation.
+  await initComposeWasmNode();
+
   const bindings = createLocalBindings({
     dbPath: resolveDbPath(),
     schemaPath: resolveSchemaPath(),

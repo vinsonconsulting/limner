@@ -4,6 +4,14 @@ All notable changes to Limner (rasa) are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- WASM initialization for the jSquash codecs and resvg on both transports —
+  compose `encode`/`decode`/`convert`/`renderText` previously failed at runtime
+  outside the test suite (Workers: modules now statically imported and attached
+  to the bundle; stdio: loaded via `createRequire` at boot). (r1)
+
 ## [1.0.0] - 2026-06-04
 
 v1.0.0 is the first public release — the foundation (`rasa`) variant of the
@@ -32,4 +40,5 @@ state (D-RA-04, D-RA-15), and the CMA→D1 memory migration.
 - Documentation accuracy pass: README status and architecture open questions.
   (RT-4)
 
+[Unreleased]: https://github.com/vinsonconsulting/limner/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/vinsonconsulting/limner/releases/tag/v1.0.0

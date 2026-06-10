@@ -11,7 +11,8 @@ import { composeTool } from '../../src/tools/compose.js';
 
 // jsquash WASM init helper from @limner/core's test tree. compose's
 // encode/decode/convert ops route through jsquash-codecs, which needs
-// WASM init in Node (Workers handles it via bundler).
+// WASM init in Node. (Production entry points init via src/wasm-init*.ts
+// — covered by test/wasm-init.node.test.ts and the worker handshake.)
 import { initJsquashForNode } from '../../../limner-core/test/compose/helpers/jsquash-init.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));

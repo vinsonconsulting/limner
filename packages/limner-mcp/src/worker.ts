@@ -36,6 +36,7 @@ import type { Bindings, CFImagesBinding } from '@limner/core';
 
 import { createServer, registerTools, type ToolContext } from './server.js';
 import { VERSION } from './version.js';
+import { initComposeWasmWorkers } from './wasm-init.js';
 import { pipelineTools } from './tools/pipelines.js';
 import { composeTool } from './tools/compose.js';
 import { memoryTools } from './tools/memory.js';
@@ -112,6 +113,10 @@ export class LimnerMCP extends McpAgent<Env, LimnerState, LimnerProps> {
   server = createServer('limner-mcp', VERSION);
 
   async init(): Promise<void> {
+    // compose's jsquash/resvg ops need their WASM initialized before the
+    // first tools/call; the modules ship as CompiledWasm bundle imports
+    // (see wasm-init.ts) and the latch makes repeat sessions a no-op.
+    await initComposeWasmWorkers();
     registerTools(
       this.server,
       [...pipelineTools, composeTool, ...memoryTools, ...projectTools, ...metaTools],

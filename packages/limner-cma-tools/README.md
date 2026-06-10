@@ -51,7 +51,70 @@ export const CUSTOM_TOOLS = [
 - `RECRAFT_API_KEY` — required by `limner_generate_recraft` (remote mode)
 - `LIMNER_BUCKET_PUBLIC_URL` (optional) — if your R2 bucket has a public hostname, set this so image tools return absolute URLs instead of `r2://` handles
 
-6. `npm run deploy`. The 15 Limner tools appear in the agent form's toggle list automatically.
+6. Initialize the compose WASM (required — see the next section).
+
+7. `npm run deploy`. The 15 Limner tools appear in the agent form's toggle list automatically.
+
+## WASM initialization (required for compose codec + `renderText` ops)
+
+`limner_compose`'s jSquash codec ops (`encode`/`decode`/`convert`) and the
+satori `renderText` op depend on WASM that does **not** self-initialize in a
+Workers isolate: jSquash's lazy init tries to `fetch()` its wasm relative to
+`import.meta.url` (nothing to fetch in a deployed Worker), and resvg requires
+an explicit `ensureResvgInit`. This library cannot initialize them for you —
+the consuming Worker must do it once, before the first compose call (the
+photon ops — resize/crop/brightness/contrast/blur/sharpen/watermark — need no
+init).
+
+Static `.wasm` imports are bundled by wrangler's default `CompiledWasm` rule
+and yield `WebAssembly.Module` instances. Add a small init module to the
+consuming Worker and `await` it at startup (e.g. at the top of the fetch
+handler or agent bootstrap):
+
+```ts
+// wasm imports — add `declare module '*.wasm' { const m: WebAssembly.Module; export default m; }`
+import resvgWasm from '@resvg/resvg-wasm/index_bg.wasm';
+import pngWasm from '@jsquash/png/codec/pkg/squoosh_png_bg.wasm';
+import jpegDecWasm from '@jsquash/jpeg/codec/dec/mozjpeg_dec.wasm';
+import jpegEncWasm from '@jsquash/jpeg/codec/enc/mozjpeg_enc.wasm';
+import webpDecWasm from '@jsquash/webp/codec/dec/webp_dec.wasm';
+import webpEncWasm from '@jsquash/webp/codec/enc/webp_enc.wasm';
+import avifDecWasm from '@jsquash/avif/codec/dec/avif_dec.wasm';
+import avifEncWasm from '@jsquash/avif/codec/enc/avif_enc.wasm';
+
+import { init as pngDecodeInit } from '@jsquash/png/decode.js';
+import { init as pngEncodeInit } from '@jsquash/png/encode.js';
+import { init as jpegDecodeInit } from '@jsquash/jpeg/decode.js';
+import { init as jpegEncodeInit } from '@jsquash/jpeg/encode.js';
+import { init as webpDecodeInit } from '@jsquash/webp/decode.js';
+import { init as webpEncodeInit } from '@jsquash/webp/encode.js';
+import { init as avifDecodeInit } from '@jsquash/avif/decode.js';
+import { init as avifEncodeInit } from '@jsquash/avif/encode.js';
+import { compose } from '@limner/core';
+
+let ready: Promise<void> | undefined;
+export function initLimnerComposeWasm(): Promise<void> {
+  if (!ready) {
+    ready = (async () => {
+      await pngDecodeInit(pngWasm);   // PNG: one module shared by dec+enc
+      await pngEncodeInit(pngWasm);
+      await jpegDecodeInit(jpegDecWasm);
+      await jpegEncodeInit(jpegEncWasm);
+      await webpDecodeInit(webpDecWasm);
+      await webpEncodeInit(webpEncWasm);
+      await avifDecodeInit(avifDecWasm);
+      await avifEncodeInit(avifEncWasm);
+      await compose.ensureResvgInit(resvgWasm);
+    })();
+  }
+  return ready;
+}
+```
+
+The wasm adds ~8 MB raw (~3 MB gzipped) to the Worker bundle — within the
+paid-plan limit, over the free-tier 3 MB cap. `@limner/mcp`'s own Workers
+entry does exactly this (see `packages/limner-mcp/src/wasm-init.ts`); use it
+as the reference implementation.
 
 ## Tool surface
 
