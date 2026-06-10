@@ -82,6 +82,20 @@ describe('RecraftPipeline — happy path (remote)', () => {
     });
   });
 
+  // r3: result.raw is the full upstream MCP response (it can include the
+  // base64 image content block). It must NOT enter pipeline metadata —
+  // the MCP tool layer spreads metadata into structuredContent verbatim,
+  // so the bytes would ship in the CallToolResult twice.
+  test('transport raw response is never copied into metadata', async () => {
+    const { transport } = fakeTransport({
+      url: 'https://cdn.recraft.ai/abc.png',
+      raw: { content: [{ type: 'image', data: 'aGVhdnliYXNlNjQ=' }] },
+    });
+    const p = new RecraftPipeline('remote', transport);
+    const out = (await p.generate({ prompt: 'cat' }, REMOTE_CTX)) as PipelineImageOutput;
+    expect(out.metadata).not.toHaveProperty('raw');
+  });
+
   test('returns image with bytes when transport provides data', async () => {
     const { transport } = fakeTransport({
       data: new Uint8Array([1, 2, 3]),

@@ -151,4 +151,48 @@ describe('limner_generate_recraft', () => {
       await close();
     }
   });
+
+  // r3: mode:"local" spawns an npx subprocess over stdio — impossible in a
+  // V8 isolate. The handler must gate on bindings.kind before connect().
+  test('mode:"local" on the Workers transport -> unsupported_in_workers', async () => {
+    const workersCtx: ToolContext = {
+      bindings: { kind: 'workers' } as unknown as Bindings,
+      // Key present on purpose: proves the gate fires BEFORE the
+      // transport's secret pre-check (and before any spawn attempt).
+      secrets: { RECRAFT_API_KEY: 'rk-test' },
+    };
+    const { client, close } = await connectedPair(pipelineTools, workersCtx);
+    try {
+      const result = await client.callTool({
+        name: 'limner_generate_recraft',
+        arguments: { prompt: 'logo', mode: 'local' },
+      });
+      expect(result.isError).toBe(true);
+      const text = (result.content as Array<{ text?: string }>)[0]?.text ?? '';
+      expect(text).toMatch(/unsupported_in_workers/);
+      expect(text).toMatch(/Use mode:"remote"/);
+    } finally {
+      await close();
+    }
+  });
+
+  test('mode:"remote" on the Workers transport is NOT gated (still errors on the missing key)', async () => {
+    const workersCtx: ToolContext = {
+      bindings: { kind: 'workers' } as unknown as Bindings,
+      secrets: {},
+    };
+    const { client, close } = await connectedPair(pipelineTools, workersCtx);
+    try {
+      const result = await client.callTool({
+        name: 'limner_generate_recraft',
+        arguments: { prompt: 'logo', mode: 'remote' },
+      });
+      expect(result.isError).toBe(true);
+      const text = JSON.stringify(result.content);
+      expect(text).toMatch(/RECRAFT_API_KEY/);
+      expect(text).not.toMatch(/unsupported_in_workers/);
+    } finally {
+      await close();
+    }
+  });
 });

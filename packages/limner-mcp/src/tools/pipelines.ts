@@ -82,7 +82,7 @@ const generateMidjourney: Tool<z.infer<typeof midjourneyInputSchema>> = {
 const recraftInputSchema = z.object({
   prompt: z.string().min(1, 'prompt is required'),
   mode: z.enum(['remote', 'local']).default('remote')
-    .describe('"remote" hits mcp.recraft.ai (Bearer auth); "local" spawns npx @recraft-ai/mcp-recraft-server stdio.'),
+    .describe('"remote" hits mcp.recraft.ai (Bearer auth); "local" spawns npx @recraft-ai/mcp-recraft-server stdio — stdio transport only, unsupported on Workers.'),
   style: z.string().optional()
     .describe('e.g. "realistic_image", "digital_illustration", "vector_illustration".'),
   substyle: z.string().optional(),
@@ -98,6 +98,18 @@ const generateRecraft: Tool<z.infer<typeof recraftInputSchema>> = {
   // Calls a paid external service (Recraft) — open-world, non-idempotent.
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
   handler: async (input, ctx) => {
+    // r3: local mode spawns an npx subprocess over stdio — impossible in a
+    // V8 isolate. Gate before connect() so the failure is a clear tool
+    // error, not a runtime crash. Mirrors compose's cf-op gate pattern.
+    if (input.mode === 'local' && ctx.bindings.kind === 'workers') {
+      return {
+        content: [{
+          type: 'text',
+          text: 'limner_generate_recraft: unsupported_in_workers — mode:"local" spawns a stdio subprocess and requires the stdio transport. Use mode:"remote".',
+        }],
+        isError: true,
+      };
+    }
     const transport = await McpRecraftTransport.connect(input.mode, ctx.secrets);
     try {
       const pipeline = new RecraftPipeline(input.mode, transport);

@@ -133,7 +133,11 @@ export class RecraftPipeline implements PipelineRunner {
     };
     if (args.substyle) metadata['substyle'] = args.substyle;
     if (args.model) metadata['model'] = args.model;
-    if (result.raw !== undefined) metadata['raw'] = result.raw;
+    // r3: result.raw (the full upstream MCP response, which can include the
+    // base64 image content block) stays on RecraftGenerateResult for
+    // transport-level debugging but must NOT enter pipeline metadata —
+    // formatImageOutput spreads metadata into structuredContent, so the
+    // image bytes would ride the CallToolResult twice.
 
     return {
       kind: 'image',

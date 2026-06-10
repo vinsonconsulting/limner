@@ -7,6 +7,10 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Fixed
+- `limner_generate_recraft`: `mode:"local"` now returns a clear
+  `unsupported_in_workers` tool error on the Workers transport instead of
+  attempting to spawn a stdio subprocess inside the isolate; the upstream raw
+  MCP response is no longer duplicated into `structuredContent` metadata. (r3)
 - `.mcpb` boot integrity: the packed bundle now boots standalone — the D1
   schema is embedded at build time (generated `INITIAL_SCHEMA_SQL`;
   `LIMNER_SCHEMA_PATH` still overrides), the bundle packs from a hoisted
