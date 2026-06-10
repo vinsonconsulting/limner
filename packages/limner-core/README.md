@@ -163,9 +163,9 @@ pnpm --filter @limner/core test:integration
 | Pipeline | Env var | Status |
 |---|---|---|
 | DALL-E | `OPENAI_API_KEY` | live |
-| Recraft (remote) | `RECRAFT_API_KEY` | TODO — needs Phase 4 `McpRecraftTransport` |
-| Recraft (local stdio) | — | TODO — needs Phase 4 wiring + local server |
-| compose (`cf-images-transform`) | `CLOUDFLARE_API_TOKEN` | scaffolding — real binding lands with Phase 4 deploy work (D-RA-16) |
+| Recraft (remote) | `RECRAFT_API_KEY` | transport shipped (`McpRecraftTransport` in `@limner/mcp`, Phase 4); this package's integration test is still a `describe.todo` stub (cross-package import pending) |
+| Recraft (local stdio) | — | transport shipped — stdio transport **only**: `mode:"local"` spawns the npx server and is gated `unsupported_in_workers` on the Workers transport (r3) |
+| compose (`cf-images-transform`) | `CLOUDFLARE_API_TOKEN` | binding deployed (`[images]` in `@limner/mcp`'s wrangler.toml since Phase 4); integration body gated on `LIMNER_MCP_DEV_URL` + `CLOUDFLARE_API_TOKEN` |
 
 Each live integration test makes one real API call (counts against your
 quota). Timeout is 90 seconds per test.
@@ -181,8 +181,8 @@ scope on your GitHub token):
 
 ```bash
 gh secret set OPENAI_API_KEY --body "sk-..."
-# RECRAFT_API_KEY: add when Phase 4 ships the real McpRecraftTransport
-# and the Recraft integration tests come off describe.todo.
+# RECRAFT_API_KEY: add when the Recraft integration tests come off
+# describe.todo (the transport itself shipped in @limner/mcp, Phase 4).
 ```
 
 **Triggering a run** from the CLI:

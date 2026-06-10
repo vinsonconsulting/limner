@@ -6,9 +6,11 @@
 // Dogfood window (D-RA-12): the /authorize page auto-approves any
 // authenticated client without surfacing a UI. The CMA agent itself
 // hits Path B in v1; an explicit consent screen lands when external
-// human consumers come online (post-dogfood).
+// human consumers come online (post-dogfood) — decided as D-RA-22
+// (2026-06-05): the public auth gate is an OAuth consent screen
+// landing in v1.0.x, superseding the API-key alternative.
 //
-// Refs: D-RA-06, D-RA-12
+// Refs: D-RA-06, D-RA-12, D-RA-22
 
 import type { ExportedHandler } from '@cloudflare/workers-types';
 import type { OAuthHelpers } from '@cloudflare/workers-oauth-provider';
@@ -28,7 +30,8 @@ export interface OAuthEnv {
  * redirect_uri with the auth code.
  *
  * When external human consumers come online (post-dogfood), this
- * handler grows a real consent screen and authentication step.
+ * handler grows a real consent screen and authentication step
+ * (D-RA-22: OAuth consent screen, v1.0.x).
  */
 export const defaultHandler: ExportedHandler<OAuthEnv> = {
   async fetch(req, env) {
@@ -40,8 +43,9 @@ export const defaultHandler: ExportedHandler<OAuthEnv> = {
       // PINNED to ['mcp'] (D-RA-19) — we ignore whatever the client
       // requested, so a client cannot mint a broader-scoped token even
       // while the dogfood build still auto-approves. A real consent step
-      // (and per-client scope policy) lands in v1.0.x. This endpoint is
-      // rate-limited at the worker wiring (withRateLimit on defaultHandler).
+      // (and per-client scope policy) lands in v1.0.x per D-RA-22. This
+      // endpoint is rate-limited at the worker wiring (withRateLimit on
+      // defaultHandler).
       const oauthReq = await env.OAUTH_PROVIDER.parseAuthRequest(req);
       const { redirectTo } = await env.OAUTH_PROVIDER.completeAuthorization({
         request: oauthReq,

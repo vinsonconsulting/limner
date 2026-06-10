@@ -7,6 +7,12 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Changed
+- Docs: decision D-RA-22 (public auth gate = OAuth consent screen, landing in
+  v1.0.x, superseding the API-key alternative) is now linked from the
+  architecture decision table, intro enumerations, and `oauth.ts` comments;
+  the core README's integration-test matrix reflects the shipped
+  `McpRecraftTransport` (local mode stdio-only per r3) and the deployed
+  cf-images binding. (r6)
 - Hygiene pass: shared chunked base64 codecs in `@limner/core` replace five
   duplicated per-byte loops; the Recraft MCP client handshake reports the real
   `VERSION` instead of a hardcoded literal; `limner_record` corrects
