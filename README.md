@@ -10,7 +10,7 @@
 
 ## What this is
 
-Limner gives you one agent surface, multiple image-generation pipelines, and durable memory for project context. It runs on Cloudflare CMA self-hosted sandboxes, ships as an MCP server (Workers HTTP, stdio, `.mcpb`), and uses D1 for state.
+Limner gives you one agent surface, multiple image-generation pipelines, and durable memory for project context. It runs on Cloudflare CMA self-hosted sandboxes and ships as an MCP server (Workers HTTP, stdio, `.mcpb`); the Workers transport uses D1 for state, the stdio/`.mcpb` build uses Node's built-in `node:sqlite` locally.
 
 Where most image-generation tools wrap a single model, Limner composes across DALL·E, Recraft, and Midjourney (prompt-only), with a hybrid V8 composition stack for layering and post-processing. Specialty pipelines like pixel-art generation (Pixellab, RetroDiffusion) live in the `limner-pixel` variant per D-RA-17 / D-RA-18.
 

@@ -1,13 +1,15 @@
 import { describe, test } from 'vitest';
 
-// Recraft integration tests are TODO until Phase 4 ships the real
-// McpRecraftTransport (the @modelcontextprotocol/sdk client +
-// StreamableHTTPClientTransport wiring lives in @limner/mcp, where the SDK
-// already has a real consumer). The default placeholder transport in
-// @limner/core throws upstream_unavailable by design.
+// Phase 4 shipped the real McpRecraftTransport in @limner/mcp (the
+// @modelcontextprotocol/sdk client + StreamableHTTPClientTransport
+// wiring lives there, where the SDK has a real consumer). These tests
+// remain todo because @limner/core cannot import @limner/mcp without a
+// dependency cycle — live Recraft coverage belongs at the mcp layer.
+// The default placeholder transport in @limner/core throws
+// upstream_unavailable by design.
 //
-// Once Phase 4 lands and exposes a transport implementation that this
-// package can import (without circular dependencies), this file becomes:
+// If a transport implementation ever becomes importable from this
+// package (without circular dependencies), this file becomes:
 //
 //   import { RecraftPipeline, type PipelineImageOutput } from '../../src/index.js';
 //   import { McpRecraftTransport } from '@limner/mcp/transports/recraft.js';

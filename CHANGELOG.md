@@ -6,6 +6,15 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- Pre-Test-1 surface sweep: internal decision references (D-RA-14/16)
+  removed from client-rendered tool descriptions and the manifest;
+  paid-API cost signaling added to the DALL·E and Recraft generator
+  descriptions; `project not found` errors now include the requested
+  identifier; manifest and root README state storage per transport (D1
+  on Workers, node:sqlite in the stdio/.mcpb build); stale Phase-4/7
+  test comments updated. (p2)
+
 ### Fixed
 - First-run integrity on the default database path: `createLocalBindings`
   now creates the db file's parent directory (`~/.limner/` for the stdio

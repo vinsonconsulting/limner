@@ -47,7 +47,7 @@ const dalleInputSchema = z.object({
 
 const generateDalle: Tool<z.infer<typeof dalleInputSchema>> = {
   name: 'limner_generate_dalle',
-  description: 'Generate an image via OpenAI Images API (gpt-image-1 default; dall-e-3 / dall-e-2 also supported).',
+  description: 'Generate an image via OpenAI Images API (gpt-image-1 default; dall-e-3 / dall-e-2 also supported). Paid API — each call bills your OpenAI account.',
   inputSchema: dalleInputSchema,
   // Calls a paid external API (OpenAI) — open-world, non-idempotent.
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
@@ -94,7 +94,7 @@ const recraftInputSchema = z.object({
 const generateRecraft: Tool<z.infer<typeof recraftInputSchema>> = {
   name: 'limner_generate_recraft',
   description:
-    'Generate an image via Recraft (composed-MCP adapter per D-RA-14; calls Recraft\'s generate_image tool).',
+    'Generate an image via Recraft\'s first-party MCP (composed adapter; calls Recraft\'s generate_image tool). Paid API — each call bills your Recraft account.',
   inputSchema: recraftInputSchema,
   // Calls a paid external service (Recraft) — open-world, non-idempotent.
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },

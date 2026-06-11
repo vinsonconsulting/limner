@@ -56,7 +56,7 @@ const getProjectContext: Tool<z.infer<typeof getContextInputSchema>> = {
       : await store.getByName(input.name!);
     if (!project) {
       return {
-        content: [{ type: 'text', text: 'project not found' }],
+        content: [{ type: 'text', text: `project not found: ${input.projectId ?? input.name}` }],
         isError: true,
       };
     }
