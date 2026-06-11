@@ -41,6 +41,7 @@ const { StdioClientTransport } = await import(
 );
 
 const tmp = mkdtempSync(join(tmpdir(), 'limner-mcpb-smoke-'));
+const tempHome = mkdtempSync(join(tmpdir(), 'limner-mcpb-home-'));
 let failed = false;
 try {
   execFileSync('unzip', ['-q', bundle, '-d', tmp]);
@@ -76,39 +77,64 @@ try {
     .filter((d) => !d.startsWith('.')).length;
   console.log(`smoke-mcpb: bundle ${(statSync(bundle).size / 1048576).toFixed(1)} MiB, ${topLevelDeps} top-level packages in the closure`);
 
-  const transport = new StdioClientTransport({
-    command: process.execPath,
-    args: [join(tmp, 'dist/stdio.js')],
-    env: {
-      // NO LIMNER_SCHEMA_PATH: the packed bundle must boot on the
-      // embedded schema, exactly like an end-user install.
-      LIMNER_DB_PATH: join(tmp, 'limner.db'),
-      PATH: process.env.PATH ?? '',
-    },
-    stderr: 'pipe',
-  });
-  // Surface the subprocess's stderr so a boot crash is diagnosable in CI.
-  transport.stderr?.on('data', (chunk) => process.stderr.write(chunk));
+  // Boot the unpacked bundle exactly like an MCP client would and assert
+  // the full registry is listed. The SDK merges `env` over a safe default
+  // inherited set (HOME, PATH, ...) — explicit keys here win.
+  async function bootAndListTools(env, label) {
+    const transport = new StdioClientTransport({
+      command: process.execPath,
+      args: [join(tmp, 'dist/stdio.js')],
+      env,
+      stderr: 'pipe',
+    });
+    // Surface the subprocess's stderr so a boot crash is diagnosable in CI.
+    transport.stderr?.on('data', (chunk) => process.stderr.write(chunk));
 
-  const client = new Client({ name: 'mcpb-smoke', version: '0.0.1' }, { capabilities: {} });
-  await client.connect(transport);
-  try {
-    const { tools } = await client.listTools();
-    const names = tools.map((t) => t.name).sort();
-    if (tools.length < 15) {
-      throw new Error(`expected >= 15 tools, got ${tools.length}: ${names.join(', ')}`);
+    const client = new Client({ name: 'mcpb-smoke', version: '0.0.1' }, { capabilities: {} });
+    await client.connect(transport);
+    try {
+      const { tools } = await client.listTools();
+      const names = tools.map((t) => t.name).sort();
+      if (tools.length < 15) {
+        throw new Error(`${label}: expected >= 15 tools, got ${tools.length}: ${names.join(', ')}`);
+      }
+      if (!names.includes('limner_compose')) {
+        throw new Error(`${label}: limner_compose missing from tools/list: ${names.join(', ')}`);
+      }
+      return tools.length;
+    } finally {
+      await client.close();
     }
-    if (!names.includes('limner_compose')) {
-      throw new Error(`limner_compose missing from tools/list: ${names.join(', ')}`);
-    }
-    console.log(`smoke-mcpb: OK — ${tools.length} tools listed from the packed bundle (db + embedded schema booted)`);
-  } finally {
-    await client.close();
   }
+
+  // Pass 1 — explicit LIMNER_DB_PATH into an existing dir (the original
+  // gate). NO LIMNER_SCHEMA_PATH: the packed bundle must boot on the
+  // embedded schema, exactly like an end-user install.
+  const toolCount = await bootAndListTools({
+    LIMNER_DB_PATH: join(tmp, 'limner.db'),
+    PATH: process.env.PATH ?? '',
+  }, 'pass 1 (LIMNER_DB_PATH)');
+  console.log(`smoke-mcpb: OK — ${toolCount} tools listed from the packed bundle (db + embedded schema booted)`);
+
+  // Pass 2 — true first run (p1): no LIMNER_DB_PATH, HOME pointed at a
+  // fresh dir. The server falls back to ~/.limner/limner.db and must
+  // create the directory itself. os.homedir() honors $HOME on POSIX (CI
+  // is ubuntu, dev is macOS); Windows would need USERPROFILE — out of
+  // scope for this gate.
+  await bootAndListTools({
+    HOME: tempHome,
+    PATH: process.env.PATH ?? '',
+  }, 'pass 2 (first-run default path)');
+  const defaultDb = join(tempHome, '.limner', 'limner.db');
+  if (!existsSync(defaultDb)) {
+    throw new Error(`pass 2 (first-run default path): ${defaultDb} was not created`);
+  }
+  console.log('smoke-mcpb: OK — first-run boot created the default db under a fresh HOME');
 } catch (err) {
   failed = true;
   console.error(`smoke-mcpb: FAIL — ${err instanceof Error ? err.message : String(err)}`);
 } finally {
   rmSync(tmp, { recursive: true, force: true });
+  rmSync(tempHome, { recursive: true, force: true });
 }
 process.exit(failed ? 1 : 0);

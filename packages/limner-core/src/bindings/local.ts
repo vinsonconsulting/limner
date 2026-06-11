@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
 // Bindings shape when running outside a Worker — stdio MCP mode, local tests,
@@ -41,6 +42,14 @@ function applySchema(db: DatabaseSync, sql: string): void {
 }
 
 export function createLocalBindings(opts: LocalBindingsOptions = {}): LocalBindings {
+  // SQLite can create a missing db file but not a missing parent directory.
+  // Guard here at the core seam so the stdio default (~/.limner/limner.db
+  // on a fresh install), env overrides, and npm consumers all get a working
+  // first run. dirname of a bare filename is '.', which recursive mkdir
+  // treats as a no-op.
+  if (opts.dbPath && opts.dbPath !== ':memory:') {
+    mkdirSync(dirname(opts.dbPath), { recursive: true });
+  }
   const db = new DatabaseSync(opts.dbPath ?? ':memory:', {
     enableForeignKeyConstraints: true,
   });

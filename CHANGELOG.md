@@ -6,6 +6,14 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- First-run integrity on the default database path: `createLocalBindings`
+  now creates the db file's parent directory (`~/.limner/` for the stdio
+  default), so a fresh `.mcpb` install no longer dies at boot with
+  SQLITE_CANTOPEN; the boot smoke gained a true first-run pass (fresh
+  `$HOME`, no `LIMNER_DB_PATH`) that failed red against the pre-fix
+  bundle. (p1)
+
 ### Changed
 - The `.mcpb` production closure is now exactly the stdio runtime graph:
   Workers-only `agents` and `@cloudflare/workers-oauth-provider` moved to
