@@ -1,4 +1,4 @@
-import type Database from 'better-sqlite3';
+import type { DatabaseSync } from 'node:sqlite';
 import { ulid } from 'ulid';
 
 import type {
@@ -11,7 +11,7 @@ import type { MemoryStore, MemoryRow } from './store.js';
 import { buildRecallSql, memoryFromRow } from './store.js';
 
 export class LocalMemoryStore implements MemoryStore {
-  constructor(private readonly db: Database.Database) {}
+  constructor(private readonly db: DatabaseSync) {}
 
   async record(input: MemoryRecordInput): Promise<MemoryEntry> {
     // Reject empty / whitespace-only content (A6): an empty entry is

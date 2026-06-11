@@ -6,7 +6,7 @@ Shared TypeScript foundation for Limner. Provides:
 - **Bindings abstraction** — a discriminated union over Cloudflare Workers
   bindings vs local stdio bindings, so the same store code runs both server-
   side and in the stdio MCP binary
-- **Memory store** — `D1MemoryStore` + `LocalMemoryStore` (better-sqlite3)
+- **Memory store** — `D1MemoryStore` + `LocalMemoryStore` (node:sqlite)
   with parity-tested behavior
 - **Project store** — `D1ProjectStore` + `LocalProjectStore` for project
   context and notes

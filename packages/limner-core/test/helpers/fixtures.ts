@@ -21,7 +21,7 @@ export interface Fixture {
   dispose: () => Promise<void>;
 }
 
-// ---------------- Local (better-sqlite3, in-memory) ----------------
+// ---------------- Local (node:sqlite, in-memory) ----------------
 
 export async function makeLocalFixture(): Promise<Fixture> {
   const bindings = createLocalBindings({ schemaPath: SCHEMA_PATH });

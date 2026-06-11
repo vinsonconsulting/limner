@@ -7,6 +7,13 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Changed
+- Local persistence migrated from `better-sqlite3` to Node's built-in
+  `node:sqlite` (D-RA-23): the `.mcpb` bundle no longer ships a
+  platform/ABI-specific native addon (boot smoke now asserts better-sqlite3
+  stays out of the closure), the Node floor is declared as
+  `engines.node >= 22.13` + manifest `compatibility.runtimes.node`, and the
+  local test fixtures run on any modern Node without rebuilding a gyp
+  binding. (n1)
 - Docs: decision D-RA-22 (public auth gate = OAuth consent screen, landing in
   v1.0.x, superseding the API-key alternative) is now linked from the
   architecture decision table, intro enumerations, and `oauth.ts` comments;

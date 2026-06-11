@@ -22,7 +22,7 @@ import type { Bindings } from '@limner/core';
 import type { CFImagesBinding } from '@limner/core';
 
 export type ToolContext = {
-  /** Bindings layer (D1 via Workers vs better-sqlite3 in local stdio). */
+  /** Bindings layer (D1 via Workers vs node:sqlite in local stdio). */
   bindings: Bindings;
   /** Cloudflare Images binding — only present in Workers transport.
    *  Stdio transport leaves this undefined; compose's cf-images ops

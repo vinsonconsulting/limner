@@ -49,7 +49,7 @@ API keys, so some of the security posture is the operator's responsibility.
 
 ## Dependencies
 
-Native and WASM dependencies (better-sqlite3 for local tests; Photon / jSquash /
-resvg WASM for composition) are pinned via the lockfile. If you believe a
-dependency vulnerability affects Limner, report it through the same private
-channel above.
+WASM dependencies (Photon / jSquash / resvg for composition) are pinned via
+the lockfile; local persistence uses Node's built-in `node:sqlite`, so the
+runtime ships no native addons. If you believe a dependency vulnerability
+affects Limner, report it through the same private channel above.

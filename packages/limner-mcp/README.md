@@ -111,15 +111,17 @@ Secrets (`wrangler secret put ...`):
 
 ### 3. `.mcpb` bundle
 
-Packed by `.github/workflows/build-mcpb.yml` on `mcpb-v*` tags. Includes the entire `dist/` tree + `node_modules/` + the `manifest.json` describing tools and env vars. Bundle size: ~27 MB compressed (WASM modules + better-sqlite3 native bindings drive the bulk).
+Packed by `.github/workflows/build-mcpb.yml` on `mcpb-v*` tags. Includes the entire `dist/` tree + `node_modules/` + the `manifest.json` describing tools and env vars. Bundle size: ~64 MB compressed (WASM modules and the Workers dependency graph drive the bulk). The bundle is pure JS/WASM — local persistence uses Node's built-in `node:sqlite` (Node ≥ 22.13), so no platform-specific native addons ship.
 
 ```bash
-# Manual pack (matches the CI workflow):
-cd packages/limner-mcp
-./node_modules/.bin/mcpb pack . ../../limner-mcp.mcpb
+# Manual pack (matches the CI workflow — hoisted prod-only closure):
+node scripts/pack-mcpb.mjs limner-mcp.mcpb
 
 # Validate the manifest before packing:
-./node_modules/.bin/mcpb validate manifest.json
+./packages/limner-mcp/node_modules/.bin/mcpb validate packages/limner-mcp/manifest.json
+
+# Boot-smoke the packed bundle:
+pnpm smoke:mcpb limner-mcp.mcpb
 ```
 
 ## Architecture

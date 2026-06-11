@@ -1,5 +1,5 @@
 import type { D1Database } from '@cloudflare/workers-types';
-import type Database from 'better-sqlite3';
+import type { DatabaseSync } from 'node:sqlite';
 import { ulid } from 'ulid';
 
 import type {
@@ -159,10 +159,10 @@ export class D1ProjectStore implements ProjectStore {
   }
 }
 
-// ---------------- Local (better-sqlite3) backend ----------------
+// ---------------- Local (node:sqlite) backend ----------------
 
 export class LocalProjectStore implements ProjectStore {
-  constructor(private readonly db: Database.Database) {}
+  constructor(private readonly db: DatabaseSync) {}
 
   async create(input: ProjectCreateInput): Promise<Project> {
     const id = ulid();

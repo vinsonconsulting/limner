@@ -4,7 +4,7 @@
 export const INITIAL_SCHEMA_SQL = `-- Limner @limner/core initial schema (Phase 1).
 --
 -- Applies to both D1 (via \`wrangler d1 migrations apply\`) and the local
--- better-sqlite3 store (read + execute at LocalBindings factory startup).
+-- node:sqlite store (read + execute at LocalBindings factory startup).
 -- Keep this file plain SQLite-compatible — no D1-only or SQLite-only syntax.
 --
 -- Reference: docs/Limner_Cloudflare_CMA_Architecture.md §3.3, §6, §12.

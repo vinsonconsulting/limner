@@ -1,6 +1,6 @@
 # Exclude dev-only paths from the .mcpb bundle. Runtime deps (WASM
-# codecs, fonts, better-sqlite3 native bindings) are too large to skip
-# but everything below is dead weight at install time.
+# codecs, fonts) are too large to skip but everything below is dead
+# weight at install time.
 
 # Test fixtures + helpers
 test/

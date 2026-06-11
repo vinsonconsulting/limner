@@ -24,6 +24,9 @@
     "start:stdio": "node dist/stdio.js",
     "clean": "rm -rf dist .tsbuildinfo"
   },
+  "engines": {
+    "node": ">=22.13"
+  },
   "dependencies": {
     "@cloudflare/workers-oauth-provider": "^0.7.0",
     "@jsquash/avif": "^2.1.1",

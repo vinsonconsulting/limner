@@ -26,6 +26,11 @@
     "satori",
     "composition"
   ],
+  "compatibility": {
+    "runtimes": {
+      "node": ">=22.13.0"
+    }
+  },
   "server": {
     "type": "node",
     "entry_point": "dist/stdio.js",

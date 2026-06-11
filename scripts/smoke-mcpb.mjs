@@ -16,7 +16,7 @@
 // Usage: node scripts/smoke-mcpb.mjs <path-to-bundle.mcpb>
 
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -44,6 +44,18 @@ const tmp = mkdtempSync(join(tmpdir(), 'limner-mcpb-smoke-'));
 let failed = false;
 try {
   execFileSync('unzip', ['-q', bundle, '-d', tmp]);
+
+  // n1: local persistence is node:sqlite now — better-sqlite3 (and its
+  // platform/ABI-specific prebuilt binding, which broke installs on any
+  // OS other than the CI host's) must never reappear in the closure.
+  // The stronger zero-`*.node` sweep lands with the n2 dep split: the
+  // Workers-only `agents` graph still ships native addons via its
+  // vite/rolldown/lightningcss peer chain until it moves to devDeps.
+  const sqliteLeaks = readdirSync(tmp, { recursive: true })
+    .filter((p) => String(p).includes('better-sqlite3') || String(p).includes('better_sqlite3'));
+  if (sqliteLeaks.length > 0) {
+    throw new Error(`better-sqlite3 crept back into the bundle: ${sqliteLeaks.slice(0, 5).join(', ')}`);
+  }
 
   const transport = new StdioClientTransport({
     command: process.execPath,

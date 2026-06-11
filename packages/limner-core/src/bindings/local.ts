@@ -1,11 +1,11 @@
 import { readFileSync } from 'node:fs';
-import Database from 'better-sqlite3';
+import { DatabaseSync } from 'node:sqlite';
 
 // Bindings shape when running outside a Worker — stdio MCP mode, local tests,
-// CLI usage. Backed by better-sqlite3 + filesystem.
+// CLI usage. Backed by node:sqlite (built into Node >= 22.13) + filesystem.
 export type LocalBindings = {
   kind: 'local';
-  db: Database.Database;
+  db: DatabaseSync;
   artifactsDir?: string;
 };
 
@@ -20,36 +20,31 @@ export type LocalBindingsOptions = {
   schemaPath?: string;
 };
 
-// Split a multi-statement SQL blob into individual statements. Strips line
-// comments and trims whitespace. Assumes ';' is only a statement terminator
-// (true for our DDL — string literals containing ';' are not used).
-function splitSqlStatements(sql: string): string[] {
-  return sql
-    .replace(/--[^\n]*/g, '')
-    .split(';')
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
-}
-
-function applySchema(db: Database.Database, sql: string): void {
-  const statements = splitSqlStatements(sql);
-  const tx = db.transaction(() => {
-    for (const stmt of statements) {
-      if (stmt.toUpperCase().startsWith('PRAGMA')) {
-        // PRAGMA statements go through .pragma() (better-sqlite3 convention).
-        db.pragma(stmt.slice('PRAGMA'.length).trim());
-      } else {
-        db.prepare(stmt).run();
-      }
+// Apply the multi-statement schema blob atomically. DatabaseSync.exec()
+// handles multiple statements and comments natively; node:sqlite has no
+// transaction helper, so the wrapper is manual. The schema's own
+// `PRAGMA foreign_keys = ON` is a silent no-op inside the transaction —
+// enforcement comes from the constructor option instead.
+function applySchema(db: DatabaseSync, sql: string): void {
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    db.exec(sql);
+    db.exec('COMMIT');
+  } catch (err) {
+    try {
+      db.exec('ROLLBACK');
+    } catch {
+      // BEGIN itself failed — nothing to roll back.
     }
-  });
-  tx();
+    throw err;
+  }
 }
 
 export function createLocalBindings(opts: LocalBindingsOptions = {}): LocalBindings {
-  const db = new Database(opts.dbPath ?? ':memory:');
-  db.pragma('journal_mode = WAL');
-  db.pragma('foreign_keys = ON');
+  const db = new DatabaseSync(opts.dbPath ?? ':memory:', {
+    enableForeignKeyConstraints: true,
+  });
+  db.exec('PRAGMA journal_mode = WAL');
 
   const schema = opts.schemaSql
     ?? (opts.schemaPath ? readFileSync(opts.schemaPath, 'utf8') : null);
