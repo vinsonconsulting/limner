@@ -16,7 +16,7 @@
 // Usage: node scripts/smoke-mcpb.mjs <path-to-bundle.mcpb>
 
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -45,17 +45,36 @@ let failed = false;
 try {
   execFileSync('unzip', ['-q', bundle, '-d', tmp]);
 
-  // n1: local persistence is node:sqlite now — better-sqlite3 (and its
-  // platform/ABI-specific prebuilt binding, which broke installs on any
-  // OS other than the CI host's) must never reappear in the closure.
-  // The stronger zero-`*.node` sweep lands with the n2 dep split: the
-  // Workers-only `agents` graph still ships native addons via its
-  // vite/rolldown/lightningcss peer chain until it moves to devDeps.
-  const sqliteLeaks = readdirSync(tmp, { recursive: true })
-    .filter((p) => String(p).includes('better-sqlite3') || String(p).includes('better_sqlite3'));
-  if (sqliteLeaks.length > 0) {
-    throw new Error(`better-sqlite3 crept back into the bundle: ${sqliteLeaks.slice(0, 5).join(', ')}`);
+  // n1+n2: the bundle must be pure JS/WASM. A native addon anywhere in
+  // the closure means a platform/ABI-specific dep (better-sqlite3, or
+  // the `agents` graph's vite/rolldown/lightningcss peer chain) crept
+  // back in, breaking installs on any OS other than the CI host's.
+  const nativeAddons = readdirSync(tmp, { recursive: true })
+    .filter((p) => String(p).endsWith('.node'));
+  if (nativeAddons.length > 0) {
+    throw new Error(`expected zero native addons in the bundle, found: ${nativeAddons.slice(0, 5).join(', ')}`);
   }
+
+  // n2: `dependencies` must equal the stdio runtime closure. Workers-only
+  // packages are bundled by wrangler from source at build time and live
+  // in devDependencies — they must never ship in the .mcpb.
+  const mustBeAbsent = ['agents', '@ai-sdk', '@cloudflare/workers-oauth-provider'];
+  const mustBePresent = ['@modelcontextprotocol/sdk', 'zod', '@limner/core',
+    '@cf-wasm/photon', '@jsquash/png', '@resvg/resvg-wasm', 'satori'];
+  for (const dep of mustBeAbsent) {
+    if (existsSync(join(tmp, 'node_modules', dep))) {
+      throw new Error(`worker-only dep leaked into the bundle: ${dep}`);
+    }
+  }
+  for (const dep of mustBePresent) {
+    if (!existsSync(join(tmp, 'node_modules', dep))) {
+      throw new Error(`stdio runtime dep missing from the bundle: ${dep}`);
+    }
+  }
+
+  const topLevelDeps = readdirSync(join(tmp, 'node_modules'))
+    .filter((d) => !d.startsWith('.')).length;
+  console.log(`smoke-mcpb: bundle ${(statSync(bundle).size / 1048576).toFixed(1)} MiB, ${topLevelDeps} top-level packages in the closure`);
 
   const transport = new StdioClientTransport({
     command: process.execPath,

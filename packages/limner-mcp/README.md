@@ -111,7 +111,7 @@ Secrets (`wrangler secret put ...`):
 
 ### 3. `.mcpb` bundle
 
-Packed by `.github/workflows/build-mcpb.yml` on `mcpb-v*` tags. Includes the entire `dist/` tree + `node_modules/` + the `manifest.json` describing tools and env vars. Bundle size: ~64 MB compressed (WASM modules and the Workers dependency graph drive the bulk). The bundle is pure JS/WASM — local persistence uses Node's built-in `node:sqlite` (Node ≥ 22.13), so no platform-specific native addons ship.
+Packed by `.github/workflows/build-mcpb.yml` on `mcpb-v*` tags. Includes the entire `dist/` tree + `node_modules/` + the `manifest.json` describing tools and env vars. Bundle size: ~11 MB compressed (WASM codec modules drive the bulk). The closure is the stdio runtime graph only — Workers-only deps live in `devDependencies` and are bundled by wrangler from source — and it is pure JS/WASM: local persistence uses Node's built-in `node:sqlite` (Node ≥ 22.13), so no platform-specific native addons ship (the boot smoke asserts both).
 
 ```bash
 # Manual pack (matches the CI workflow — hoisted prod-only closure):

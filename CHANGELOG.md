@@ -7,6 +7,13 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Changed
+- The `.mcpb` production closure is now exactly the stdio runtime graph:
+  Workers-only `agents` and `@cloudflare/workers-oauth-provider` moved to
+  devDependencies (wrangler bundles them from source; Workers output is
+  byte-identical), shrinking the bundle from ~64 MiB to ~10.5 MiB and the
+  unpacked closure from 250 to 119 packages; the boot smoke now asserts
+  zero native addons and the exact worker-dep absent / stdio-dep present
+  sets. (n2)
 - Local persistence migrated from `better-sqlite3` to Node's built-in
   `node:sqlite` (D-RA-23): the `.mcpb` bundle no longer ships a
   platform/ABI-specific native addon (boot smoke now asserts better-sqlite3
