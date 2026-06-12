@@ -1,106 +1,184 @@
 # limner
 
-> MCP image generation agent. Foundation of the Limner family.
+<!-- hero banner lands with the visual-assets pass:
+<p align="center"><img src="docs/assets/hero.webp" alt="limner" width="100%"></p>
+-->
+
+> A harnessed image-generation agent: Claude reasons, Cloudflare executes, D1 remembers.
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![DCO](https://img.shields.io/badge/DCO-required-orange)](https://developercertificate.org/)
-[![Status](https://img.shields.io/badge/status-v1.0.0-blue)]()
+[![CI](https://github.com/vinsonconsulting/limner/actions/workflows/ci.yml/badge.svg)](https://github.com/vinsonconsulting/limner/actions/workflows/ci.yml)
 
-**Limner** is a Model Context Protocol (MCP) server and CMA-deployable agent for orchestrating image generation across multiple pipelines. This repository contains **rasa**, the foundation variant of the Limner family.
+Limner is a Model Context Protocol (MCP) server for orchestrating image
+generation across multiple pipelines, with durable memory for project
+context. This repository is **rasa**, the foundation variant of the Limner
+family. You deploy your own instance; nothing here phones home to anyone
+else's.
 
-## What this is
+## The harnessed agent
 
-Limner gives you one agent surface, multiple image-generation pipelines, and durable memory for project context. It runs on Cloudflare CMA self-hosted sandboxes and ships as an MCP server (Workers HTTP, stdio, `.mcpb`); the Workers transport uses D1 for state, the stdio/`.mcpb` build uses Node's built-in `node:sqlite` locally.
+Most agent demos hand a model an API key and hope. Limner is built the other
+way around, as a worked example of a harness with clean seams:
 
-Where most image-generation tools wrap a single model, Limner composes across DALL·E, Recraft, and Midjourney (prompt-only), with a hybrid V8 composition stack for layering and post-processing. Specialty pipelines like pixel-art generation (Pixellab, RetroDiffusion) live in the `limner-pixel` variant per D-RA-17 / D-RA-18.
+- **The reasoning loop runs on Anthropic's Claude Managed Agents platform.**
+  The model does the planning and the tool choice. It never holds provider
+  credentials and never executes code.
+- **Tool execution runs in Cloudflare V8 isolates.** Every tool call lands in
+  a Worker: deterministic TypeScript with explicit bindings, not a shell.
+  Image composition happens in-isolate (WASM codecs, raster ops, text
+  rendering) so the common path costs nothing and leaks nothing.
+- **The seam between them is an OAuth-gated MCP surface.** The agent reaches
+  the tools the same way any MCP client does: dynamic client registration,
+  a bearer token, and a typed tool contract at `/mcp`. There is no private
+  side channel.
+- **Memory is a database, not a context window.** Project briefs, style
+  decisions, and progress notes live in D1 and survive across sessions.
+  The agent recalls what it recorded last week instead of being re-told.
 
-## The Limner family
+The same tool surface ships three ways from one codebase: the OAuth-gated
+Workers endpoint, a local stdio server, and a `.mcpb` one-click bundle for
+Claude Desktop. The stdio server identifies itself as `limner-mcp (preview)`:
+stdio is the preview transport at v1, pending a refresh against the next MCP
+spec revision. The Workers and `.mcpb` surfaces carry no preview tag.
 
-Limner is a branded variant family. Each variant builds on **rasa** (this repo) and adds opinions for a specific creative niche.
+## Architecture
 
-| Repo | Status | Focus |
-|---|---|---|
-| `vinsonconsulting/limner` (this repo) | rasa, foundation | General-purpose; OSS |
-| `vinsonconsulting/limner-pixel` | OSS | Pixel art, sprite work, retro game asset pipelines |
-| `vinsonconsulting/limner-ascii` | private | ASCII art workflows |
+<!-- replaced by docs/assets/architecture.svg in the visual-assets pass -->
 
-The legacy proprietary work that preceded the OSS pivot is preserved at `vinsonconsulting/limner-pixel-legacy` for historical reference.
+```
+  Claude (CMA reasoning loop)              any MCP client
+          |                                      |
+          +------------------+-------------------+
+                             |  OAuth: dynamic client registration,
+                             |  bearer token, scope "mcp"
+                             v
+  +----------------- Cloudflare Worker (V8 isolate) -----------------+
+  |                                                                  |
+  |  workers-oauth-provider ---- KV (token store)                    |
+  |  POST /mcp  -> Durable Object per session                        |
+  |                                                                  |
+  |  15 limner_* tools                                               |
+  |    generate:  dalle -> OpenAI API     recraft -> Recraft MCP     |
+  |               midjourney -> prompt string only (no API)          |
+  |    compose:   photon / jsquash / satori   (in-isolate, free)     |
+  |               cfTransform, cfOverlay, ... -> Images binding      |
+  |    memory + projects -> D1            artifacts -> R2 (30-day)   |
+  |                                                                  |
+  +------------------------------------------------------------------+
+
+  Local flavors of the same server: stdio + .mcpb, with node:sqlite
+  standing in for D1. No Cloudflare account needed.
+```
 
 ## Stack
 
-- TypeScript monorepo
-- Cloudflare CMA self-hosted sandboxes (V8 isolates)
-- D1 (durable state: memory, projects, sessions)
-- MCP server (Workers Streamable HTTP + stdio + `.mcpb` bundle)
-- Composition: Photon, jSquash, Satori + resvg, Cloudflare Images Transformations
+- TypeScript pnpm monorepo: `@limner/core` (pipelines, composition, state),
+  `@limner/mcp` (the server, all three transports), `@limner/cma-tools`
+  (the same tool contract packaged for CMA custom-tool consumption)
+- Cloudflare Workers, D1, KV, R2, Durable Objects, Images
+- Composition: Photon and jSquash (WASM), Satori + resvg for typography,
+  Cloudflare Images for the network-side ops
+- MCP over Streamable HTTP and stdio
 
-See [`docs/Limner_Cloudflare_CMA_Architecture.md`](docs/Limner_Cloudflare_CMA_Architecture.md) for the authoritative architecture reference.
+The architecture document with full decision records lives at
+[docs/Limner_Cloudflare_CMA_Architecture.md](docs/Limner_Cloudflare_CMA_Architecture.md).
 
-## Pipelines and primitives
+## Tool surface
 
-### Generation pipelines (`@limner/core` → `packages/limner-core/src/pipelines/`)
+All tools are namespaced `limner_*`. Full schemas in
+[packages/limner-mcp/README.md](packages/limner-mcp/README.md).
 
-- **DALL·E** — OpenAI Images API (gpt-image-1 default; dall-e-3 / dall-e-2 supported)
-- **Recraft** — adapter over Recraft's first-party MCP server (remote `mcp.recraft.ai` + local stdio per D-RA-14)
-- **Midjourney** — prompt composition only (no API; downstream tool runs the human-in-the-loop step)
+| Tool | What it does | Needs |
+| --- | --- | --- |
+| `limner_generate_dalle` | OpenAI Images API (gpt-image-1 default) | `OPENAI_API_KEY`, your OpenAI credit |
+| `limner_generate_recraft` | Recraft, via their first-party MCP server | `RECRAFT_API_KEY`, your Recraft credit |
+| `limner_generate_midjourney` | Composes a Midjourney prompt string; a human carries it the rest of the way | Nothing |
+| `limner_compose` | 16 image ops behind one discriminated union: resize, crop, brightness, contrast, blur, sharpen, watermark, encode, decode, convert, renderText run in-isolate; cfTransform, cfOverlay, cfBlur, cfSmartCrop, cfBackgroundFill use Cloudflare Images | Images binding for the five cf* ops only |
+| `limner_record` / `limner_recall` / `limner_forget` / `limner_list_categories` | Durable memory with categories and idempotent upserts | D1 (or local SQLite) |
+| `limner_list_projects` / `limner_get_project_context` / `limner_record_project_note` | Project briefs and running notes | D1 (or local SQLite) |
+| `limner_health` / `limner_version` / `limner_list_pipelines` / `limner_pipeline_capabilities` | Discovery and diagnostics | Nothing |
 
-RetroDiffusion (D-RA-18) and Pixellab (D-RA-17) live in `limner-pixel`, not rasa.
+## Prerequisites
 
-### Composition stack (D-RA-16, `@limner/core` → `packages/limner-core/src/compose/`)
+For a self-deployed Workers stack:
 
-Hybrid V8 stack running entirely in Cloudflare Workers isolates. No Containers (D-RA-02 reserved). No Sharp / libvips. Four modules + facade:
+- A Cloudflare account with Workers, D1, and KV available (the free plan
+  covers all three, including SQLite Durable Objects)
+- R2 enabled on the account (free tier; the artifact bucket is created for
+  you)
+- **A Cloudflare Images paid plan** for the five `cf*` compose ops at real
+  usage volumes
+- An OpenAI API key and a Recraft API key. Both are required up front; the
+  generation tools spend your own provider credit
+- Node per [.nvmrc](.nvmrc) (22; floor 22.13) and pnpm 10
 
-- **photon-ops** (`@cf-wasm/photon`) — resize, crop, brightness, contrast, blur, sharpen, watermark
-- **jsquash-codecs** (`@jsquash/{jpeg,png,webp,avif}`) — encode / decode / convert (fixes Photon's JPEG-output-size quirk)
-- **satori-text** (`satori` + `@resvg/resvg-wasm`) — typography (JSX → SVG → PNG). Default font: IBM Plex Sans Regular (SIL OFL 1.1) in `packages/limner-core/assets/fonts/`.
-- **cf-images-transform** (Cloudflare Images binding) — overlay, blur, smart-crop, background fill, visual effects (network primitive; binding wires up Phase 4)
+A note on the Images free tier: Cloudflare includes 5,000 unique
+transformations per month on every account, after which the cf* ops return
+errors until the month rolls over. That allowance is fine for kicking the
+tires; treat the paid plan as the requirement for actual use. The eleven
+in-isolate compose ops never touch Images and stay free everywhere.
 
-Consumed via `import { compose } from '@limner/core'`. Pipeline / MCP tool code never reaches into individual primitive modules. Visual-equivalence tests vs the Python legacy assert SSIM ≥ 0.98.
-
-**Known-skip categories** (per D-RA-16, D-RA-17):
-
-- Animation handling (GIF / WebP-animated / APNG frame manipulation)
-- libvips-parity advanced ops (revisit only on user demand; Containers off-ramp candidate per D-RA-02)
-- Pixel-art-specific composition (NEAREST upscale, palette quantization, chroma key, grayscale tinting) — lives in `limner-pixel` per D-RA-17
-
-### MCP server (`@limner/mcp` → `packages/limner-mcp/`)
-
-Three transports, one tool surface:
-
-- **Workers Streamable HTTP** — production endpoint at `/mcp`, OAuth-protected via `@cloudflare/workers-oauth-provider` (D-RA-06). Deploy via `wrangler deploy`.
-- **stdio** (preview at v1 per D-RA-05 amendment) — for Claude Desktop, local dev, the `.mcpb` bundle.
-- **`.mcpb` bundle** — single-click install for Claude Desktop. Packed by `.github/workflows/build-mcpb.yml` on `mcpb-v*` tags.
-
-15 MCP tools wrap the `@limner/core` surface: 3 pipelines (`generate_dalle` / `generate_midjourney` / `generate_recraft`) + 1 composition tool (`compose`, discriminated-union over 16 ops) + 4 memory tools + 3 project tools + 4 meta tools. Full list in [`packages/limner-mcp/README.md`](packages/limner-mcp/README.md).
-
-### CMA custom tools (`@limner/cma-tools` → `packages/limner-cma-tools/`)
-
-The **Path A** surface (D-RA-12) — same 15-tool contract as `@limner/mcp`, packaged for the [cloudflare/claude-managed-agents](https://github.com/cloudflare/claude-managed-agents) template. Ships as a library exporting `LIMNER_TOOLS`; consuming Workers import and spread into their `CUSTOM_TOOLS` array. Per D-RA-12, the CMA agent dogfoods Path B in v1; migration to Path A waits for the dogfood criteria. Full setup in [`packages/limner-cma-tools/README.md`](packages/limner-cma-tools/README.md).
-
-## Status
-
-Hardening toward **v1.0.0**, the first public release. The Cloudflare CMA
-rebuild (Phases 0–7) is complete: the TypeScript monorepo, the three generation
-pipelines, the hybrid V8 composition stack, the MCP server across all three
-transports, D1-canonical state, and the CMA→D1 memory migration are in place and
-verified. Current work is production hardening and OSS release readiness — see
-[CHANGELOG.md](CHANGELOG.md).
+Local stdio and `.mcpb` need no Cloudflare account at all: state goes to
+local SQLite, and the cf* compose ops refuse cleanly.
 
 ## Quickstart
 
-### Local stdio (Claude Desktop or any stdio MCP client)
+Pick the heaviest option you have patience for. They all end at the same
+tool surface.
+
+### Deploy to Cloudflare (button)
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/vinsonconsulting/limner)
+
+The button clones the repo to your account, provisions D1, KV, and R2 from
+the wrangler config, prompts for the two provider keys, and sets up CI/CD
+via Workers Builds. Database migrations run as part of the deploy command.
+
+### Provisioning script
+
+```bash
+git clone https://github.com/vinsonconsulting/limner.git
+cd limner
+pnpm install --frozen-lockfile
+pnpm setup:cloudflare
+```
+
+The script checks your wrangler login, provisions D1, KV, and R2 by name
+(re-running is safe), pins the resource ids into the wrangler config,
+applies the schema migration, builds, deploys, prompts for both provider
+keys, smoke-tests the deployed endpoint, and prints connect instructions
+for Claude Desktop, Claude Code, and MCP Inspector.
+
+Optional: `pnpm setup:cloudflare --with-example-seed` loads a small generic
+memory seed (a fictional postcard project) so the memory tools have
+something to recall on day one. `--env production` provisions the separate
+production environment, and `--dry-run` shows the plan without changing
+anything.
+
+### Manual
+
+The script above is a convenience wrapper over five wrangler commands; the
+by-hand version is in the comments of
+[packages/limner-mcp/wrangler.toml](packages/limner-mcp/wrangler.toml).
+Short form: `wrangler d1 create limner-rasa-dev`, `wrangler kv namespace
+create OAUTH_KV`, `wrangler r2 bucket create limner-rasa-artifacts-dev`,
+pin the printed ids in the config, then `wrangler d1 migrations apply
+limner-rasa-dev --remote`, `wrangler secret put` both keys, and
+`wrangler deploy`.
+
+### Local stdio (no Cloudflare account)
 
 ```bash
 git clone https://github.com/vinsonconsulting/limner.git
 cd limner
 pnpm install --frozen-lockfile
 pnpm -r build
-
-# Run the stdio server directly:
-OPENAI_API_KEY=sk-... node packages/limner-mcp/dist/stdio.js
+OPENAI_API_KEY=sk-... RECRAFT_API_KEY=... node packages/limner-mcp/dist/stdio.js
 ```
 
-For Claude Desktop, add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+For Claude Desktop, add to
+`~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ```jsonc
 {
@@ -114,27 +192,52 @@ For Claude Desktop, add to `~/Library/Application Support/Claude/claude_desktop_
 }
 ```
 
-### Local Workers HTTP (smoke-testing the OAuth-protected surface)
+### `.mcpb` bundle (Claude Desktop one-click)
+
+Download the `.mcpb` from a GitHub release (built on `mcpb-v*` tags), open
+it with Claude Desktop, and fill in the API-key prompts. Or build your own:
+`pnpm pack:mcpb`.
+
+### Connecting a client to a deployed Worker
 
 ```bash
-cd packages/limner-mcp
-wrangler dev --local
-
-# In another shell:
-npx @modelcontextprotocol/inspector http://localhost:8787/mcp
+claude mcp add --transport http limner https://limner-mcp.<your-subdomain>.workers.dev/mcp
 ```
 
-### `.mcpb` bundle (Claude Desktop one-click install)
+Claude Desktop: Settings, Connectors, add a custom connector with the same
+URL. MCP Inspector: `npx @modelcontextprotocol/inspector`, then connect
+with the Streamable HTTP transport. OAuth dynamic client registration
+handles credentials in all three cases.
 
-Released via GitHub Actions on `mcpb-v*` tags. Download the `.mcpb` from a release, open with Claude Desktop, fill in the API-key prompts.
+## Testing and feedback
 
-### Production deployment
+[docs/TESTING.md](docs/TESTING.md) is the tester's checklist, ordered
+free-first and paid-last, with the cost of every step stated up front.
+Findings are public issues: use the
+[test finding](.github/ISSUE_TEMPLATE/test_finding.yml) or
+[bug report](.github/ISSUE_TEMPLATE/bug_report.yml) template.
 
-Phase 7 ships the production deploy recipe (`wrangler deploy`, OAuth client registration, DNS / domain). Until then, only local dev + dogfood is in scope.
+## The Limner family
+
+Limner is a branded variant family. Each variant builds on **rasa** (this
+repo) and adds opinions for a specific creative niche.
+
+| Repo | Status | Focus |
+|---|---|---|
+| `vinsonconsulting/limner` (this repo) | rasa, foundation | General-purpose; OSS |
+| `vinsonconsulting/limner-pixel` | OSS | Pixel art, sprite work, retro game asset pipelines |
+| `vinsonconsulting/limner-ascii` | private | ASCII art workflows |
+
+Specialty pipelines (pixel-art generators like Pixellab and RetroDiffusion)
+live in `limner-pixel`, not here; rasa stays general-purpose. The legacy
+proprietary work that preceded the OSS pivot is preserved at
+`vinsonconsulting/limner-pixel-legacy` for historical reference.
 
 ## Contributing
 
-Contributions welcome. See [CONTRIBUTING.md](CONTRIBUTING.md). All contributions must include a [Developer Certificate of Origin](https://developercertificate.org/) sign-off via `git commit -s`.
+Contributions welcome. See [CONTRIBUTING.md](CONTRIBUTING.md). All commits
+need a [Developer Certificate of Origin](https://developercertificate.org/)
+sign-off via `git commit -s`; the DCO check gates merge.
 
 ## License
 

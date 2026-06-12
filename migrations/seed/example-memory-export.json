@@ -1,0 +1,37 @@
+[
+  {
+    "path": "/_global/style/house-style.md",
+    "content": "# House visual style\n\nDefaults for generated imagery in this workspace.\n\n- Palette: muted teal (#2a6f77), warm sand (#d9c5a0), off-black (#1a1a1d), paper white (#f5f2ea). One accent per piece, never two.\n- Composition: single clear subject, generous negative space, horizon or baseline in the lower third.\n- Lighting: soft directional light, long shadows acceptable, no lens flare.\n- Texture: subtle grain is fine; avoid plastic-smooth gradients.\n- Type pairing for renderText: a geometric sans for headings, ample letter spacing, no more than two weights per image.\n\nWhen a project defines its own style file, the project file wins over this one.",
+    "created_at": 1767225600000
+  },
+  {
+    "path": "/_global/prompts/templates.md",
+    "content": "# Prompt templates\n\nReusable starting points per pipeline.\n\n## DALL-E (limner_generate_dalle)\n`<subject>, <setting>, <lighting>, <mood>, <medium>` — keep under 80 words; the model rewrites long prompts unpredictably.\n\n## Midjourney (limner_generate_midjourney)\n`<subject> :: <style reference> --ar 3:2 --stylize 250` — the tool composes the prompt string only; paste it into your Midjourney client.\n\n## Recraft (limner_generate_recraft)\nLead with the style id when one is set, then subject and constraints. Vector styles respond well to flat shape language: 'flat shapes, limited palette, no gradients'.",
+    "created_at": 1767312000000
+  },
+  {
+    "path": "/_global/pipelines/notes.md",
+    "content": "# Pipeline notes\n\nObservations that hold across projects.\n\n- DALL-E: sizes 1024x1024, 1536x1024, 1024x1536. Square is the safest default; wide crops lose edge detail.\n- Recraft: raster styles for scenes, vector styles for icons and badges. Vector output upscales cleanly; raster does not.\n- Midjourney: prompt-only pipeline, human in the loop. Record the final upscaled seed in project notes so a series can be extended later.\n- General: generate at the largest size the provider offers, then downscale with compose resize. Upscaling after the fact always loses.",
+    "created_at": 1767398400000
+  },
+  {
+    "path": "/_global/workflow/compose-recipes.md",
+    "content": "# Compose recipes\n\nOp chains that come up repeatedly (limner_compose).\n\n## Web-ready hero\nresize (width 1600) -> sharpen (mild) -> convert to webp quality 82. Good size-to-quality balance for page headers.\n\n## Thumbnail strip\ncrop to square on the subject -> resize 320x320 -> convert to webp quality 75.\n\n## Watermarked preview\nresize (width 800) -> watermark (corner placement, low opacity overlay) -> convert to jpeg quality 70. Use for shareable drafts; keep the clean master separate.\n\n## Text card\nrenderText (heading on transparent ground) -> watermark onto a generated background -> encode png. Render text last when crispness matters; raster scaling softens glyph edges.",
+    "created_at": 1767484800000
+  },
+  {
+    "path": "/projects/aurora-postcards/brief.md",
+    "content": "# Aurora Postcards — brief\n\nA four-piece postcard series of northern-lights landscapes, one per season. Demo project used to exercise the full generate -> compose -> record loop.\n\nDeliverables: four 1536x1024 masters plus web previews at 800 wide.\n\nConstraints:\n- Same vantage point in all four pieces; the season changes, the framing does not.\n- Aurora colors stay within the house palette's teal family; snow and foliage carry the seasonal cues.\n- No people, no buildings, one gnarled pine on the right third for scale.\n\nStatus tracking lives in progress.md; palette and lighting decisions in style.md.",
+    "created_at": 1768089600000
+  },
+  {
+    "path": "/projects/aurora-postcards/style.md",
+    "content": "# Aurora Postcards — style\n\nProject overrides on top of the global house style.\n\n- Palette: aurora bands in teal-to-green only (#2a6f77 to #4f9d6b). Sky base near-black with a cold blue cast. Snow takes the warm sand tint at the horizon.\n- Composition: identical framing across the series. Horizon at the lower quarter, pine anchored at the right third, aurora arc entering from the upper left.\n- Season cues: winter full snow, spring patchy melt with dark ground, summer low midnight sun glow at the horizon, autumn rust ground cover.\n- Output: generate at 1536x1024, archive the master untouched, derive previews with the web-ready hero recipe.",
+    "created_at": 1768176000000
+  },
+  {
+    "path": "/projects/aurora-postcards/progress.md",
+    "content": "# Aurora Postcards — progress\n\n- Winter: master generated and accepted on the second attempt. First attempt put the pine on the left third; reinforcing the framing constraint in the prompt fixed it.\n- Spring: prompt drafted, not yet generated.\n- Summer and autumn: not started.\n\nNotes for the next session: keep the accepted winter prompt as the template and vary only the season clause. The series framing constraint reads best as its own sentence, not folded into the subject clause.",
+    "created_at": 1768262400000
+  }
+]

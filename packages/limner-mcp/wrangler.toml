@@ -12,7 +12,10 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "limner-rasa-dev"
-database_id = "00000000-0000-0000-0000-000000000000"
+# database_id intentionally omitted. scripts/setup-cloudflare.mjs provisions
+# the database and pins the id here; a bare `wrangler deploy` (or the Deploy
+# to Cloudflare button) auto-provisions instead and, when run locally, writes
+# the id back to this file.
 migrations_dir = "../../migrations"
 
 # KV — OAuth token storage for workers-oauth-provider (Step 8).
@@ -21,7 +24,7 @@ migrations_dir = "../../migrations"
 # at runtime (per its README).
 [[kv_namespaces]]
 binding = "OAUTH_KV"
-id = "00000000000000000000000000000000"
+# id intentionally omitted — see the note on the D1 binding above.
 
 # Cloudflare Images Transformations binding (D-RA-16). Used by the
 # compose tool's cf-images-* ops (cfTransform / cfOverlay / cfBlur /
@@ -80,9 +83,8 @@ crons = ["0 3 * * *"]
 # Production environment (Phase 6). `wrangler deploy --env production` uses
 # these; top-level config above stays the dev surface (wrangler dev --local).
 #
-# Resources provisioned 2026-05-26:
-#   D1  limner-rasa-prod   00000000-0000-0000-0000-000000000000  (schema applied)
-#   KV  OAUTH_KV_PROD      00000000000000000000000000000000
+# Resource ids below are intentionally omitted — scripts/setup-cloudflare.mjs
+# --env production provisions the resources and pins the real ids.
 #
 # R2 (RT-2 / D-RA-20): BUCKET binding added for image-artifact retention.
 # The @limner/mcp tools still return images inline as base64; artifact-to-R2
@@ -92,14 +94,12 @@ crons = ["0 3 * * *"]
 [[env.production.d1_databases]]
 binding = "DB"
 database_name = "limner-rasa-prod"
-database_id = "00000000-0000-0000-0000-000000000000"
 migrations_dir = "../../migrations"
 
 [[env.production.kv_namespaces]]
 # Binding name MUST stay OAUTH_KV (workers-oauth-provider looks it up by
 # name); only the underlying namespace id differs between dev and prod.
 binding = "OAUTH_KV"
-id = "00000000000000000000000000000000"
 
 [env.production.images]
 binding = "IMAGES"
@@ -132,17 +132,20 @@ bucket_name = "limner-rasa-artifacts-prod"
 [env.production.triggers]
 crons = ["0 3 * * *"]
 
-# RT-5 — production custom domain. Routes mcp.example.com/* to this Worker via the
-# limner.us zone. This is a *route* (not custom_domain = true), so the operator's
-# ONLY manual step is the DNS record: in the limner.us zone, add a PROXIED
-# (orange-cloud) AAAA record  mcp  ->  100::  — a placeholder target, since the
-# Worker is the handler and there is no real origin. Once that record exists,
-# `wrangler deploy --env production` attaches the route. Requires limner.us to be
-# an active zone on the account; adjust the hostname here if you prefer another.
+# Custom domain (optional). By default the deployed Worker serves from its
+# workers.dev URL. To attach your own hostname, add a route for a zone on
+# your account:
+#
+#   [[env.production.routes]]
+#   pattern = "mcp.example.com/*"
+#   zone_name = "example.com"
+#
+# With a *route* (vs custom_domain = true) the only manual step is the DNS
+# record: in your zone, add a PROXIED (orange-cloud) AAAA record
+# mcp -> 100:: — a placeholder target, since the Worker is the handler and
+# there is no real origin. Once that record exists,
+# `wrangler deploy --env production` attaches the route.
 # (Alternative: `custom_domain = true` auto-creates the DNS + cert, no manual DNS.)
-[[env.production.routes]]
-pattern = "mcp.example.com/*"
-zone_name = "limner.us"
 
 # Prod secrets (operator runs once):
 #   wrangler secret put OPENAI_API_KEY  --env production

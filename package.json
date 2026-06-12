@@ -40,6 +40,7 @@
     "sync-packaging": "node scripts/sync-packaging.mjs",
     "pack:mcpb": "node scripts/pack-mcpb.mjs",
     "smoke:mcpb": "node scripts/smoke-mcpb.mjs",
+    "setup:cloudflare": "node scripts/setup-cloudflare.mjs",
     "clean": "pnpm -r exec rm -rf dist .tsbuildinfo"
   },
   "pnpm": {

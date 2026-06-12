@@ -1,0 +1,6 @@
+# Copy to .dev.vars for local `wrangler dev`. The Deploy to Cloudflare
+# button reads these names and prompts for values during deployment.
+# Both keys are required for a working stack: the generation tools call
+# the providers on the deployer's own accounts.
+OPENAI_API_KEY=
+RECRAFT_API_KEY=

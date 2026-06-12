@@ -22,6 +22,7 @@
     "test": "vitest run --passWithNoTests",
     "build": "tsc -p . && chmod +x dist/stdio.js",
     "start:stdio": "node dist/stdio.js",
+    "deploy": "wrangler deploy && wrangler d1 migrations apply DB --remote",
     "clean": "rm -rf dist .tsbuildinfo"
   },
   "engines": {
