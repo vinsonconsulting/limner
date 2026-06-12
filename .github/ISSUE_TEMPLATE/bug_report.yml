@@ -1,0 +1,66 @@
+name: Bug report
+description: Something broke or behaved wrong.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing limner. Findings from a docs/TESTING.md run fit the
+        "Test finding" template better; use this one for anything broken.
+  - type: dropdown
+    id: transport
+    attributes:
+      label: Transport
+      description: How were you connected to the server?
+      options:
+        - Workers HTTP (self-deployed, OAuth)
+        - Local stdio (node dist/stdio.js)
+        - .mcpb bundle (Claude Desktop)
+        - "@limner/cma-tools (Path A)"
+    validations:
+      required: true
+  - type: dropdown
+    id: client
+    attributes:
+      label: Client
+      options:
+        - Claude Desktop
+        - Claude Code
+        - MCP Inspector
+        - Other (say which in the description)
+    validations:
+      required: true
+  - type: input
+    id: tool
+    attributes:
+      label: Tool (and op, for compose)
+      description: The limner_* tool name, plus the op for limner_compose.
+      placeholder: limner_compose / cfSmartCrop
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Server version
+      description: Output of the limner_version tool (or limner_health's version field).
+      placeholder: 1.0.0
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you got instead. Include the exact tool input if you can.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        Workers HTTP: relevant `wrangler tail` lines. Stdio/.mcpb: the server's stderr.
+        Strip anything sensitive; never paste API keys or OAuth tokens.
+      render: text
+    validations:
+      required: false

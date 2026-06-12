@@ -1,0 +1,60 @@
+name: Test finding
+description: A result from working through docs/TESTING.md, good or bad.
+title: "[finding] "
+labels: ["test-finding"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        One finding per issue keeps triage simple. Outright breakage can use
+        the Bug report template instead; either is fine.
+  - type: dropdown
+    id: verdict
+    attributes:
+      label: Verdict
+      options:
+        - Works as documented
+        - Works, but the docs are wrong or unclear
+        - Degraded (wrong output, poor quality, slow)
+        - Broken (error or no output)
+    validations:
+      required: true
+  - type: dropdown
+    id: transport
+    attributes:
+      label: Transport
+      options:
+        - Workers HTTP (self-deployed, OAuth)
+        - Local stdio (node dist/stdio.js)
+        - .mcpb bundle (Claude Desktop)
+        - "@limner/cma-tools (Path A)"
+    validations:
+      required: true
+  - type: input
+    id: tool
+    attributes:
+      label: Tool (and op, for compose)
+      placeholder: limner_recall
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Server version
+      description: Output of the limner_version tool.
+    validations:
+      required: true
+  - type: textarea
+    id: detail
+    attributes:
+      label: What you observed
+      description: Input, output, and anything surprising. Attach images if the output itself is the finding.
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggestion
+      description: Optional. What would have made this better (behavior, docs, error message)?
+    validations:
+      required: false
