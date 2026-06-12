@@ -127,14 +127,6 @@ local SQLite, and the cf* compose ops refuse cleanly.
 Pick the heaviest option you have patience for. They all end at the same
 tool surface.
 
-### Deploy to Cloudflare (button)
-
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/vinsonconsulting/limner)
-
-The button clones the repo to your account, provisions D1, KV, and R2 from
-the wrangler config, prompts for the two provider keys, and sets up CI/CD
-via Workers Builds. Database migrations run as part of the deploy command.
-
 ### Provisioning script
 
 ```bash
@@ -155,6 +147,22 @@ memory seed (a fictional postcard project) so the memory tools have
 something to recall on day one. `--env production` provisions the separate
 production environment, and `--dry-run` shows the plan without changing
 anything.
+
+### Where is the Deploy to Cloudflare button?
+
+We tried, in a live spike (2026-06-12). The button's monorepo mode
+extracts `packages/limner-mcp` into a standalone repository, which severs
+the `@limner/core` workspace dependency, so the build cannot succeed
+regardless of build settings. Its provisioning and secrets flow worked
+well; the repo shape is the blocker. The script above does everything the
+button would, plus migrations and a smoke test. If the button gains
+in-place monorepo support, it returns here.
+
+For push-to-deploy CI/CD in the meantime, connect your fork through the
+dashboard: Workers and Pages, import the repository, root directory `/`,
+build command `pnpm install --frozen-lockfile && pnpm -r build`, deploy
+command `pnpm --filter @limner/mcp run deploy`. That flow keeps the full
+repository, so the workspace resolves.
 
 ### Manual
 
