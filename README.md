@@ -1,8 +1,6 @@
 # limner
 
-<!-- hero banner lands with the visual-assets pass:
-<p align="center"><img src="docs/assets/hero.webp" alt="limner" width="100%"></p>
--->
+<p align="center"><img src="docs/assets/hero.webp" alt="The limner's empty studio: a finished portrait of an armored knight on the easel, daylight and open sky entering through a balcony arch" width="100%"></p>
 
 > A harnessed image-generation agent: Claude reasons, Cloudflare executes, D1 remembers.
 
@@ -44,32 +42,7 @@ spec revision. The Workers and `.mcpb` surfaces carry no preview tag.
 
 ## Architecture
 
-<!-- replaced by docs/assets/architecture.svg in the visual-assets pass -->
-
-```
-  Claude (CMA reasoning loop)              any MCP client
-          |                                      |
-          +------------------+-------------------+
-                             |  OAuth: dynamic client registration,
-                             |  bearer token, scope "mcp"
-                             v
-  +----------------- Cloudflare Worker (V8 isolate) -----------------+
-  |                                                                  |
-  |  workers-oauth-provider ---- KV (token store)                    |
-  |  POST /mcp  -> Durable Object per session                        |
-  |                                                                  |
-  |  15 limner_* tools                                               |
-  |    generate:  dalle -> OpenAI API     recraft -> Recraft MCP     |
-  |               midjourney -> prompt string only (no API)          |
-  |    compose:   photon / jsquash / satori   (in-isolate, free)     |
-  |               cfTransform, cfOverlay, ... -> Images binding      |
-  |    memory + projects -> D1            artifacts -> R2 (30-day)   |
-  |                                                                  |
-  +------------------------------------------------------------------+
-
-  Local flavors of the same server: stdio + .mcpb, with node:sqlite
-  standing in for D1. No Cloudflare account needed.
-```
+<p align="center"><img src="docs/assets/architecture.svg" alt="Architecture: Claude on CMA and any MCP client cross the OAuth seam into the limner-mcp Cloudflare Worker, whose 15 tools reach OpenAI, Recraft, the Images binding, D1, and R2; a local stdio and .mcpb flavor runs the same surface on node:sqlite" width="100%"></p>
 
 ## Stack
 
@@ -254,3 +227,8 @@ Apache 2.0. See [LICENSE](LICENSE).
 ## Acknowledgments
 
 Limner is built on [Anthropic's Claude Managed Agents](https://claude.com/blog/claude-managed-agents-updates) platform and [Cloudflare's CMA hosting](https://blog.cloudflare.com/claude-managed-agents/). Limner is an independent project; "built on" does not imply endorsement by Anthropic or Cloudflare.
+
+---
+
+<p align="center"><img src="docs/assets/hero-pixel.webp" alt="The hero scene translated to 16-bit pixel art" width="720"></p>
+<p align="center"><sub>The hero above, translated to pixel art by PixelLab, the pipeline that lives in <code>limner-pixel</code>. The family renders its parent.</sub></p>

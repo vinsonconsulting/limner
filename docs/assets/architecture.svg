@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 9 5 L 0 9 z" fill="#5d4a32"/>
+    </marker>
+    <marker id="arrowred" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 9 5 L 0 9 z" fill="#a04a32"/>
+    </marker>
+  </defs>
+
+  <!-- parchment ground -->
+  <rect x="0" y="0" width="1200" height="700" fill="#ece3cd"/>
+
+  <!-- clients -->
+  <rect x="120" y="24" width="400" height="64" rx="10" fill="#f5efdd" stroke="#5d4a32" stroke-width="2"/>
+  <text x="320" y="51" text-anchor="middle" font-size="17" font-weight="600" fill="#322a1e">Claude on CMA</text>
+  <text x="320" y="73" text-anchor="middle" font-size="13" fill="#6b5b44">the managed reasoning loop</text>
+
+  <rect x="680" y="24" width="400" height="64" rx="10" fill="#f5efdd" stroke="#5d4a32" stroke-width="2"/>
+  <text x="880" y="51" text-anchor="middle" font-size="17" font-weight="600" fill="#322a1e">Any MCP client</text>
+  <text x="880" y="73" text-anchor="middle" font-size="13" fill="#6b5b44">Claude Desktop · Claude Code · MCP Inspector</text>
+
+  <line x1="320" y1="88" x2="320" y2="126" stroke="#5d4a32" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="880" y1="88" x2="880" y2="126" stroke="#5d4a32" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- OAuth seam -->
+  <rect x="120" y="130" width="960" height="40" rx="8" fill="#a04a32" opacity="0.9"/>
+  <text x="600" y="156" text-anchor="middle" font-size="15" font-weight="600" fill="#f5efdd">OAuth seam: dynamic client registration, bearer token, scope "mcp"</text>
+
+  <line x1="600" y1="170" x2="600" y2="206" stroke="#5d4a32" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- worker -->
+  <rect x="70" y="210" width="830" height="330" rx="14" fill="#e7dcc0" stroke="#3a2f22" stroke-width="3"/>
+  <text x="96" y="242" font-size="18" font-weight="700" fill="#322a1e">Cloudflare Worker · limner-mcp</text>
+  <text x="96" y="262" font-size="13" fill="#6b5b44">V8 isolate, TypeScript, explicit bindings</text>
+
+  <!-- oauth provider + session row -->
+  <rect x="96" y="278" width="230" height="44" rx="8" fill="#f5efdd" stroke="#5d4a32" stroke-width="1.5"/>
+  <text x="211" y="305" text-anchor="middle" font-size="14" fill="#322a1e">workers-oauth-provider</text>
+
+  <path d="M 350 280 a 50 9 0 0 1 100 0 v 26 a 50 9 0 0 1 -100 0 z" fill="#d8c9a5" stroke="#5d4a32" stroke-width="1.5"/>
+  <ellipse cx="400" cy="280" rx="50" ry="9" fill="#d8c9a5" stroke="#5d4a32" stroke-width="1.5"/>
+  <text x="400" y="311" text-anchor="middle" font-size="13" fill="#322a1e">KV · tokens</text>
+  <line x1="326" y1="300" x2="344" y2="300" stroke="#5d4a32" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <rect x="500" y="278" width="370" height="44" rx="8" fill="#f5efdd" stroke="#5d4a32" stroke-width="1.5"/>
+  <text x="685" y="305" text-anchor="middle" font-size="14" fill="#322a1e">POST /mcp → Durable Object per session</text>
+
+  <!-- tools box -->
+  <rect x="96" y="340" width="774" height="180" rx="10" fill="#f5efdd" stroke="#5d4a32" stroke-width="2"/>
+  <text x="116" y="368" font-size="15" font-weight="700" fill="#322a1e">15 limner_* tools</text>
+
+  <!-- generate column -->
+  <text x="116" y="396" font-size="14" font-weight="600" fill="#a04a32">generate</text>
+  <text x="116" y="418" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" fill="#322a1e">dalle</text>
+  <text x="116" y="438" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" fill="#322a1e">recraft</text>
+  <text x="116" y="458" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" fill="#322a1e">midjourney</text>
+  <text x="200" y="458" font-size="12" fill="#6b5b44">prompt only</text>
+
+  <!-- compose column -->
+  <text x="330" y="396" font-size="14" font-weight="600" fill="#a04a32">compose · 16 ops</text>
+  <text x="330" y="418" font-size="13" fill="#322a1e">11 in-isolate ops</text>
+  <text x="330" y="436" font-size="12" fill="#6b5b44">photon · jsquash · satori, free</text>
+  <text x="330" y="460" font-size="13" fill="#322a1e">5 cf* ops → Images binding</text>
+  <text x="330" y="478" font-size="12" fill="#6b5b44">overlay, smart crop, background fill</text>
+
+  <!-- state column -->
+  <text x="610" y="396" font-size="14" font-weight="600" fill="#a04a32">state + meta</text>
+  <text x="610" y="418" font-size="13" fill="#322a1e">memory + projects → D1</text>
+  <text x="610" y="440" font-size="13" fill="#322a1e">artifacts → R2, 30-day sweep</text>
+  <text x="610" y="462" font-size="13" fill="#322a1e">health · version · pipelines</text>
+
+  <!-- external providers -->
+  <rect x="940" y="278" width="200" height="50" rx="10" fill="#f5efdd" stroke="#5d4a32" stroke-width="2" stroke-dasharray="6 4"/>
+  <text x="1040" y="300" text-anchor="middle" font-size="14" font-weight="600" fill="#322a1e">OpenAI Images API</text>
+  <text x="1040" y="318" text-anchor="middle" font-size="12" fill="#6b5b44">your key, your spend</text>
+
+  <rect x="940" y="350" width="200" height="50" rx="10" fill="#f5efdd" stroke="#5d4a32" stroke-width="2" stroke-dasharray="6 4"/>
+  <text x="1040" y="372" text-anchor="middle" font-size="14" font-weight="600" fill="#322a1e">Recraft MCP</text>
+  <text x="1040" y="390" text-anchor="middle" font-size="12" fill="#6b5b44">remote or local stdio</text>
+
+  <line x1="870" y1="303" x2="934" y2="303" stroke="#a04a32" stroke-width="2" marker-end="url(#arrowred)"/>
+  <line x1="870" y1="375" x2="934" y2="375" stroke="#a04a32" stroke-width="2" marker-end="url(#arrowred)"/>
+
+  <!-- storage cylinders -->
+  <path d="M 560 580 a 55 10 0 0 1 110 0 v 40 a 55 10 0 0 1 -110 0 z" fill="#d8c9a5" stroke="#5d4a32" stroke-width="2"/>
+  <ellipse cx="615" cy="580" rx="55" ry="10" fill="#d8c9a5" stroke="#5d4a32" stroke-width="2"/>
+  <text x="615" y="608" text-anchor="middle" font-size="14" font-weight="600" fill="#322a1e">D1</text>
+
+  <path d="M 720 580 a 55 10 0 0 1 110 0 v 40 a 55 10 0 0 1 -110 0 z" fill="#d8c9a5" stroke="#5d4a32" stroke-width="2"/>
+  <ellipse cx="775" cy="580" rx="55" ry="10" fill="#d8c9a5" stroke="#5d4a32" stroke-width="2"/>
+  <text x="775" y="608" text-anchor="middle" font-size="14" font-weight="600" fill="#322a1e">R2</text>
+
+  <line x1="615" y1="540" x2="615" y2="566" stroke="#5d4a32" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="775" y1="540" x2="775" y2="566" stroke="#5d4a32" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- local flavors -->
+  <rect x="70" y="560" width="420" height="80" rx="10" fill="#f5efdd" stroke="#5d4a32" stroke-width="2"/>
+  <text x="90" y="588" font-size="15" font-weight="700" fill="#322a1e">Local flavors, same tool surface</text>
+  <text x="90" y="610" font-size="13" fill="#322a1e">stdio server + .mcpb bundle for Claude Desktop</text>
+  <text x="90" y="630" font-size="13" fill="#6b5b44">node:sqlite stands in for D1 · no Cloudflare account</text>
+
+  <!-- footer -->
+  <text x="600" y="680" text-anchor="middle" font-size="12" fill="#6b5b44">limner · an independent project built on Anthropic's Claude Managed Agents platform and Cloudflare hosting</text>
+</svg>
