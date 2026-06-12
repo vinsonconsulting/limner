@@ -38,7 +38,7 @@ All 11 decisions resolved on 2026-05-20. D-RA-12 added 2026-05-22. D-RA-13 throu
 | D-RA-10 | Cost model | Order-of-magnitude now, detail during impl, monthly review |
 | D-RA-11 | Off-ramp criteria | Five named triggers; quantitative thresholds deferred |
 | D-RA-12 | CMA agent consumption path | Path B (MCP via OAuth) from v1; migrate to Path A after dogfooding window |
-| D-RA-13 | OSS pivot with variant family | Apache 2.0 + CLA; rasa / pixel / ascii multi-repo; git fork; `us.limner/*` namespace via `limner.us` |
+| D-RA-13 | OSS pivot with variant family | Apache 2.0 + CLA (contributor agreement later superseded by DCO-only; see CONTRIBUTING.md); rasa / pixel / ascii multi-repo; git fork; `us.limner/*` namespace via `limner.us` |
 | D-RA-14 | Recraft pipeline integration | Compose first-party Recraft MCP (`mcp.recraft.ai` remote + local stdio); adapter pattern; sets precedent for any future composed external MCP |
 | D-RA-15 | D1 canonical state hardening | D1 is mandatory not preferred under self-hosted CMA; CMA managed memory and self-hosted sandboxes mutually exclusive; Phase 6 migration is one-way |
 | D-RA-16 | rasa v1 composition strategy | Hybrid V8 stack: Photon + jSquash + Satori/resvg + Cloudflare Images Transformations. No Containers in rasa v1; Sharp/libvips path abandoned |

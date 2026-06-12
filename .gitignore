@@ -26,6 +26,12 @@ worker-configuration.d.ts
 migrations/generated/
 cma-memory-export.json
 
+# Maintainer-local files — never committed: scrub-check pattern list
+# (would reintroduce the strings it guards against) and the production
+# wrangler overlay with real resource IDs and routes.
+.scrub-patterns
+packages/limner-mcp/wrangler.prod.toml
+
 # IDE
 .vscode/
 .idea/

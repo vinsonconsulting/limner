@@ -22,7 +22,7 @@ import { init as avifEncodeInit } from '@jsquash/avif/encode.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// Resolves from test/compose/helpers/ to /Users/jim/GitHub/limner — five levels up:
+// Resolves from test/compose/helpers/ to the repo root — five levels up:
 // helpers -> compose -> test -> limner-core -> packages -> repo root.
 // From there into the limner-core's symlinked node_modules.
 function wasmPath(rel: string): string {

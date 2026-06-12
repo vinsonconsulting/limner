@@ -135,7 +135,7 @@ function ulid(seedTime: number): string {
  * Derive a category from a memory path:
  *   /_global/style/foo.md             -> "style"
  *   /_global/prompts/templates.md     -> "prompts"
- *   /projects/example-project/x.md  -> "project:example-project"
+ *   /projects/example-project/x.md    -> "project:example-project"
  *   /anything-else/...                -> "anything-else"
  *   (empty / "/")                     -> "imported"
  */

@@ -7,8 +7,8 @@ import { compose } from '../../src/compose/index.js';
 import { initJsquashForNode } from './helpers/jsquash-init.js';
 import { ssim } from './helpers/ssim.js';
 
-// Visual-equivalence tests vs the Python legacy at
-// /Users/jim/GitHub/limner-pixel-legacy. Three cases — the rasa-relevant
+// Visual-equivalence tests vs the Python legacy (a local limner-pixel-legacy
+// checkout). Three cases — the rasa-relevant
 // ops with legacy precedent per the Step 0 inventory:
 //   1. crop          (vs scripts/crop_master.py:81)
 //   2. composite     (vs cma/image_utils.py::compose_on_canvas:149)
@@ -16,8 +16,8 @@ import { ssim } from './helpers/ssim.js';
 //
 // Tolerance: SSIM ≥ 0.98 (project-wide decision 2026-05-25; D-RA-16).
 //
-// Fixtures generated via the legacy venv:
-//   /Users/jim/GitHub/limner-pixel-legacy/.venv/bin/python3
+// Fixtures generated via the legacy checkout's venv:
+//   <limner-pixel-legacy>/.venv/bin/python3
 //   ...running the inline script committed in this commit's message.
 // Regenerate by re-running that script if the legacy semantics shift.
 

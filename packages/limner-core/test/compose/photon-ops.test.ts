@@ -16,7 +16,7 @@ import {
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // 64x64 checker fixture committed under fixtures/. Generated via PIL
-// from /Users/jim/GitHub/limner-pixel-legacy/.venv at fixture-creation
+// from a local limner-pixel-legacy checkout's venv at fixture-creation
 // time; checked in as binary so tests run deterministic and offline.
 const fixture = (name: string): Uint8Array =>
   new Uint8Array(readFileSync(resolve(__dirname, 'fixtures', name)));
