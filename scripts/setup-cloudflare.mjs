@@ -96,37 +96,52 @@ function run(cmd, args, { cwd = mcpDir, input, allowFail = false, quiet = false 
 
 const wrangler = (args, opts = {}) => run('pnpm', ['exec', 'wrangler', ...args], opts);
 
-/** Read a hidden (no-echo) value from the terminal. */
-function promptHidden(question) {
-  return new Promise((resolvePrompt) => {
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-    const onData = (char) => {
-      if (char === '\n' || char === '\r' || char === '') {
-        process.stdin.off('data', onData);
-      } else {
-        // Overwrite the echoed character with a mask.
-        readline.moveCursor(process.stdout, -1, 0);
-        process.stdout.write('*');
-      }
-    };
-    process.stdin.on('data', onData);
-    rl.question(`${question}: `, (answer) => {
-      rl.close();
-      process.stdout.write('\n');
-      resolvePrompt(answer.trim());
-    });
-  });
+// One shared readline interface for every prompt in the run. Each readline
+// instance buffers look-ahead input internally, so per-prompt interfaces
+// drop piped lines on close (with two secrets piped in, the second read
+// would hang on ended stdin).
+let rlShared = null;
+let rlMuted = false;
+
+function ui() {
+  if (!rlShared) {
+    rlShared = readline.createInterface({ input: process.stdin, output: process.stdout });
+    // Mask typed characters while a hidden prompt is active. This is the
+    // TTY echo path; piped input never echoes, so the override is inert there.
+    if (typeof rlShared._writeToOutput === 'function') {
+      const orig = rlShared._writeToOutput.bind(rlShared);
+      rlShared._writeToOutput = (text) => {
+        if (rlMuted) rlShared.output.write('*');
+        else orig(text);
+      };
+    }
+  }
+  return rlShared;
+}
+
+function closeUi() {
+  if (rlShared) rlShared.close();
+  rlShared = null;
+}
+
+function ask(prompt) {
+  return new Promise((resolveAsk) => ui().question(prompt, (answer) => resolveAsk(answer.trim())));
+}
+
+async function promptHidden(question) {
+  process.stdout.write(`${question}: `);
+  rlMuted = true;
+  try {
+    return await ask('');
+  } finally {
+    rlMuted = false;
+    process.stdout.write('\n');
+  }
 }
 
 function confirm(question) {
   if (flags.yes) return Promise.resolve(true);
-  return new Promise((resolveConfirm) => {
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-    rl.question(`${question} [y/N] `, (answer) => {
-      rl.close();
-      resolveConfirm(/^y(es)?$/i.test(answer.trim()));
-    });
-  });
+  return ask(`${question} [y/N] `).then((answer) => /^y(es)?$/i.test(answer));
 }
 
 function step(title) {
@@ -474,6 +489,7 @@ applyMigrations(dbName);
 if (flags.withExampleSeed) applyExampleSeed(dbName);
 const url = buildAndDeploy();
 await ensureSecrets();
+closeUi();
 await smoke(url);
 printConnectInstructions(url);
 
