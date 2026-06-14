@@ -7,6 +7,20 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./wasm-init": {
+      "types": "./dist/wasm-init.d.ts",
+      "import": "./dist/wasm-init.js"
+    },
+    "./wasm-init-node": {
+      "types": "./dist/wasm-init-node.d.ts",
+      "import": "./dist/wasm-init-node.js"
+    }
+  },
   "bin": {
     "limner-mcp": "./dist/stdio.js"
   },

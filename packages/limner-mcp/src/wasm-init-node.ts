@@ -8,7 +8,8 @@
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
-import { initComposeWasm } from './wasm-init-common.js';
+import { registerComposeWasmProvider, ensureComposeWasm } from '@limner/core';
+import type { ComposeWasmModules } from '@limner/core';
 
 const require = createRequire(import.meta.url);
 
@@ -22,20 +23,27 @@ function loadWasm(specifier: string): WebAssembly.Module {
   return new WasmModule(readFileSync(require.resolve(specifier)));
 }
 
-let ready: Promise<void> | undefined;
+// Acquisition only — compiles every codec module eagerly via
+// readFileSync. Split out from init so a consumer (and the cma-tools
+// regression test) can register it as core's provider without forcing
+// the Workers static-import path into a Node bundle.
+export function acquireComposeWasmModulesNode(): ComposeWasmModules {
+  return {
+    resvg: loadWasm('@resvg/resvg-wasm/index_bg.wasm'),
+    png: loadWasm('@jsquash/png/codec/pkg/squoosh_png_bg.wasm'),
+    jpegDec: loadWasm('@jsquash/jpeg/codec/dec/mozjpeg_dec.wasm'),
+    jpegEnc: loadWasm('@jsquash/jpeg/codec/enc/mozjpeg_enc.wasm'),
+    webpDec: loadWasm('@jsquash/webp/codec/dec/webp_dec.wasm'),
+    webpEnc: loadWasm('@jsquash/webp/codec/enc/webp_enc.wasm'),
+    avifDec: loadWasm('@jsquash/avif/codec/dec/avif_dec.wasm'),
+    avifEnc: loadWasm('@jsquash/avif/codec/enc/avif_enc.wasm'),
+  };
+}
 
+// Register the Node provider with core, then drive the shared lazy
+// ensure. Returns core's memoized promise — two calls return the same
+// reference (the boot path awaits this; see wasm-init.node.test.ts).
 export function initComposeWasmNode(): Promise<void> {
-  if (!ready) {
-    ready = initComposeWasm({
-      resvg: loadWasm('@resvg/resvg-wasm/index_bg.wasm'),
-      png: loadWasm('@jsquash/png/codec/pkg/squoosh_png_bg.wasm'),
-      jpegDec: loadWasm('@jsquash/jpeg/codec/dec/mozjpeg_dec.wasm'),
-      jpegEnc: loadWasm('@jsquash/jpeg/codec/enc/mozjpeg_enc.wasm'),
-      webpDec: loadWasm('@jsquash/webp/codec/dec/webp_dec.wasm'),
-      webpEnc: loadWasm('@jsquash/webp/codec/enc/webp_enc.wasm'),
-      avifDec: loadWasm('@jsquash/avif/codec/dec/avif_dec.wasm'),
-      avifEnc: loadWasm('@jsquash/avif/codec/enc/avif_enc.wasm'),
-    });
-  }
-  return ready;
+  registerComposeWasmProvider(acquireComposeWasmModulesNode);
+  return ensureComposeWasm();
 }

@@ -17,13 +17,16 @@ import webpEncWasm from '@jsquash/webp/codec/enc/webp_enc.wasm';
 import avifDecWasm from '@jsquash/avif/codec/dec/avif_dec.wasm';
 import avifEncWasm from '@jsquash/avif/codec/enc/avif_enc.wasm';
 
-import { initComposeWasm } from './wasm-init-common.js';
+import { registerComposeWasmProvider, ensureComposeWasm } from '@limner/core';
+import type { ComposeWasmModules } from '@limner/core';
 
-let ready: Promise<void> | undefined;
-
+// Register the Workers module provider with core, then drive the shared
+// lazy ensure. The static imports above are bundled as CompiledWasm by
+// wrangler's default **/*.wasm rule; the provider just hands them over.
+// Returns core's memoized promise (idempotent across calls).
 export function initComposeWasmWorkers(): Promise<void> {
-  if (!ready) {
-    ready = initComposeWasm({
+  registerComposeWasmProvider(
+    (): ComposeWasmModules => ({
       resvg: resvgWasm,
       png: pngWasm,
       jpegDec: jpegDecWasm,
@@ -32,7 +35,7 @@ export function initComposeWasmWorkers(): Promise<void> {
       webpEnc: webpEncWasm,
       avifDec: avifDecWasm,
       avifEnc: avifEncWasm,
-    });
-  }
-  return ready;
+    }),
+  );
+  return ensureComposeWasm();
 }
