@@ -133,11 +133,18 @@ export function toMcpInputSchema(schema: ZodTypeAny): Record<string, unknown> {
   return raw;
 }
 
-/** Construct a typed MCP Server instance with the tools capability declared. */
+/**
+ * Construct a typed MCP Server instance with the tools, prompts, and resources
+ * capabilities declared. The capability set must be declared here (not at
+ * registration time) because the SDK client gates prompts/* and resources/*
+ * calls on what the server advertised during initialize
+ * (assertCapabilityForMethod). Both transports build their Server via this
+ * function, so both advertise the full set.
+ */
 export function createServer(name: string, version: string): Server {
   return new Server(
     { name, version },
-    { capabilities: { tools: {} } },
+    { capabilities: { tools: {}, prompts: {}, resources: {} } },
   );
 }
 

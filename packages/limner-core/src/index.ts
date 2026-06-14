@@ -92,3 +92,15 @@ export type {
 // ensureComposeWasm, so no Path A / Path B call site can forget.
 export { registerComposeWasmProvider, ensureComposeWasm } from './compose/compose-wasm.js';
 export type { ComposeWasmModules, ComposeWasmModule } from './compose/compose-wasm.js';
+
+// Guidance core (D-RA-24). Single source feeding the MCP prompt/resource
+// surfaces (runtime) and the CMA skill generator (build time), so no concept's
+// shared content is hand-copied across surfaces.
+export type { GuidanceEntry, GuidanceBlock } from './guidance/index.js';
+export {
+  serializeGuidance,
+  A4_FRAMING,
+  guidanceRegistry,
+  getGuidance,
+  listGuidance,
+} from './guidance/index.js';

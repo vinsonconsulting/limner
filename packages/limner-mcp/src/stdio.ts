@@ -20,6 +20,8 @@ import { composeTool } from './tools/compose.js';
 import { memoryTools } from './tools/memory.js';
 import { projectTools } from './tools/context.js';
 import { metaTools } from './tools/meta.js';
+import { resources, registerResources } from './resources/index.js';
+import { prompts, registerPrompts } from './prompts/index.js';
 
 // Schema selection (review r2):
 //   - LIMNER_SCHEMA_PATH overrides everything (advanced/dev escape hatch).
@@ -63,6 +65,10 @@ async function main(): Promise<void> {
       // unsupported_in_stdio (see tools/compose.ts).
     }),
   );
+
+  // Guidance-derived surfaces (D-RA-24). Pure data — no ToolContext needed.
+  registerResources(server, resources);
+  registerPrompts(server, prompts);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

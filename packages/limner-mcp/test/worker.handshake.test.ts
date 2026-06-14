@@ -118,7 +118,7 @@ async function post(body: unknown, sessionId?: string): Promise<Response> {
 
 describe('worker MCP: DO-backed Streamable HTTP handshake (Phase 6c regression guard)', () => {
   test(
-    'initialize -> tools/list returns the full 15-tool registry; tools/call routes',
+    'initialize -> tools/list returns the full 15-tool registry; tools/call routes; prompts/resources advertise',
     { timeout: 60_000 },
     async () => {
       // 1. initialize — opens the session; the server returns an Mcp-Session-Id.
@@ -227,6 +227,45 @@ describe('worker MCP: DO-backed Streamable HTTP handshake (Phase 6c regression g
       expect(renderBody.result?.isError, JSON.stringify(renderBody.result?.content)).toBeFalsy();
       const pngBytes = Buffer.from(renderBody.result?.content?.[0]?.data ?? '', 'base64');
       expect([...pngBytes.subarray(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47]);
+
+      // 6. Capability widening (D-RA-24). prompts/list + resources/list must
+      //    succeed over the same DO-backed transport, proving the Workers
+      //    transport advertises and serves the new capabilities end-to-end
+      //    (the stdio transport asserts the same via the InMemory client tests).
+      const promptsRes = await post(
+        { jsonrpc: '2.0', id: 6, method: 'prompts/list', params: {} },
+        sessionId!,
+      );
+      expect(promptsRes.status).toBe(200);
+      const promptsBody = parseRpc(await promptsRes.text());
+      const promptNames = (promptsBody.result?.prompts ?? []).map((p: { name: string }) => p.name);
+      expect(promptNames).toContain('capability-tour');
+
+      const resourcesRes = await post(
+        { jsonrpc: '2.0', id: 7, method: 'resources/list', params: {} },
+        sessionId!,
+      );
+      expect(resourcesRes.status).toBe(200);
+      const resourcesBody = parseRpc(await resourcesRes.text());
+      const resourceUris = (resourcesBody.result?.resources ?? []).map(
+        (r: { uri: string }) => r.uri,
+      );
+      expect(resourceUris).toContain('limner://reference/file-types');
+
+      // resources/read derives from the guidance entry — assert the table
+      // header survives dispatch + serialization over the wire.
+      const readRes = await post(
+        {
+          jsonrpc: '2.0',
+          id: 8,
+          method: 'resources/read',
+          params: { uri: 'limner://reference/file-types' },
+        },
+        sessionId!,
+      );
+      expect(readRes.status).toBe(200);
+      const readBody = parseRpc(await readRes.text());
+      expect(readBody.result?.contents?.[0]?.text ?? '').toContain('| Format | Compression |');
     },
   );
 });

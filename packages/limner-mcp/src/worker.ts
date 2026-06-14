@@ -42,6 +42,8 @@ import { composeTool } from './tools/compose.js';
 import { memoryTools } from './tools/memory.js';
 import { projectTools } from './tools/context.js';
 import { metaTools } from './tools/meta.js';
+import { resources, registerResources } from './resources/index.js';
+import { prompts, registerPrompts } from './prompts/index.js';
 import { defaultHandler } from './auth/oauth.js';
 import { withRateLimit, type FetchHandler } from './rate-limit.js';
 import { sweepExpiredArtifacts } from './retention.js';
@@ -126,6 +128,9 @@ export class LimnerMCP extends McpAgent<Env, LimnerState, LimnerProps> {
         secrets: buildSecrets(this.env),
       }),
     );
+    // Guidance-derived surfaces (D-RA-24). Pure data — no ToolContext needed.
+    registerResources(this.server, resources);
+    registerPrompts(this.server, prompts);
   }
 }
 
