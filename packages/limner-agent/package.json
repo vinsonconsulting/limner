@@ -24,12 +24,14 @@
     "test": "vitest run --passWithNoTests",
     "build": "tsc -p .",
     "gen:skills": "node dist/gen-skills.js",
+    "create-agent": "node dist/create-agent.js",
     "clean": "rm -rf dist .tsbuildinfo"
   },
   "engines": {
     "node": ">=22.13"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.104.1",
     "@limner/core": "workspace:*"
   },
   "devDependencies": {
