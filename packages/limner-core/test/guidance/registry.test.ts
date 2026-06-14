@@ -45,3 +45,46 @@ describe('guidance serializer', () => {
     expect(md.endsWith('\n\n')).toBe(false);
   });
 });
+
+describe('wave-1 guidance entries (D-RA-24)', () => {
+  // [id, a substring that must appear in the serialized markdown]
+  const WAVE_1: ReadonlyArray<readonly [string, string]> = [
+    ['external-tools', 'Inkscape'],
+    ['midjourney-recipe', '--stylize'],
+    ['dalle-recipe', 'gpt-image-1'],
+    ['recraft-recipe', 'vector_illustration'],
+  ];
+
+  test('registers and looks up every wave-1 entry by id', () => {
+    for (const [id] of WAVE_1) {
+      expect(getGuidance(id)?.id).toBe(id);
+    }
+  });
+
+  test('lists all entries (canonical + wave-1) with unique ids', () => {
+    const ids = listGuidance().map((e) => e.id);
+    for (const [id] of WAVE_1) {
+      expect(ids).toContain(id);
+    }
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  test('serializes each entry: A4 framing, signature content, one trailing newline', () => {
+    for (const [id, marker] of WAVE_1) {
+      const md = serializeGuidance(getGuidance(id)!);
+      expect(md).toContain(A4_FRAMING);
+      expect(md).toContain(marker);
+      expect(md.endsWith('\n')).toBe(true);
+      expect(md.endsWith('\n\n')).toBe(false);
+      // deterministic
+      expect(serializeGuidance(getGuidance(id)!)).toBe(md);
+    }
+  });
+
+  test('capabilities-overview gains the recipe + external-tools cross-references', () => {
+    const md = serializeGuidance(getGuidance('capabilities-overview')!);
+    expect(md).toContain('Going deeper');
+    expect(md).toContain('Recraft');
+    expect(md).toContain('GIMP');
+  });
+});

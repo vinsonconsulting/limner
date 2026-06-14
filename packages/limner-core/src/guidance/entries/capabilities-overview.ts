@@ -33,5 +33,14 @@ export const capabilitiesOverview: GuidanceEntry = {
       kind: 'paragraph',
       text: 'Memory and project stores persist notes, recalls, and per-project context (D1 in Workers, local SQLite for stdio) so successive requests build on earlier work.',
     },
+    { kind: 'heading', level: 2, text: 'Going deeper' },
+    {
+      kind: 'bullets',
+      items: [
+        'Per-pipeline prompt recipes cover the knobs in detail: Midjourney (--ar / --stylize / --chaos / --seed), DALL·E (background / format / size / quality, text-in-image), and Recraft (style vs. substyle, vector-from-scratch).',
+        'For manual retouching, vector authoring, or print prep, Limner hands off to desktop editors — GIMP, the Affinity suite, Inkscape, and Krita.',
+        'The file-types reference helps pick the right output format for each downstream tool.',
+      ],
+    },
   ],
 };

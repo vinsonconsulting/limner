@@ -1,10 +1,21 @@
 import type { GuidanceEntry } from './types.js';
 import { fileTypes } from './entries/file-types.js';
 import { capabilitiesOverview } from './entries/capabilities-overview.js';
+import { externalTools } from './entries/external-tools.js';
+import { midjourneyRecipe } from './entries/midjourney-recipe.js';
+import { dalleRecipe } from './entries/dalle-recipe.js';
+import { recraftRecipe } from './entries/recraft-recipe.js';
 
 // Registration order is the public listing order. Wave-1 authoring (the
 // remaining D-RA-24 concepts) appends entries here.
-const ENTRIES: readonly GuidanceEntry[] = [fileTypes, capabilitiesOverview];
+const ENTRIES: readonly GuidanceEntry[] = [
+  fileTypes,
+  capabilitiesOverview,
+  externalTools,
+  midjourneyRecipe,
+  dalleRecipe,
+  recraftRecipe,
+];
 
 /** All guidance entries keyed by id. */
 export const guidanceRegistry: ReadonlyMap<string, GuidanceEntry> = new Map(
