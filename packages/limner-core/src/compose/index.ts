@@ -38,6 +38,7 @@ import * as photon from './photon-ops.js';
 import * as codecs from './jsquash-codecs.js';
 import * as satori from './satori-text.js';
 import * as cfImages from './cf-images-transform.js';
+import { ensureComposeWasm } from './compose-wasm.js';
 
 // Type re-exports so consumers can `import type { Format } from '@limner/core'`
 // once we wire those through src/index.ts (already done in Step 1).
@@ -76,6 +77,10 @@ export const compose = {
   // Satori — typography (no legacy precedent)
   renderText: satori.renderText,
   ensureResvgInit: satori.ensureResvgInit,
+
+  // Compose WASM lifecycle — lazy ensure shared by codecs + satori. The
+  // ops self-init internally; exposed here for front-loading at startup.
+  ensureComposeWasm,
 
   // Cloudflare Images Transformations — network primitive
   cfTransform: cfImages.transform,

@@ -15,29 +15,14 @@
 // Refs: D-RA-16
 
 import satori from 'satori';
-import { Resvg, initWasm } from '@resvg/resvg-wasm';
+import { Resvg } from '@resvg/resvg-wasm';
 
-// Re-exported so callers (and the facade) can drive the same init
-// state without reaching into the resvg-wasm package directly.
-export { initWasm };
-
-let resvgReady: Promise<void> | undefined;
-
-/**
- * Idempotent resvg-wasm init guard. Callers in Workers may not need
- * to call this (wrangler can pre-resolve initWasm via a static
- * import); callers in Node MUST call this before the first renderText.
- *
- * Pass a resolved WebAssembly.Module, a Uint8Array of WASM bytes, a
- * Response, a URL, or a Promise thereof — whatever shape your runtime
- * has handy. The argument is forwarded directly to resvg's initWasm.
- */
-export function ensureResvgInit(input: Parameters<typeof initWasm>[0]): Promise<void> {
-  if (!resvgReady) {
-    resvgReady = initWasm(input);
-  }
-  return resvgReady;
-}
+// The resvg memo + the lazy compose-WASM ensure live in compose-wasm.ts
+// (single memo across the satori + codec stacks, no import cycle).
+// ensureResvgInit is re-exported for the facade and the satori-init test
+// helper, which drive resvg init directly.
+import { ensureComposeWasm } from './compose-wasm.js';
+export { ensureResvgInit } from './compose-wasm.js';
 
 // Satori expects a ReactNode, but accepts plain JS objects shaped like
 // JSX nodes ({ type, props: { ... children } }). We re-export this
@@ -62,10 +47,11 @@ export type SatoriRenderOptions = {
 /**
  * Render a JSX-shaped object tree to PNG bytes via Satori + resvg-wasm.
  *
- * Caller must have called `ensureResvgInit` first; this function does
- * NOT load any WASM by itself — V8 isolates and Node have different
- * WASM resolution paths, and bundling them into a runtime check would
- * pull `node:fs` into Workers builds.
+ * Self-initializes via `ensureComposeWasm()` (a no-op until the platform
+ * registers a WASM provider — Workers and Node acquire modules
+ * differently, so core never loads WASM itself; pulling `node:fs` into a
+ * Workers build would be fatal). The resvg init is shared with the codec
+ * stack via the single memo in compose-wasm.ts.
  *
  * @returns PNG bytes.
  */
@@ -73,6 +59,7 @@ export async function renderText(
   jsx: SatoriJsx,
   opts: SatoriRenderOptions,
 ): Promise<Uint8Array> {
+  await ensureComposeWasm();
   // Satori's FontOptions.data is typed as `Buffer | ArrayBuffer`, which
   // excludes Uint8Array at the type level; at runtime Satori only reads
   // bytes, so the type narrowing is overly strict. Cast through

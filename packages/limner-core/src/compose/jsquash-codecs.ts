@@ -23,6 +23,8 @@ import webpEncode from '@jsquash/webp/encode.js';
 import avifDecode from '@jsquash/avif/decode.js';
 import avifEncode from '@jsquash/avif/encode.js';
 
+import { ensureComposeWasm } from './compose-wasm.js';
+
 export type Format = 'jpeg' | 'png' | 'webp' | 'avif';
 
 // Structural shape compatible with browser ImageData. jSquash reads
@@ -47,6 +49,7 @@ export type CodecOpts = {
  * actual bytes (e.g., passing PNG bytes with format='jpeg').
  */
 export async function decode(format: Format, input: Uint8Array): Promise<DecodedImage> {
+  await ensureComposeWasm();
   // jSquash takes ArrayBuffer; Uint8Array's underlying buffer may be
   // a slice of a larger buffer, so copy when byteOffset != 0.
   const ab = input.byteOffset === 0 && input.byteLength === input.buffer.byteLength
@@ -86,6 +89,7 @@ export async function encode(
   raw: DecodedImage,
   opts?: CodecOpts,
 ): Promise<Uint8Array> {
+  await ensureComposeWasm();
   // jSquash's encode signatures take `ImageData`; we pass a duck-typed
   // object since jSquash only reads .data/.width/.height. Cast through
   // `unknown` to satisfy TS without depending on a DOM lib at compile time.
@@ -135,6 +139,8 @@ export async function convert(
   to: Format,
   opts?: CodecOpts,
 ): Promise<Uint8Array> {
+  // decode + encode each ensure transitively; called here for directness.
+  await ensureComposeWasm();
   const decoded = await decode(from, input);
   return encode(to, decoded, opts);
 }
