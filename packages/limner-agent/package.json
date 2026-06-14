@@ -1,0 +1,40 @@
+{
+  "name": "@limner/limner-agent",
+  "version": "1.0.0",
+  "description": "Limner CMA agent home: system prompt + Agent Skills derived from @limner/core guidance.",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "skills",
+    "prompts"
+  ],
+  "scripts": {
+    "typecheck": "tsc -p . --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "build": "tsc -p .",
+    "gen:skills": "node dist/gen-skills.js",
+    "clean": "rm -rf dist .tsbuildinfo"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "dependencies": {
+    "@limner/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^4.1.8"
+  }
+}
