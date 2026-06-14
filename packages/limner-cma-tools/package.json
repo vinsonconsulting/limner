@@ -7,6 +7,16 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./compose-wasm": {
+      "types": "./dist/compose-wasm.d.ts",
+      "import": "./dist/compose-wasm.js"
+    }
+  },
   "files": [
     "dist",
     "src"
@@ -24,6 +34,7 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250101.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@types/node": "^22.0.0",
     "miniflare": "^4.20260521.0",
     "typescript": "^5.6.0",

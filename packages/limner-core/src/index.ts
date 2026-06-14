@@ -85,3 +85,10 @@ export type {
   CFImagesFit,
   CFImagesDrawLayer,
 } from './compose/index.js';
+
+// Compose WASM lifecycle (D-RA-16). The transport layer (@limner/mcp's
+// wasm-init{,-node}.ts) acquires the pre-compiled modules its own way and
+// registers a provider; the compose ops self-init lazily via
+// ensureComposeWasm, so no Path A / Path B call site can forget.
+export { registerComposeWasmProvider, ensureComposeWasm } from './compose/compose-wasm.js';
+export type { ComposeWasmModules, ComposeWasmModule } from './compose/compose-wasm.js';
