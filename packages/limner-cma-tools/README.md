@@ -55,66 +55,55 @@ export const CUSTOM_TOOLS = [
 
 7. `npm run deploy`. The 15 Limner tools appear in the agent form's toggle list automatically.
 
-## WASM initialization (required for compose codec + `renderText` ops)
+## Compose WASM (consumer requirement)
 
 `limner_compose`'s jSquash codec ops (`encode`/`decode`/`convert`) and the
-satori `renderText` op depend on WASM that does **not** self-initialize in a
-Workers isolate: jSquash's lazy init tries to `fetch()` its wasm relative to
-`import.meta.url` (nothing to fetch in a deployed Worker), and resvg requires
-an explicit `ensureResvgInit`. This library cannot initialize them for you —
-the consuming Worker must do it once, before the first compose call (the
-photon ops — resize/crop/brightness/contrast/blur/sharpen/watermark — need no
-init).
+satori `renderText` op depend on WASM modules. The photon ops
+(resize/crop/brightness/contrast/blur/sharpen/watermark) self-initialize and
+need nothing. Because Workers and Node acquire WASM differently — and pulling
+`node:fs` into a Workers bundle is fatal — `@limner/core` never loads the
+modules itself; the platform supplies them and core inits lazily on first use.
 
-Static `.wasm` imports are bundled by wrangler's default `CompiledWasm` rule
-and yield `WebAssembly.Module` instances. Add a small init module to the
-consuming Worker and `await` it at startup (e.g. at the top of the fetch
-handler or agent bootstrap):
+The consuming Worker (the Phase-7 CMA agent) does one thing at startup:
 
 ```ts
-// wasm imports — add `declare module '*.wasm' { const m: WebAssembly.Module; export default m; }`
-import resvgWasm from '@resvg/resvg-wasm/index_bg.wasm';
-import pngWasm from '@jsquash/png/codec/pkg/squoosh_png_bg.wasm';
-import jpegDecWasm from '@jsquash/jpeg/codec/dec/mozjpeg_dec.wasm';
-import jpegEncWasm from '@jsquash/jpeg/codec/enc/mozjpeg_enc.wasm';
-import webpDecWasm from '@jsquash/webp/codec/dec/webp_dec.wasm';
-import webpEncWasm from '@jsquash/webp/codec/enc/webp_enc.wasm';
-import avifDecWasm from '@jsquash/avif/codec/dec/avif_dec.wasm';
-import avifEncWasm from '@jsquash/avif/codec/enc/avif_enc.wasm';
+import { initLimnerComposeWasm } from '@limner/cma-tools/compose-wasm';
 
-import { init as pngDecodeInit } from '@jsquash/png/decode.js';
-import { init as pngEncodeInit } from '@jsquash/png/encode.js';
-import { init as jpegDecodeInit } from '@jsquash/jpeg/decode.js';
-import { init as jpegEncodeInit } from '@jsquash/jpeg/encode.js';
-import { init as webpDecodeInit } from '@jsquash/webp/decode.js';
-import { init as webpEncodeInit } from '@jsquash/webp/encode.js';
-import { init as avifDecodeInit } from '@jsquash/avif/decode.js';
-import { init as avifEncodeInit } from '@jsquash/avif/encode.js';
-import { compose } from '@limner/core';
+// once, before serving — e.g. top of the fetch handler / agent bootstrap
+await initLimnerComposeWasm();
+```
 
-let ready: Promise<void> | undefined;
-export function initLimnerComposeWasm(): Promise<void> {
-  if (!ready) {
-    ready = (async () => {
-      await pngDecodeInit(pngWasm);   // PNG: one module shared by dec+enc
-      await pngEncodeInit(pngWasm);
-      await jpegDecodeInit(jpegDecWasm);
-      await jpegEncodeInit(jpegEncWasm);
-      await webpDecodeInit(webpDecWasm);
-      await webpEncodeInit(webpEncWasm);
-      await avifDecodeInit(avifDecWasm);
-      await avifEncodeInit(avifEncWasm);
-      await compose.ensureResvgInit(resvgWasm);
-    })();
-  }
-  return ready;
-}
+This registers the static-`.wasm` (CompiledWasm) modules with `@limner/core`
+and front-loads the resvg + jSquash instantiation. The compose ops also
+self-init on first use, so a missed call is not fatal — but calling it makes
+the instantiation cost explicit and avoids a first-op latency spike. No
+`declare module '*.wasm'` shim or hand-rolled init is needed; the static
+imports live inside `@limner/mcp`'s compiled entry, which this subpath
+re-exports.
+
+### wrangler bundling
+
+`initLimnerComposeWasm` pulls in `@limner/mcp`'s static `.wasm` imports, which
+wrangler bundles as `CompiledWasm` via its **default `**/*.wasm` rule** — no
+config needed. If your `wrangler.toml` / `wrangler.jsonc` defines custom
+`[[rules]]` (which replace the defaults), re-add the wasm rule explicitly with
+`fallthrough` so the default isn't shadowed:
+
+```toml
+[[rules]]
+type = "CompiledWasm"
+globs = ["**/*.wasm"]
+fallthrough = true
 ```
 
 The wasm adds ~8 MB raw (~3 MB gzipped) to the Worker bundle — within the
-paid-plan limit, over the free-tier 3 MB cap. `@limner/mcp`'s own Workers
-entry does exactly this (see `packages/limner-mcp/src/wasm-init.ts`); use it
-as the reference implementation.
+paid-plan limit, over the free-tier 3 MB cap.
+
+> Limner is an independent third-party project built on Anthropic's CMA
+> platform; it is not an Anthropic or Claude product. Bindings
+> (`BUCKET` / `DB` / `IMAGES`) and secrets
+> (`OPENAI_API_KEY` / `RECRAFT_API_KEY`) are configured on the consuming
+> Worker; **secrets live in Cloudflare Secrets — never in source.**
 
 ## Tool surface
 
