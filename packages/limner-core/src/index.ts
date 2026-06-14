@@ -104,3 +104,21 @@ export {
   getGuidance,
   listGuidance,
 } from './guidance/index.js';
+
+// Style profile (D-RA-24). Cross-cutting schema + read/merge/write helpers over
+// the project store, shared by the brand-kit / style-from-images / art-research
+// surfaces. No new table, no new tool surface.
+export {
+  STYLE_PROFILE_KEY,
+  StyleProfileSchema,
+  parseStyleProfile,
+  readStyleProfile,
+  mergeStyleProfile,
+  writeStyleProfile,
+  upsertStyleProfile,
+} from './style-profile/index.js';
+export type {
+  StyleProfile,
+  StyleProfileInput,
+  StyleProfilePatch,
+} from './style-profile/index.js';

@@ -5,6 +5,7 @@ import { externalTools } from './entries/external-tools.js';
 import { midjourneyRecipe } from './entries/midjourney-recipe.js';
 import { dalleRecipe } from './entries/dalle-recipe.js';
 import { recraftRecipe } from './entries/recraft-recipe.js';
+import { styleProfile } from './entries/style-profile.js';
 
 // Registration order is the public listing order. Wave-1 authoring (the
 // remaining D-RA-24 concepts) appends entries here.
@@ -15,6 +16,7 @@ const ENTRIES: readonly GuidanceEntry[] = [
   midjourneyRecipe,
   dalleRecipe,
   recraftRecipe,
+  styleProfile,
 ];
 
 /** All guidance entries keyed by id. */
