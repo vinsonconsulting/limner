@@ -32,7 +32,7 @@ skills/file-types/SKILL.md   # concept #14 knowledge-skill (generated region + p
 prompts/system-prompt.md     # A4-framed Limner agent system prompt
 src/skill-gen.ts             # pure splice + guidance-derived block (shared logic)
 src/gen-skills.ts            # fs entrypoint — writes SKILL.md (the only fs file)
-scripts/create-agent.ts      # documented stub: live agent create/version (deferred)
+src/create-agent.ts          # live agent + skill registration (dry-run default; --execute)
 test/skills-drift.test.ts    # CI guard: committed SKILL.md == serializer output
 ```
 
@@ -52,15 +52,39 @@ import specifiers, the repo convention, which only resolve after compilation).
 The drift-check test asserts the committed file matches the serializer, so a
 forgotten regeneration is caught in CI.
 
-## Agent create/version — deferred (stub)
+## Agent create/version — live registration
 
-`scripts/create-agent.ts` is a **documented stub**, not live code. The CMA
-managed-agents create/version API (endpoints, beta header, skill-attachment
-schema) could not be confidently pinned at scaffold time, and the Phase-7
-consumer Worker does not yet exist. Authoring (SKILL.md + system prompt) is
-live; live registration is deferred. The script carries the verified doc links
-and a `TODO(D-RA-24)`, and exits non-zero so it can't be mistaken for working
-wiring. See:
+`src/create-agent.ts` (compiled to `dist/create-agent.js`, run via
+`pnpm --filter @limner/limner-agent create-agent`) registers the agent
+definition and its skill(s) against the CMA API. It is **dry-run by default**
+and only touches the network under `--execute`.
+
+- **Dry run (default)** — prints the exact create-agent payload and the
+  skill-upload multipart plan, then exits. No network calls, no credentials.
+- **`--execute`** — performs live registration. Requires `ANTHROPIC_API_KEY` in
+  the environment; `@anthropic-ai/sdk` is dynamically imported only on this
+  path, and the key is never printed or logged.
+
+What it registers (the SDK applies both beta headers automatically):
+
+- **Skill** — `POST /v1/skills` (multipart: `display_title` + `files[]`) by
+  default, or a new version of an existing skill via `--skill-id`
+  (`POST /v1/skills/{id}/versions`). Beta `skills-2025-10-02`.
+- **Agent** — `POST /v1/agents` by default, or a new version of an existing
+  agent via `--agent-id` (`POST /v1/agents/{id}`, retrieving the current
+  `version` first to pass as the concurrency token). Beta
+  `managed-agents-2026-04-01`.
+
+The agent payload carries only `{ name, model, system, skills }` — `tools` and
+`mcp_servers` are intentionally omitted. The agent definition (system prompt +
+skills) registers independently of the future Phase-7 consumer Worker: per
+decision **D-RA-12**, the agent reaches Limner's tools over the OAuth-protected
+MCP server (Path B, live now), with the custom-tool consumer Worker (Path A)
+still to come. Because `agents.update` preserves omitted fields, versioning the
+agent through this script leaves any externally-configured `tools`/`mcp_servers`
+wiring intact.
+
+References:
 
 - Agent Skills spec — <https://agentskills.io/specification>
 - CMA managed agents — <https://platform.claude.com/docs/en/managed-agents>
