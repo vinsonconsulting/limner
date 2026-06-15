@@ -38,10 +38,11 @@ test/skills-drift.test.ts    # CI guard: committed SKILL.md == serializer output
 
 ## Regenerating skills
 
-The generated regions in `SKILL.md` are derived — never hand-edit them.
+The generated regions in `SKILL.md` are derived; never hand-edit them.
+
+From the repo root:
 
 ```bash
-cd /Users/jim/GitHub/limner
 pnpm --filter @limner/core build          # the generator reads core's dist/
 pnpm --filter @limner/limner-agent build  # compiles src/gen-skills.ts -> dist/
 pnpm --filter @limner/limner-agent gen:skills
