@@ -42,7 +42,7 @@ spec revision. The Workers and `.mcpb` surfaces carry no preview tag.
 
 ## Architecture
 
-<p align="center"><img src="docs/assets/architecture.svg" alt="Architecture: Claude on CMA and any MCP client cross the OAuth seam into the limner-mcp Cloudflare Worker, whose 15 tools reach OpenAI, Recraft, the Images binding, D1, and R2; a local stdio and .mcpb flavor runs the same surface on node:sqlite" width="100%"></p>
+<p align="center"><img src="docs/assets/architecture.svg" alt="Architecture, top to bottom: Claude on CMA and any MCP client cross the OAuth seam into the limner-mcp Cloudflare Worker, whose 15 tools reach OpenAI, Recraft, the Images binding, D1, and R2; a local stdio and .mcpb flavor runs the same surface on node:sqlite" width="480"></p>
 
 ## Stack
 
