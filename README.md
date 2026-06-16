@@ -4,9 +4,13 @@
 
 > A harnessed image-generation agent: Claude reasons, Cloudflare executes, D1 remembers.
 
+[![Model Context Protocol](https://img.shields.io/badge/MCP-server-1f2937)](https://modelcontextprotocol.io)
+[![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-F38020?logo=cloudflare&logoColor=white)](https://developers.cloudflare.com/workers/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Node](https://img.shields.io/badge/node-%3E%3D22.13-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org)
+[![CI](https://github.com/vinsonconsulting/limner/actions/workflows/ci.yml/badge.svg)](https://github.com/vinsonconsulting/limner/actions/workflows/ci.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![DCO](https://img.shields.io/badge/DCO-required-orange)](https://developercertificate.org/)
-[![CI](https://github.com/vinsonconsulting/limner/actions/workflows/ci.yml/badge.svg)](https://github.com/vinsonconsulting/limner/actions/workflows/ci.yml)
 
 Limner is a Model Context Protocol (MCP) server for orchestrating image
 generation across multiple pipelines, with durable memory for project
