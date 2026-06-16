@@ -88,13 +88,23 @@ async function main(): Promise<void> {
           contentType: f.contentType,
         })),
       },
-      agent: {
-        endpoint: cli.agentId ? `POST /v1/agents/${cli.agentId}` : 'POST /v1/agents',
-        name: agentPlan.name,
-        model: agentPlan.model,
-        skills: agentPlan.skills,
-        systemPromptBytes: Buffer.byteLength(agentPlan.system, 'utf8'),
-      },
+      agent: cli.agentId
+        ? {
+            // Versioning an existing agent updates ONLY skills; system / name /
+            // model / tools / mcp_servers are omitted and therefore preserved.
+            endpoint: `POST /v1/agents/${cli.agentId}`,
+            mode: 'version existing (skills only)',
+            skills: agentPlan.skills,
+            preserves: ['system', 'name', 'model', 'tools', 'mcp_servers'],
+          }
+        : {
+            endpoint: 'POST /v1/agents',
+            mode: 'create new',
+            name: agentPlan.name,
+            model: agentPlan.model,
+            skills: agentPlan.skills,
+            systemPromptBytes: Buffer.byteLength(agentPlan.system, 'utf8'),
+          },
     };
     process.stdout.write(`${JSON.stringify(preview, null, 2)}\n`);
     process.stdout.write(
@@ -136,20 +146,28 @@ async function main(): Promise<void> {
 
   const attachment: SkillAttachment = { type: 'custom', skill_id: skillId, version };
   const plan = buildAgentPlan({ system, skills: [attachment] });
-  const params = {
-    name: plan.name,
-    model: plan.model,
-    system: plan.system,
-    skills: plan.skills,
-  };
   let agent;
   if (cli.agentId) {
-    // Update is a new version: it needs the agent's current version as an
-    // optimistic-concurrency token, so retrieve it first.
+    // Version an EXISTING agent: update ONLY the skill attachment(s). `system`,
+    // `name`, and `model` are deliberately omitted (as `tools`/`mcp_servers`
+    // always are) so the CMA update — which leaves omitted fields untouched —
+    // preserves the live agent's externally-managed system prompt and tool/MCP
+    // wiring. Update mints a new version, so it needs the current version as an
+    // optimistic-concurrency token: retrieve it first.
     const current = await client.beta.agents.retrieve(cli.agentId);
-    agent = await client.beta.agents.update(cli.agentId, { version: current.version, ...params });
+    agent = await client.beta.agents.update(cli.agentId, {
+      version: current.version,
+      skills: plan.skills,
+    });
   } else {
-    agent = await client.beta.agents.create(params);
+    // Create a NEW agent from the full repo-defined plan. `tools`/`mcp_servers`
+    // stay omitted by design (they couple to the consumer Worker).
+    agent = await client.beta.agents.create({
+      name: plan.name,
+      model: plan.model,
+      system: plan.system,
+      skills: plan.skills,
+    });
   }
 
   process.stdout.write(
