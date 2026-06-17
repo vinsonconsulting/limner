@@ -23,7 +23,7 @@ export const A4_PREAMBLE =
   'Context: this is an asset-generation test for Limner — an independent, third-party ' +
   'image tool built on the CMA platform (not an Anthropic or Claude product).';
 
-function generatePrompt(pipelineLabel: string, toolName: string): string {
+function generatePrompt(pipelineLabel: string, toolName: string, extra?: string): string {
   return [
     A4_PREAMBLE,
     '',
@@ -35,6 +35,7 @@ function generatePrompt(pipelineLabel: string, toolName: string): string {
     '  2. Compose a single Beaux-Arts oil-painting portrait prompt from that description.',
     `  3. Generate it through the ${pipelineLabel} pipeline by calling ${toolName}.`,
     'Report the feature description and the exact prompt you composed.',
+    ...(extra ? ['', extra] : []),
   ].join('\n');
 }
 
@@ -96,7 +97,15 @@ export const STAGE2_TASKS: readonly TaskSpec[] = [
     expectedTool: 'limner_generate_dalle',
     assetKind: 'image',
     attachImage: true,
-    prompt: generatePrompt('DALL·E', 'limner_generate_dalle'),
+    // Steer to gpt-image-1: the live dogfood found dall-e-3 / dall-e-2 are
+    // retired on the account (only gpt-image-* remain), and the agent otherwise
+    // picks the dead dall-e-3 and gets a 400.
+    prompt: generatePrompt(
+      'DALL·E',
+      'limner_generate_dalle',
+      'Use the gpt-image-1 model (pass model: "gpt-image-1"). dall-e-3 and dall-e-2 are ' +
+        'retired and unavailable on this account.',
+    ),
   },
   {
     id: 'portrait-recraft',

@@ -61,6 +61,8 @@ interface Cli {
   outDir?: string;
   maxToolCalls: number;
   taskTimeoutMs: number;
+  /** Run only the task(s) with these ids (subset of the selected stage). */
+  only?: string[];
 }
 
 function parseArgs(argv: readonly string[]): Cli {
@@ -81,6 +83,7 @@ function parseArgs(argv: readonly string[]): Cli {
     else if (arg === '--source-image') cli.sourceImage = argv[++i];
     else if (arg === '--include-compose') cli.includeCompose = true;
     else if (arg === '--out') cli.outDir = argv[++i];
+    else if (arg === '--only') cli.only = (argv[++i] ?? '').split(',').map((s) => s.trim()).filter(Boolean);
     else if (arg === '--max-tool-calls') cli.maxToolCalls = Number(argv[++i]) || cli.maxToolCalls;
     else if (arg === '--task-timeout-ms') cli.taskTimeoutMs = Number(argv[++i]) || cli.taskTimeoutMs;
   }
@@ -110,9 +113,14 @@ function mediaTypeForPath(path: string): string {
 }
 
 function selectTasks(cli: Cli): TaskSpec[] {
-  if (cli.stage === 1) return [...STAGE1_TASKS];
-  const tasks = [...STAGE2_TASKS];
-  if (cli.includeCompose) tasks.push(COMPOSE_TASK);
+  let tasks: TaskSpec[];
+  if (cli.stage === 1) {
+    tasks = [...STAGE1_TASKS];
+  } else {
+    tasks = [...STAGE2_TASKS];
+    if (cli.includeCompose) tasks.push(COMPOSE_TASK);
+  }
+  if (cli.only && cli.only.length > 0) tasks = tasks.filter((t) => cli.only!.includes(t.id));
   return tasks;
 }
 
@@ -311,65 +319,117 @@ async function main(): Promise<void> {
   printGate(runResults, outDir);
 }
 
-// Drive one session: open stream first, send the user turn, drain to a terminal
-// stop with bounded tool-call and wall-clock caps. Returns the collected events.
+// Drive one session to a terminal stop, then return its full event history.
+//
+// The SSE stream closes when the session goes idle — including the transient
+// `requires_action` idle the agent enters when an MCP tool needs confirmation.
+// So we can't drive a whole task from a single stream: we open a stream, react
+// to it (count tool uses, auto-confirm pending tool calls, detect terminal
+// stops), and RECONNECT after each confirmation. The stream is only used to
+// react in real time; the authoritative, complete, ordered transcript comes
+// from a final `events.list` (so nothing emitted between/after streams is lost).
+// Bounded by a wall-clock deadline, a tool-call cap, and a reconnect-round cap.
 async function driveSession(
   client: import('@anthropic-ai/sdk').default,
   sessionId: string,
   content: ReturnType<typeof buildUserMessageContent>,
   cli: Cli,
 ): Promise<{ events: unknown[]; capped: boolean; timedOut: boolean }> {
-  const ac = new AbortController();
-  const timer = setTimeout(() => ac.abort(), cli.taskTimeoutMs);
-  const events: unknown[] = [];
   let toolUses = 0;
   let capped = false;
   let timedOut = false;
-  try {
-    const stream = await client.beta.sessions.events.stream(sessionId, undefined, { signal: ac.signal });
-    await client.beta.sessions.events.send(sessionId, {
-      events: [{ type: 'user.message', content }],
-    });
-    for await (const ev of stream) {
-      events.push(ev);
-      const type = (ev as { type?: string }).type;
-      if (type === 'agent.mcp_tool_use') {
-        toolUses++;
-        if (toolUses > cli.maxToolCalls) {
-          capped = true;
-          await safeInterrupt(client, sessionId);
-          break;
-        }
-      } else if (type === 'session.status_idle') {
-        const stop = (ev as { stop_reason?: { type?: string; event_ids?: string[] } }).stop_reason;
-        if (stop?.type === 'requires_action') {
-          // Auto-allow pending tool confirmations (we explicitly want the agent to
-          // call the limner pipelines), bounded by the tool-call cap.
-          const ids = stop.event_ids ?? [];
-          if (toolUses <= cli.maxToolCalls && ids.length > 0) {
-            await client.beta.sessions.events.send(sessionId, {
-              events: ids.map((id) => ({ type: 'user.tool_confirmation' as const, tool_use_id: id, result: 'allow' as const })),
-            });
-            continue;
-          }
-          capped = true;
-          await safeInterrupt(client, sessionId);
-          break;
-        }
-        break; // end_turn or retries_exhausted — terminal
-      } else if (type === 'session.status_terminated') {
-        break;
-      }
-    }
-  } catch (err) {
-    if (ac.signal.aborted) {
+  let kickoffSent = false;
+  const seenToolUse = new Set<string>();
+  const deadline = Date.now() + cli.taskTimeoutMs;
+  const maxRounds = cli.maxToolCalls + 4;
+
+  for (let round = 0; round < maxRounds; round++) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
       timedOut = true;
       await safeInterrupt(client, sessionId);
-    } else {
-      throw err;
+      break;
     }
-  } finally {
-    clearTimeout(timer);
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), remaining);
+    let terminal = false;
+    let reconnect = false;
+    try {
+      const stream = await client.beta.sessions.events.stream(sessionId, undefined, { signal: ac.signal });
+      if (!kickoffSent) {
+        await client.beta.sessions.events.send(sessionId, { events: [{ type: 'user.message', content }] });
+        kickoffSent = true;
+      }
+      for await (const ev of stream) {
+        const type = (ev as { type?: string }).type;
+        if (type === 'agent.mcp_tool_use') {
+          const id = (ev as { id?: string }).id;
+          if (id && !seenToolUse.has(id)) {
+            seenToolUse.add(id);
+            toolUses++;
+          }
+          if (toolUses > cli.maxToolCalls) {
+            capped = true;
+            await safeInterrupt(client, sessionId);
+            terminal = true;
+            break;
+          }
+        } else if (type === 'session.status_terminated') {
+          terminal = true;
+          break;
+        } else if (type === 'session.status_idle') {
+          const stop = (ev as { stop_reason?: { type?: string; event_ids?: string[] } }).stop_reason;
+          if (stop?.type === 'requires_action') {
+            // Auto-allow pending tool confirmations (we explicitly want the agent
+            // to call the limner pipelines), bounded by the tool-call cap, then
+            // reconnect to capture what follows.
+            const ids = stop.event_ids ?? [];
+            if (toolUses <= cli.maxToolCalls && ids.length > 0) {
+              await client.beta.sessions.events.send(sessionId, {
+                events: ids.map((id) => ({ type: 'user.tool_confirmation' as const, tool_use_id: id, result: 'allow' as const })),
+              });
+              reconnect = true;
+              break;
+            }
+            capped = true;
+            await safeInterrupt(client, sessionId);
+            terminal = true;
+            break;
+          }
+          terminal = true; // end_turn / retries_exhausted
+          break;
+        }
+      }
+    } catch (err) {
+      if (ac.signal.aborted) {
+        timedOut = true;
+        await safeInterrupt(client, sessionId);
+        terminal = true;
+      } else {
+        throw err;
+      }
+    } finally {
+      clearTimeout(timer);
+    }
+    if (terminal) break;
+    if (reconnect) continue;
+    // Stream closed without a terminal marker (idle close). If the session is
+    // still progressing, reconnect; otherwise stop and consolidate.
+    try {
+      const s = await client.beta.sessions.retrieve(sessionId);
+      if (s.status === 'running' || s.status === 'rescheduling') continue;
+    } catch {
+      // fall through to consolidation
+    }
+    break;
+  }
+
+  // Authoritative, complete, ordered history — the capture source of record.
+  const events: unknown[] = [];
+  try {
+    for await (const ev of client.beta.sessions.events.list(sessionId)) events.push(ev);
+  } catch {
+    // best-effort: an empty/partial list still yields a (degraded) transcript
   }
   return { events, capped, timedOut };
 }
