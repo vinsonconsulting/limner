@@ -214,6 +214,44 @@ describe('DallePipeline — happy path', () => {
   });
 });
 
+describe('DallePipeline — Workers receiver binding (regression)', () => {
+  // The Cloudflare Workers runtime rejects a *detached* global `fetch` with
+  // "Illegal invocation: function called with incorrect `this` reference."
+  // Node/undici tolerates the unbound call, which hid this defect from every
+  // mock-fetch test above until the live Test-4 dogfood. This test drives the
+  // pipeline through its DEFAULT constructor (the path the prod Worker uses)
+  // against a `this`-sensitive global fetch that mimics the Workers semantics.
+  test('default fetch is invoked without losing its receiver', async () => {
+    const realFetch = globalThis.fetch;
+    const onePixelPng =
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABh6FO1AAAAABJRU5ErkJggg==';
+    function pickyFetch(this: unknown, _url: unknown, _init?: unknown): Promise<Response> {
+      // Workers throws when `fetch` is called with a receiver other than the
+      // global object (i.e. as a detached method).
+      if (this !== undefined && this !== globalThis) {
+        throw new TypeError(
+          'Illegal invocation: function called with incorrect `this` reference.',
+        );
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify({ data: [{ b64_json: onePixelPng }] }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      );
+    }
+    globalThis.fetch = pickyFetch as unknown as typeof fetch;
+    try {
+      const p = new DallePipeline(); // DEFAULT fetchImpl — the prod Worker path
+      const out = (await p.generate({ prompt: 'cat' }, ctx)) as PipelineImageOutput;
+      expect(out.kind).toBe('image');
+      expect(out.data).toBeInstanceOf(Uint8Array);
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+});
+
 describe('DallePipeline — invalid input', () => {
   test('empty prompt throws invalid_input', async () => {
     const p = new DallePipeline(mockFetch(new Response('{}', { status: 200 })));

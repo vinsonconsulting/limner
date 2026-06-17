@@ -91,6 +91,14 @@ crons = ["0 3 * * *"]
 # routing stays a @limner/cma-tools (Path A) concern. The scheduled() sweep
 # hard-deletes objects older than 30 days.
 # ---------------------------------------------------------------------------
+
+# Keep the *.workers.dev URL enabled in production. The CMA agent's mcp_servers
+# points at https://limner-mcp-production.jim-170.workers.dev/mcp, and wrangler
+# 4.x DISABLES workers.dev by default when this key is absent — silently taking
+# down that URL on the next deploy. Pin it true so a redeploy can't break it.
+[env.production]
+workers_dev = true
+
 [[env.production.d1_databases]]
 binding = "DB"
 database_name = "limner-rasa-prod"

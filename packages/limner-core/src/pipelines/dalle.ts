@@ -49,7 +49,12 @@ export class DallePipeline implements PipelineRunner {
   readonly requiredSecrets: readonly string[] = ['OPENAI_API_KEY'];
 
   // Allow tests to inject a custom fetch without monkey-patching global.
-  constructor(private readonly fetchImpl: typeof fetch = fetch) {}
+  // The default forwards through an arrow rather than storing the bare global
+  // `fetch`: the Cloudflare Workers runtime rejects a detached `fetch` (called
+  // as `this.fetchImpl(...)`) with "Illegal invocation", so the global must be
+  // invoked with its own receiver. Node tolerates the unbound call, which hid
+  // this until the live dogfood — see the receiver-binding regression test.
+  constructor(private readonly fetchImpl: typeof fetch = (input, init) => fetch(input, init)) {}
 
   async generate(
     input: PipelineGenerateInput,
