@@ -12,7 +12,7 @@ Phase 4 of the rebuild. Code lands by phase per [`docs/Limner_Cloudflare_CMA_Arc
 
 | Tool | Description | Output |
 |---|---|---|
-| `limner_generate_dalle` | OpenAI Images (gpt-image-1 default; dall-e-3 / dall-e-2 also supported) | image |
+| `limner_generate_dalle` | OpenAI Images (gpt-image-1 default; gpt-image family) | image |
 | `limner_generate_midjourney` | Compose a Midjourney prompt string (HITL; no API call) | text |
 | `limner_generate_recraft` | Recraft composed-MCP adapter per D-RA-14 (`mcp.recraft.ai` remote or local stdio) | image |
 | `limner_compose` | Hybrid V8 stack (D-RA-16) — single tool, discriminated-union op over 16 primitives | image / text |
