@@ -19,6 +19,7 @@ import {
   DallePipeline,
   MidjourneyPipeline,
   RecraftPipeline,
+  RestRecraftTransport,
   type PipelineRunner,
   type PipelineGenerateInput,
   type PipelineGenerateOutput,
@@ -27,7 +28,6 @@ import {
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
 import type { Tool, ToolContext } from '../server.js';
-import { McpRecraftTransport } from '../transports/mcp-recraft.js';
 
 // ---------------- limner_generate_dalle ----------------
 
@@ -82,8 +82,6 @@ const generateMidjourney: Tool<z.infer<typeof midjourneyInputSchema>> = {
 
 const recraftInputSchema = z.object({
   prompt: z.string().min(1, 'prompt is required'),
-  mode: z.enum(['remote', 'local']).default('remote')
-    .describe('"remote" hits mcp.recraft.ai (Bearer auth); "local" spawns npx @recraft-ai/mcp-recraft-server stdio — stdio transport only, unsupported on Workers.'),
   style: z.string().optional()
     .describe('e.g. "realistic_image", "digital_illustration", "vector_illustration".'),
   substyle: z.string().optional(),
@@ -94,35 +92,17 @@ const recraftInputSchema = z.object({
 const generateRecraft: Tool<z.infer<typeof recraftInputSchema>> = {
   name: 'limner_generate_recraft',
   description:
-    'Generate an image via Recraft\'s first-party MCP (composed adapter; calls Recraft\'s generate_image tool). Paid API — each call bills your Recraft account.',
+    'Generate an image via Recraft\'s REST API (external.api.recraft.ai). Paid API — each call bills your Recraft account.',
   inputSchema: recraftInputSchema,
   // Calls a paid external service (Recraft) — open-world, non-idempotent.
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
   handler: async (input, ctx) => {
-    // r3: local mode spawns an npx subprocess over stdio — impossible in a
-    // V8 isolate. Gate before connect() so the failure is a clear tool
-    // error, not a runtime crash. Mirrors compose's cf-op gate pattern.
-    if (input.mode === 'local' && ctx.bindings.kind === 'workers') {
-      return {
-        content: [{
-          type: 'text',
-          text: 'limner_generate_recraft: unsupported_in_workers — mode:"local" spawns a stdio subprocess and requires the stdio transport. Use mode:"remote".',
-        }],
-        isError: true,
-      };
-    }
-    const transport = await McpRecraftTransport.connect(input.mode, ctx.secrets);
-    try {
-      const pipeline = new RecraftPipeline(input.mode, transport);
-      return await runImagePipeline(
-        pipeline,
-        { prompt: input.prompt, options: input },
-        ctx,
-        'recraft',
-      );
-    } finally {
-      await transport.close();
-    }
+    // D-RA-25: direct REST. RecraftPipeline.generate() asserts RECRAFT_API_KEY
+    // before the transport is used, so an absent key surfaces as a clean
+    // missing_credential tool error rather than an auth failure downstream.
+    const transport = new RestRecraftTransport(ctx.secrets['RECRAFT_API_KEY'] ?? '');
+    const pipeline = new RecraftPipeline(transport);
+    return runImagePipeline(pipeline, { prompt: input.prompt, options: input }, ctx, 'recraft');
   },
 };
 

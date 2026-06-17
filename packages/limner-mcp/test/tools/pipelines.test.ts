@@ -136,62 +136,47 @@ describe('generate_dalle (mocked OpenAI)', () => {
 });
 
 describe('limner_generate_recraft', () => {
-  test('missing RECRAFT_API_KEY (remote mode) surfaces as isError=true', async () => {
+  test('missing RECRAFT_API_KEY surfaces as isError=true', async () => {
     const ctx: ToolContext = { bindings: localBindings, secrets: {} };
     const { client, close } = await connectedPair(pipelineTools, ctx);
     try {
       const result = await client.callTool({
         name: 'limner_generate_recraft',
-        arguments: { prompt: 'logo', mode: 'remote' },
+        arguments: { prompt: 'logo' },
       });
       expect(result.isError).toBe(true);
-      // Failure surfaces from McpRecraftTransport.connect() pre-check.
+      // RecraftPipeline.generate() asserts the secret before any REST call.
       expect(JSON.stringify(result.content)).toMatch(/RECRAFT_API_KEY/);
     } finally {
       await close();
     }
   });
 
-  // r3: mode:"local" spawns an npx subprocess over stdio — impossible in a
-  // V8 isolate. The handler must gate on bindings.kind before connect().
-  test('mode:"local" on the Workers transport -> unsupported_in_workers', async () => {
-    const workersCtx: ToolContext = {
-      bindings: { kind: 'workers' } as unknown as Bindings,
-      // Key present on purpose: proves the gate fires BEFORE the
-      // transport's secret pre-check (and before any spawn attempt).
-      secrets: { RECRAFT_API_KEY: 'rk-test' },
-    };
-    const { client, close } = await connectedPair(pipelineTools, workersCtx);
+  // D-RA-25: direct REST. Stub the global fetch (the prod Worker path) with a
+  // Recraft generations response and assert the tool surfaces the hosted URL.
+  test('dispatch returns the Recraft url (mocked REST)', async () => {
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: [{ url: 'https://img.recraft.ai/abc.png' }] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    ) as unknown as typeof fetch;
+    const ctx: ToolContext = { bindings: localBindings, secrets: { RECRAFT_API_KEY: 'rk-test' } };
+    const { client, close } = await connectedPair(pipelineTools, ctx);
     try {
       const result = await client.callTool({
         name: 'limner_generate_recraft',
-        arguments: { prompt: 'logo', mode: 'local' },
+        arguments: { prompt: 'logo', style: 'vector_illustration' },
       });
-      expect(result.isError).toBe(true);
+      expect(result.isError).toBeFalsy();
       const text = (result.content as Array<{ text?: string }>)[0]?.text ?? '';
-      expect(text).toMatch(/unsupported_in_workers/);
-      expect(text).toMatch(/Use mode:"remote"/);
+      expect(text).toBe('https://img.recraft.ai/abc.png');
+      expect(
+        (result as { structuredContent?: Record<string, unknown> }).structuredContent,
+      ).toMatchObject({ pipeline: 'recraft', url: 'https://img.recraft.ai/abc.png' });
     } finally {
-      await close();
-    }
-  });
-
-  test('mode:"remote" on the Workers transport is NOT gated (still errors on the missing key)', async () => {
-    const workersCtx: ToolContext = {
-      bindings: { kind: 'workers' } as unknown as Bindings,
-      secrets: {},
-    };
-    const { client, close } = await connectedPair(pipelineTools, workersCtx);
-    try {
-      const result = await client.callTool({
-        name: 'limner_generate_recraft',
-        arguments: { prompt: 'logo', mode: 'remote' },
-      });
-      expect(result.isError).toBe(true);
-      const text = JSON.stringify(result.content);
-      expect(text).toMatch(/RECRAFT_API_KEY/);
-      expect(text).not.toMatch(/unsupported_in_workers/);
-    } finally {
+      globalThis.fetch = realFetch;
       await close();
     }
   });

@@ -163,8 +163,7 @@ pnpm --filter @limner/core test:integration
 | Pipeline | Env var | Status |
 |---|---|---|
 | DALL-E | `OPENAI_API_KEY` | live |
-| Recraft (remote) | `RECRAFT_API_KEY` | transport shipped (`McpRecraftTransport` in `@limner/mcp`, Phase 4); this package's integration test is still a `describe.todo` stub (cross-package import pending) |
-| Recraft (local stdio) | — | transport shipped — stdio transport **only**: `mode:"local"` spawns the npx server and is gated `unsupported_in_workers` on the Workers transport (r3) |
+| Recraft | `RECRAFT_API_KEY` | direct REST (`RestRecraftTransport`, D-RA-25 — `external.api.recraft.ai/v1`); integration test is a `describe.todo` stub (avoids a paid call in the default suite) |
 | compose (`cf-images-transform`) | `CLOUDFLARE_API_TOKEN` | binding deployed (`[images]` in `@limner/mcp`'s wrangler.toml since Phase 4); integration body gated on `LIMNER_MCP_DEV_URL` + `CLOUDFLARE_API_TOKEN` |
 
 Each live integration test makes one real API call (counts against your

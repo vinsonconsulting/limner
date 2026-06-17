@@ -51,7 +51,6 @@ export type {
   MidjourneyOptions,
   DalleOptions,
   RecraftOptions,
-  RecraftMode,
   RecraftTransport,
   RecraftGenerateArgs,
   RecraftGenerateResult,
@@ -62,6 +61,7 @@ export {
   MidjourneyPipeline,
   DallePipeline,
   RecraftPipeline,
+  RestRecraftTransport,
 } from './pipelines/index.js';
 
 // Composition stack (Phase 3, D-RA-16). Hybrid V8 primitives + facade.
