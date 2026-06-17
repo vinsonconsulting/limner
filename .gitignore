@@ -52,3 +52,7 @@ tmp/
 # Test coverage
 coverage/
 .nyc_output/
+
+# Test 4 asset-generation harness: inputs (real source photos) and outputs
+# (generated assets + transcripts) — never committed; assets route to Drive.
+test-runs/
