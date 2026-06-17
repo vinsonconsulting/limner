@@ -25,6 +25,7 @@
     "build": "tsc -p .",
     "gen:skills": "node dist/gen-skills.js",
     "create-agent": "node dist/create-agent.js",
+    "test-agent": "node dist/test-agent.js",
     "clean": "rm -rf dist .tsbuildinfo"
   },
   "engines": {
