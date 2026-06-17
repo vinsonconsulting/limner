@@ -21,6 +21,7 @@ import {
   fileTypesSkillSignal,
   evaluateTask,
   summarizeAssetForArtifact,
+  normalizeToolName,
   type TaskSpec,
 } from '../src/test-harness.js';
 
@@ -250,6 +251,46 @@ describe('evaluateTask', () => {
     expect(res.criteria.find((c) => c.name === 'toolSelectionAppropriate')?.pass).toBe(true);
     expect(res.criteria.find((c) => c.name === 'visionDerivedPrompt')?.pass).toBe(true);
     expect(res.criteria.find((c) => c.name === 'assetProduced')?.pass).toBe(true);
+  });
+
+  test('matches a CMA bare tool name (limner_ prefix stripped) against the registered expectedTool', () => {
+    // The live run revealed CMA exposes the tool to the model as
+    // `generate_midjourney` (server `limner`), not `limner_generate_midjourney`.
+    const t = reduceEvents([
+      {
+        type: 'agent.mcp_tool_use',
+        id: 'u1',
+        name: 'generate_midjourney',
+        mcp_server_name: 'limner',
+        input: { prompt: 'a Beaux-Arts oil portrait in strict profile with described features' },
+      },
+      {
+        type: 'agent.mcp_tool_result',
+        id: 'r1',
+        mcp_tool_use_id: 'u1',
+        content: [{ type: 'text', text: '{"pipeline":"midjourney"}' }],
+      },
+      { type: 'session.status_idle', id: 'i1', stop_reason: { type: 'end_turn' } },
+    ]);
+    const spec: TaskSpec = {
+      id: 'portrait-midjourney',
+      stage: 1,
+      kind: 'generate',
+      expectedTool: 'limner_generate_midjourney',
+      assetKind: 'prompt',
+      attachImage: true,
+      prompt: 'x',
+    };
+    const res = evaluateTask(t, spec);
+    expect(res.criteria.find((c) => c.name === 'toolSelectionAppropriate')?.pass).toBe(true);
+    expect(res.criteria.find((c) => c.name === 'visionDerivedPrompt')?.pass).toBe(true);
+    expect(res.pass).toBe(true);
+  });
+
+  test('normalizeToolName strips a leading limner_ so registered and observed names compare equal', () => {
+    expect(normalizeToolName('limner_generate_midjourney')).toBe('generate_midjourney');
+    expect(normalizeToolName('generate_midjourney')).toBe('generate_midjourney');
+    expect(normalizeToolName('limner_compose')).toBe('compose');
   });
 
   test('a masked model_request_failed_error fails schemasAccepted and the task overall', () => {

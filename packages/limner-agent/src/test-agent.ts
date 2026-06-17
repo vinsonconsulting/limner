@@ -38,6 +38,7 @@ import {
   STAGE2_TASKS,
   buildUserMessageContent,
   evaluateTask,
+  normalizeToolName,
   reduceEvents,
   summarizeAssetForArtifact,
   type TaskResult,
@@ -385,8 +386,9 @@ async function safeInterrupt(
 }
 
 function firstDerivedPrompt(transcript: TaskTranscript, task: TaskSpec): string | undefined {
+  const want = task.expectedTool ? normalizeToolName(task.expectedTool) : undefined;
   const call = transcript.toolCalls.find(
-    (c) => !task.expectedTool || c.name === task.expectedTool,
+    (c) => !want || normalizeToolName(c.name) === want,
   );
   const input = call?.input as { prompt?: unknown } | undefined;
   return typeof input?.prompt === 'string' ? input.prompt : undefined;

@@ -421,6 +421,17 @@ export interface TaskResult {
   pass: boolean;
 }
 
+/**
+ * Normalize an MCP tool name for comparison. CMA exposes the limner tools to the
+ * model under their bare names (e.g. `generate_midjourney`, server `limner`),
+ * stripping the registered `limner_` server-prefix — so the registered name
+ * `limner_generate_midjourney` and the observed `generate_midjourney` must
+ * compare equal. (Verified against the live agent during Test 4.)
+ */
+export function normalizeToolName(name: string): string {
+  return name.replace(/^limner_/, '');
+}
+
 /** Score a reduced transcript against the Test-4 criteria for its task kind. */
 export function evaluateTask(transcript: TaskTranscript, spec: TaskSpec): TaskResult {
   const criteria: CriterionResult[] = [];
@@ -447,8 +458,9 @@ export function evaluateTask(transcript: TaskTranscript, spec: TaskSpec): TaskRe
         : `${transcript.toolCalls.length} MCP tool call(s)`,
     });
 
-    const calledExpected = spec.expectedTool
-      ? transcript.toolCalls.some((c) => c.name === spec.expectedTool)
+    const wantTool = spec.expectedTool ? normalizeToolName(spec.expectedTool) : undefined;
+    const calledExpected = wantTool
+      ? transcript.toolCalls.some((c) => normalizeToolName(c.name) === wantTool)
       : transcript.toolCalls.length > 0;
     criteria.push({
       name: 'toolSelectionAppropriate',
@@ -462,7 +474,7 @@ export function evaluateTask(transcript: TaskTranscript, spec: TaskSpec): TaskRe
       const input = c.input as AnyBlock | undefined;
       const prompt = input ? asString(input.prompt) : undefined;
       return (
-        (!spec.expectedTool || c.name === spec.expectedTool) && !!prompt && prompt.trim().length > 0
+        (!wantTool || normalizeToolName(c.name) === wantTool) && !!prompt && prompt.trim().length > 0
       );
     });
     criteria.push({
