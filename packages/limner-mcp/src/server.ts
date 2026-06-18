@@ -18,7 +18,7 @@ import {
 import { z, type ZodTypeAny } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 
-import type { Bindings } from '@limner/core';
+import type { Bindings, ArtifactDelivery } from '@limner/core';
 import type { CFImagesBinding } from '@limner/core';
 
 export type ToolContext = {
@@ -31,6 +31,10 @@ export type ToolContext = {
   /** Pipeline API credentials. Workers: from `env.OPENAI_API_KEY` etc.
    *  Stdio: from `process.env`. Pipelines never read env directly. */
   secrets: Readonly<Record<string, string>>;
+  /** Asset delivery (PR D) — present only when a Workers GENERATED_BUCKET +
+   *  ARTIFACT_BASE_URL are configured. When set, image-returning tools upload
+   *  bytes and return a URL instead of inline base64. Absent on stdio/local. */
+  delivery?: ArtifactDelivery;
   /** Optional MCP cancellation signal forwarded to pipelines. */
   abortSignal?: AbortSignal;
 };
