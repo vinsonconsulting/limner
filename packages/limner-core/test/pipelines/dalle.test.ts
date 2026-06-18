@@ -144,42 +144,39 @@ describe('DallePipeline — happy path', () => {
     });
   });
 
-  test('dall-e-3 sends only model / prompt / n / size (legacy params stripped)', async () => {
+  test('gpt-image family models (e.g. gpt-image-2) honor the gpt-image knobs', async () => {
+    // quality / output_format / background gate on the gpt-image *family*
+    // (model.startsWith('gpt-image')), not only the literal 'gpt-image-1'.
     const fetchMock = mockFetch(
-      new Response(JSON.stringify({ data: [{ url: 'https://x' }] }), { status: 200 }),
+      new Response(JSON.stringify({ data: [{ b64_json: 'iVBORw0KGgo=' }] }), { status: 200 }),
     );
     const p = new DallePipeline(fetchMock);
-    // Caller may still pass quality / style for compat — pipeline must not
-    // forward them since OpenAI's API rejects them on dall-e-3 in 2025/2026.
     await p.generate(
       {
         prompt: 'cat',
-        options: { model: 'dall-e-3', size: '1792x1024', quality: 'hd', style: 'natural' },
+        options: {
+          model: 'gpt-image-2',
+          size: '1536x1024',
+          quality: 'high',
+          outputFormat: 'webp',
+          background: 'transparent',
+        },
       },
       ctx,
     );
     const body = JSON.parse(
       ((fetchMock as unknown as ReturnType<typeof vi.fn>).mock.calls[0]![1] as RequestInit).body as string,
     );
-    expect(body).toMatchObject({ model: 'dall-e-3', size: '1792x1024' });
-    expect(body).not.toHaveProperty('quality');
+    expect(body).toMatchObject({
+      model: 'gpt-image-2',
+      size: '1536x1024',
+      quality: 'high',
+      output_format: 'webp',
+      background: 'transparent',
+    });
+    // Legacy params never ride along.
     expect(body).not.toHaveProperty('style');
     expect(body).not.toHaveProperty('response_format');
-  });
-
-  test('dall-e-2 sends only model / prompt / n / size', async () => {
-    const fetchMock = mockFetch(
-      new Response(JSON.stringify({ data: [{ url: 'https://x' }] }), { status: 200 }),
-    );
-    const p = new DallePipeline(fetchMock);
-    await p.generate({ prompt: 'cat', options: { model: 'dall-e-2', size: '512x512' } }, ctx);
-    const body = JSON.parse(
-      ((fetchMock as unknown as ReturnType<typeof vi.fn>).mock.calls[0]![1] as RequestInit).body as string,
-    );
-    expect(body.quality).toBeUndefined();
-    expect(body.style).toBeUndefined();
-    expect(body.output_format).toBeUndefined();
-    expect(body.background).toBeUndefined();
   });
 
   test('outputFormat: jpeg drives image/jpeg mime type', async () => {

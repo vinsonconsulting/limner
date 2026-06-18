@@ -33,21 +33,21 @@ import { McpRecraftTransport } from '../transports/mcp-recraft.js';
 
 const dalleInputSchema = z.object({
   prompt: z.string().min(1, 'prompt is required'),
-  model: z.enum(['gpt-image-1', 'dall-e-3', 'dall-e-2']).optional()
-    .describe('OpenAI model id. Defaults to gpt-image-1.'),
+  model: z.enum(['gpt-image-1', 'gpt-image-1-mini', 'gpt-image-1.5', 'gpt-image-2']).optional()
+    .describe('OpenAI gpt-image model id. Defaults to gpt-image-1.'),
   size: z.string().optional()
-    .describe('Output size, e.g. "1024x1024", "1024x1536", or "auto" for gpt-image-1.'),
-  quality: z.enum(['low', 'medium', 'high', 'auto', 'standard', 'hd']).optional()
-    .describe('gpt-image-1: low|medium|high|auto. dall-e-3/2: ignored.'),
+    .describe('Output size, e.g. "1024x1024", "1024x1536", "1536x1024", or "auto".'),
+  quality: z.enum(['low', 'medium', 'high', 'auto']).optional()
+    .describe('Detail vs. cost/latency: low|medium|high|auto. Sent only when set.'),
   outputFormat: z.enum(['png', 'jpeg', 'webp']).optional()
-    .describe('gpt-image-1 only.'),
+    .describe('Output image format. Defaults to png server-side.'),
   background: z.enum(['auto', 'transparent', 'opaque']).optional()
-    .describe('gpt-image-1 only. transparent requires outputFormat png/webp.'),
+    .describe('transparent requires outputFormat png/webp.'),
 });
 
 const generateDalle: Tool<z.infer<typeof dalleInputSchema>> = {
   name: 'limner_generate_dalle',
-  description: 'Generate an image via OpenAI Images API (gpt-image-1 default; dall-e-3 / dall-e-2 also supported). Paid API — each call bills your OpenAI account.',
+  description: 'Generate an image via OpenAI Images API (gpt-image-1 default). Paid API — each call bills your OpenAI account.',
   inputSchema: dalleInputSchema,
   // Calls a paid external API (OpenAI) — open-world, non-idempotent.
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
