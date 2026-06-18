@@ -91,6 +91,23 @@ describe('extractAssets', () => {
     ]);
   });
 
+  test('extracts the url from a PR-D structuredContent JSON text block', () => {
+    // The CMA agent surfaces the asset-delivery result as a JSON text block;
+    // the URL lives in the structuredContent envelope, not as a bare URL.
+    const envelope =
+      '{"pipeline":"dalle","mimeType":"image/png","width":1024,"height":1024,' +
+      '"url":"https://mcp.limner.us/artifact/generated/dalle/5f7391c8.png","model":"gpt-image-1"}';
+    const assets = extractAssets([{ type: 'text', text: envelope }]);
+    expect(assets).toEqual([
+      { kind: 'url', url: 'https://mcp.limner.us/artifact/generated/dalle/5f7391c8.png' },
+    ]);
+  });
+
+  test('JSON text without a url field stays a text asset', () => {
+    const assets = extractAssets([{ type: 'text', text: '{"pipeline":"midjourney","text":"a cat"}' }]);
+    expect(assets).toEqual([{ kind: 'text', text: '{"pipeline":"midjourney","text":"a cat"}' }]);
+  });
+
   test('preserves order across a mixed content array', () => {
     const assets = extractAssets([
       { type: 'text', text: 'here is your image' },

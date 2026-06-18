@@ -223,8 +223,14 @@ export function extractAssets(content: readonly AnyBlock[]): Asset[] {
     }
     if (block.type === 'text') {
       const text = asString(block.text) ?? '';
-      if (/^https?:\/\/\S+$/.test(text.trim())) {
-        assets.push({ kind: 'url', url: text.trim() });
+      const trimmed = text.trim();
+      // A bare URL, OR the PR-D asset-delivery envelope: the MCP image tools
+      // return the URL in structuredContent, which the CMA agent surfaces as a
+      // JSON text block ({"pipeline":...,"url":"https://.../artifact/..."}).
+      // Pull the url out of either so a stored-asset result counts as an asset.
+      const url = /^https?:\/\/\S+$/.test(trimmed) ? trimmed : urlFromJson(trimmed);
+      if (url) {
+        assets.push({ kind: 'url', url });
       } else {
         assets.push({ kind: 'text', text });
       }
@@ -232,6 +238,20 @@ export function extractAssets(content: readonly AnyBlock[]): Asset[] {
     // document / search_result blocks are ignored for asset capture.
   }
   return assets;
+}
+
+// Extract a `url` string field from a JSON text block (the PR-D image-tool
+// envelope). Returns undefined for non-JSON text or JSON without an http(s) url.
+function urlFromJson(text: string): string | undefined {
+  if (!text.startsWith('{') && !text.startsWith('[')) return undefined;
+  try {
+    const parsed = JSON.parse(text) as unknown;
+    if (!parsed || typeof parsed !== 'object') return undefined;
+    const url = (parsed as Record<string, unknown>)['url'];
+    return typeof url === 'string' && /^https?:\/\//.test(url) ? url : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /** A base64-free descriptor of an asset, safe to write into the JSON artifact. */
