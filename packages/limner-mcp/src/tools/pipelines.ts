@@ -16,6 +16,7 @@
 import { z } from 'zod';
 import {
   bytesToBase64,
+  uploadArtifact,
   DallePipeline,
   MidjourneyPipeline,
   RecraftPipeline,
@@ -142,7 +143,23 @@ async function runImagePipeline(
   pipelineId: string,
 ): Promise<CallToolResult> {
   const out = await runner.generate(input, buildPipelineContext(ctx));
-  return formatImageOutput(out, pipelineId);
+  return formatImageOutput(await maybeDeliver(out, ctx, pipelineId), pipelineId);
+}
+
+// PR D: when a delivery store is configured (Workers GENERATED_BUCKET +
+// ARTIFACT_BASE_URL), upload inline image bytes and return a URL instead —
+// large base64 outputs (e.g. gpt-image-1) exceed the MCP message-size ceiling.
+// No-op for text output, URL-only output (already a link), or stdio/local
+// (no delivery store) — those keep their existing inline/url behavior.
+async function maybeDeliver(
+  out: PipelineGenerateOutput,
+  ctx: ToolContext,
+  pipelineId: string,
+): Promise<PipelineGenerateOutput> {
+  if (out.kind !== 'image' || !out.data || !ctx.delivery) return out;
+  const url = await uploadArtifact(ctx.delivery, out.data, out.mimeType, pipelineId);
+  // Drop the bytes; formatImageOutput then returns the URL form.
+  return { ...out, data: undefined, url };
 }
 
 async function runPipeline(

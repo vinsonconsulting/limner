@@ -122,3 +122,14 @@ export type {
   StyleProfileInput,
   StyleProfilePatch,
 } from './style-profile/index.js';
+
+// Asset delivery (PR D). Store generated image bytes in R2 and return a
+// capability URL (optionally HMAC-signed) instead of inline base64, so large
+// outputs don't exceed the MCP message-size ceiling.
+export {
+  uploadArtifact,
+  verifyArtifactSignature,
+  ARTIFACT_KEY_PREFIX,
+  ARTIFACT_PATH_PREFIX,
+} from './delivery/r2.js';
+export type { ArtifactDelivery } from './delivery/r2.js';

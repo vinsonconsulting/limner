@@ -32,7 +32,7 @@ import type {
   RateLimit,
   R2Bucket,
 } from '@cloudflare/workers-types';
-import type { Bindings, CFImagesBinding } from '@limner/core';
+import type { Bindings, CFImagesBinding, ArtifactDelivery } from '@limner/core';
 
 import { createServer, registerTools, type ToolContext } from './server.js';
 import { VERSION } from './version.js';
@@ -47,6 +47,7 @@ import { prompts, registerPrompts } from './prompts/index.js';
 import { defaultHandler } from './auth/oauth.js';
 import { withRateLimit, type FetchHandler } from './rate-limit.js';
 import { sweepExpiredArtifacts } from './retention.js';
+import { isArtifactPath, serveArtifact } from './artifact.js';
 
 export interface Env {
   // D1 — durable state (memory + projects + sessions per D-RA-04).
@@ -73,6 +74,18 @@ export interface Env {
   // RT-2 (D-RA-20) — R2 bucket for image artifacts. Optional so local/tests
   // boot without it; the scheduled() retention sweep no-ops when absent.
   BUCKET?: R2Bucket;
+  // PR D — R2 bucket for generated assets returned as URLs (separate from the
+  // compose-artifacts BUCKET). Optional so stdio/local/tests boot without it;
+  // when absent, image tools fall back to inline base64. The /artifact proxy
+  // and the retention sweep no-op without it.
+  GENERATED_BUCKET?: R2Bucket;
+  // PR D — absolute base for artifact URLs (e.g. https://mcp.limner.us). Plain
+  // var (not a secret); the product domain, A4-safe to commit. Delivery is
+  // active only when both GENERATED_BUCKET and this are present.
+  ARTIFACT_BASE_URL?: string;
+  // PR D — optional HMAC-SHA256 secret. When set, artifact URLs are signed +
+  // time-limited; when absent, the unguessable UUID key is the capability.
+  ARTIFACT_SIGNING_KEY?: string;
   // OAuthProvider injects this at runtime; declared here for the
   // apiHandler's type signature.
   OAUTH_PROVIDER: OAuthHelpers;
@@ -83,6 +96,17 @@ function buildWorkersBindings(env: Env): Bindings {
     kind: 'workers',
     DB: env.DB,
   } as Bindings;
+}
+
+// PR D: assemble the artifact-delivery config when both the bucket and base URL
+// are configured. Absent -> image tools keep returning inline base64.
+function buildDelivery(env: Env): ArtifactDelivery | undefined {
+  if (!env.GENERATED_BUCKET || !env.ARTIFACT_BASE_URL) return undefined;
+  return {
+    bucket: env.GENERATED_BUCKET,
+    baseUrl: env.ARTIFACT_BASE_URL,
+    ...(env.ARTIFACT_SIGNING_KEY ? { signingKey: env.ARTIFACT_SIGNING_KEY } : {}),
+  };
 }
 
 function buildSecrets(env: Env): Readonly<Record<string, string>> {
@@ -126,6 +150,7 @@ export class LimnerMCP extends McpAgent<Env, LimnerState, LimnerProps> {
         bindings: buildWorkersBindings(this.env),
         images: this.env.IMAGES as unknown as CFImagesBinding | undefined,
         secrets: buildSecrets(this.env),
+        delivery: buildDelivery(this.env),
       }),
     );
     // Guidance-derived surfaces (D-RA-24). Pure data — no ToolContext needed.
@@ -179,14 +204,25 @@ const oauthProvider = new OAuthProvider<Env>({
 // slow sweep never blocks the scheduled invocation from returning.
 export default {
   fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    // PR D: the public /artifact/<key> proxy is served before OAuth — the
+    // unguessable capability URL (optionally HMAC-signed) is the access grant,
+    // so MCP clients / the CMA agent fetch generated assets without a token.
+    if (isArtifactPath(new URL(request.url).pathname)) {
+      return serveArtifact(request, env);
+    }
     return oauthProvider.fetch(request, env, ctx);
   },
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    if (!env.BUCKET) return;
-    ctx.waitUntil(
-      sweepExpiredArtifacts(env.BUCKET, Date.now())
-        .then((result) => console.log(`r2 retention sweep: ${JSON.stringify(result)}`))
-        .catch((err) => console.error('r2 retention sweep failed', err)),
+    // Sweep both retention buckets (compose artifacts + generated assets).
+    const buckets = [env.BUCKET, env.GENERATED_BUCKET].filter(
+      (b): b is R2Bucket => Boolean(b),
     );
+    for (const bucket of buckets) {
+      ctx.waitUntil(
+        sweepExpiredArtifacts(bucket, Date.now())
+          .then((result) => console.log(`r2 retention sweep: ${JSON.stringify(result)}`))
+          .catch((err) => console.error('r2 retention sweep failed', err)),
+      );
+    }
   },
 } satisfies ExportedHandler<Env>;

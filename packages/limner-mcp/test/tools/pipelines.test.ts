@@ -2,6 +2,7 @@ import { describe, expect, test, vi } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import type { Bindings } from '@limner/core';
+import type { R2Bucket } from '@cloudflare/workers-types';
 
 import { createServer, registerTools, type Tool, type ToolContext } from '../../src/server.js';
 import { pipelineTools } from '../../src/tools/pipelines.js';
@@ -115,6 +116,48 @@ describe('generate_dalle (mocked OpenAI)', () => {
       expect(typeof content[0]!.data).toBe('string');
       expect(content[0]!.data!.length).toBeGreaterThan(0);
     } finally {
+      await close();
+    }
+  });
+
+  test('uploads to the delivery store and returns a URL when ctx.delivery is set (PR D)', async () => {
+    // 1x1 red PNG. The real generate_dalle handler uses DallePipeline()'s
+    // default global fetch, so stub the global to return image bytes; with a
+    // delivery store wired, runImagePipeline uploads and returns a URL instead
+    // of inline base64 (the gpt-image-1 message-size-ceiling fix).
+    const onePixelPng =
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABh6FO1AAAAABJRU5ErkJggg==';
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: [{ b64_json: onePixelPng }] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    ) as unknown as typeof fetch;
+    const put = vi.fn().mockResolvedValue({ key: 'x' });
+    const ctx: ToolContext = {
+      bindings: localBindings,
+      secrets: { OPENAI_API_KEY: 'sk-test' },
+      delivery: { bucket: { put } as unknown as R2Bucket, baseUrl: 'https://assets.example' },
+    };
+    const { client, close } = await connectedPair(pipelineTools, ctx);
+    try {
+      const result = await client.callTool({
+        name: 'limner_generate_dalle',
+        arguments: { prompt: 'a red apple' },
+      });
+      expect(result.isError).toBeFalsy();
+      // Bytes uploaded under generated/dalle/<uuid>.png; nothing inline.
+      expect(put).toHaveBeenCalledOnce();
+      const key = put.mock.calls[0]![0] as string;
+      expect(key).toMatch(/^generated\/dalle\/[0-9a-f-]+\.png$/);
+      const content = result.content as Array<{ type: string; text?: string }>;
+      expect(content[0]!.type).toBe('text');
+      expect(content[0]!.text).toBe(`https://assets.example/artifact/${key}`);
+      const sc = (result as { structuredContent?: Record<string, unknown> }).structuredContent;
+      expect(sc?.['url']).toBe(`https://assets.example/artifact/${key}`);
+    } finally {
+      globalThis.fetch = realFetch;
       await close();
     }
   });

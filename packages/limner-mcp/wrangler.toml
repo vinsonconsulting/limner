@@ -69,6 +69,21 @@ simple = { limit = 100, period = 60 }
 binding = "BUCKET"
 bucket_name = "limner-rasa-artifacts-dev"
 
+# PR D — R2 bucket for generated assets returned as URLs (separate from the
+# compose-artifacts BUCKET above). The operator creates it once, like BUCKET:
+#   wrangler r2 bucket create limner-rasa-generated-dev
+# Swept by the same 30-day retention cron (scheduled() in src/worker.ts).
+[[r2_buckets]]
+binding = "GENERATED_BUCKET"
+bucket_name = "limner-rasa-generated-dev"
+
+# PR D — absolute base for artifact URLs. Dev serves from wrangler dev's local
+# origin (override via .dev.vars for a tunnelled dev deploy). Delivery is active
+# only when GENERATED_BUCKET *and* ARTIFACT_BASE_URL are both present; otherwise
+# image tools fall back to inline base64.
+[vars]
+ARTIFACT_BASE_URL = "http://localhost:8787"
+
 # RT-2 (D-RA-20) — daily cron driving the 30-day R2 retention sweep
 # (src/retention.ts, invoked from the scheduled() handler in src/worker.ts).
 [triggers]
@@ -136,6 +151,20 @@ simple = { limit = 100, period = 60 }
 [[env.production.r2_buckets]]
 binding = "BUCKET"
 bucket_name = "limner-rasa-artifacts-prod"
+
+# PR D — production generated-assets bucket. Operator creates it once:
+#   wrangler r2 bucket create limner-rasa-generated-prod
+[[env.production.r2_buckets]]
+binding = "GENERATED_BUCKET"
+bucket_name = "limner-rasa-generated-prod"
+
+# PR D — artifact URL base. mcp.limner.us is the product domain (D-RA-13), not
+# an account id (A4-safe). Artifact URLs resolve only when that host serves the
+# worker: either activate the [[env.production.routes]] below (+ the DNS AAAA
+# record) or override ARTIFACT_BASE_URL via the dashboard to the active host.
+# Optional signed URLs: `wrangler secret put ARTIFACT_SIGNING_KEY --env production`.
+[env.production.vars]
+ARTIFACT_BASE_URL = "https://mcp.limner.us"
 
 [env.production.triggers]
 crons = ["0 3 * * *"]
