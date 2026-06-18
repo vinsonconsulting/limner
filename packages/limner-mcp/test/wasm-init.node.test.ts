@@ -24,10 +24,6 @@ import { initComposeWasmNode } from '../src/wasm-init-node.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const FONT_PATH = resolve(
-  __dirname,
-  '../../limner-core/assets/fonts/IBMPlexSans-Regular.ttf',
-);
 const FIXTURE_PATH = resolve(
   __dirname,
   '../../limner-core/test/compose/fixtures/checker-64.png',
@@ -104,7 +100,7 @@ describe('compose WASM ops via the production node init path (no test helpers)',
           width: 200,
           height: 80,
           // Font loading is not the thing under test; the init path is.
-          fonts: [{ name: 'IBM Plex Sans', data: b64encode(new Uint8Array(readFileSync(FONT_PATH))) }],
+          fonts: [{ fontId: 'ibm-plex-sans' }],
         },
       });
       expect(result.isError).toBeFalsy();

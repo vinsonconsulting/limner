@@ -17,6 +17,11 @@ import {
   compose,
   base64ToBytes,
   bytesToBase64,
+  DEFAULT_FONT_ID,
+  isFontId,
+  listFontIds,
+  fontDisplayName,
+  resolveFontBytes,
   type Format,
   type FitMode,
 } from '@limner/core';
@@ -92,14 +97,14 @@ const satoriOps = [
     fonts: z
       .array(
         z.object({
-          name: z.string(),
-          data: z.string().describe('base64-encoded TTF/OTF font bytes.'),
+          fontId: z.string().describe('Built-in font id, e.g. "ibm-plex-sans". Resolved to bytes server-side.'),
+          name: z.string().optional().describe('fontFamily name to match in the JSX; defaults to the built-in font name.'),
           weight: z.number().int().min(100).max(900).optional(),
           style: z.enum(['normal', 'italic']).optional(),
         }),
       )
-      .min(1)
-      .describe('Workers transport: load fonts via R2/KV binding and pass here. Stdio transport: provide the font bytes directly.'),
+      .optional()
+      .describe('Built-in fonts resolved server-side by id (no inline base64 — large fonts truncate on the wire). Omit to use the default (ibm-plex-sans).'),
   }),
 ] as const;
 
@@ -200,14 +205,14 @@ const composeAdvertisedSchema = z.object({
   fonts: z
     .array(
       z.object({
-        name: z.string(),
-        data: z.string().describe('base64 TTF/OTF font bytes.'),
+        fontId: z.string().describe('Built-in font id, e.g. "ibm-plex-sans".'),
+        name: z.string().optional().describe('fontFamily name to match in the JSX.'),
         weight: z.number().int().min(100).max(900).optional(),
         style: z.enum(['normal', 'italic']).optional(),
       }),
     )
     .optional()
-    .describe('renderText: fonts (at least one).'),
+    .describe('renderText: built-in fonts by id (optional; defaults to ibm-plex-sans).'),
   opts: z.record(z.unknown()).optional().describe('cfTransform: transform options (width/height/fit/blur/brightness/contrast/background).'),
   outputFormat: z.enum(['image/png', 'image/jpeg', 'image/webp', 'image/avif']).optional().describe('cfTransform output format.'),
   background: z.string().optional().describe('cfBackgroundFill background color/spec.'),
@@ -290,18 +295,37 @@ async function handle(raw: ComposeAdvertisedInput, ctx: ToolContext): Promise<Ca
     }
 
     case 'renderText': {
-      // Satori's font weight is a literal union (100|200|...|900); zod's
-      // .min(100).max(900) keeps the schema readable but emits `number`,
-      // so we cast at the boundary. Out-of-range values are rejected by
-      // zod before the handler runs.
-      const fonts = input.fonts.map((f) => ({
-        name: f.name,
-        data: base64ToBytes(f.data),
-        weight: f.weight as 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900 | undefined,
-        style: f.style,
-      }));
-      // ensureResvgInit must be called by the transport entry point
-      // before any renderText invocation; we do not load WASM here.
+      // Fonts resolve to server-side bytes by id; the tool never transits font
+      // bytes inline (a large base64 font truncates on the MCP wire and
+      // corrupts the WASM DataView). Omitted fonts -> the default built-in.
+      const specs: Array<{
+        fontId: string;
+        name?: string;
+        weight?: number;
+        style?: 'normal' | 'italic';
+      }> = input.fonts && input.fonts.length > 0 ? input.fonts : [{ fontId: DEFAULT_FONT_ID }];
+      const fonts = [];
+      for (const f of specs) {
+        if (!isFontId(f.fontId)) {
+          return {
+            content: [{
+              type: 'text',
+              text: `limner_compose renderText: unknown fontId "${f.fontId}". Available: ${listFontIds().join(', ')}.`,
+            }],
+            isError: true,
+          };
+        }
+        // Satori's font weight is a literal union (100|...|900); zod emits
+        // `number`, so cast at the boundary (out-of-range rejected by zod).
+        fonts.push({
+          name: f.name ?? fontDisplayName(f.fontId),
+          data: resolveFontBytes(f.fontId),
+          weight: f.weight as 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900 | undefined,
+          style: f.style,
+        });
+      }
+      // ensureResvgInit must be called by the transport entry point before any
+      // renderText invocation; we do not load WASM here.
       const out = await compose.renderText(input.jsx, { width: input.width, height: input.height, fonts });
       return imageResult(out, 'image/png', { op: 'renderText' });
     }

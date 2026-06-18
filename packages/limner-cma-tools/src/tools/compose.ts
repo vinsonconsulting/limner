@@ -7,7 +7,7 @@
 // Refs: D-RA-12, D-RA-16
 
 import type { R2Bucket } from '@cloudflare/workers-types';
-import { compose, type CFImagesBinding, type FitMode } from '@limner/core';
+import { compose, DEFAULT_FONT_ID, type CFImagesBinding, type FitMode } from '@limner/core';
 import { composeTool as mcpComposeTool, composeInputSchema } from '@limner/mcp';
 
 import { defineTool, type CustomTool } from '../runtime.js';
@@ -153,14 +153,25 @@ export const composeMcpTool: CustomTool = defineTool({
           jsx: unknown;
           width: number;
           height: number;
-          fonts: Array<{ name: string; data: string; weight?: number; style?: 'normal' | 'italic' }>;
+          fonts?: Array<{ fontId: string; name?: string; weight?: number; style?: 'normal' | 'italic' }>;
         };
-        const fonts = i.fonts.map((f) => ({
-          name: f.name,
-          data: base64ToBytes(f.data),
-          weight: f.weight as 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900 | undefined,
-          style: f.style,
-        }));
+        // Fonts resolve to server-side bytes by id (no inline base64; large
+        // fonts truncate on the wire). Omitted fonts -> the default built-in.
+        const specs =
+          i.fonts && i.fonts.length > 0 ? i.fonts : [{ fontId: DEFAULT_FONT_ID }];
+        const fonts = specs.map((f) => {
+          if (!compose.isFontId(f.fontId)) {
+            throw new Error(
+              `compose.renderText: unknown fontId "${f.fontId}". Available: ${compose.listFontIds().join(', ')}.`,
+            );
+          }
+          return {
+            name: f.name ?? compose.fontDisplayName(f.fontId),
+            data: compose.resolveFontBytes(f.fontId),
+            weight: f.weight as 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900 | undefined,
+            style: f.style,
+          };
+        });
         const bytes = await compose.renderText(i.jsx, { width: i.width, height: i.height, fonts });
         return emitImage(env, bytes, 'image/png', 'renderText');
       }

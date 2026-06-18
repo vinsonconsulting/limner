@@ -37,6 +37,7 @@
 import * as photon from './photon-ops.js';
 import * as codecs from './jsquash-codecs.js';
 import * as satori from './satori-text.js';
+import * as fonts from './fonts.js';
 import * as cfImages from './cf-images-transform.js';
 import { ensureComposeWasm } from './compose-wasm.js';
 
@@ -49,6 +50,14 @@ export type {
   SatoriFont,
   SatoriRenderOptions,
 } from './satori-text.js';
+export type { FontId } from './fonts.js';
+export {
+  DEFAULT_FONT_ID,
+  isFontId,
+  listFontIds,
+  fontDisplayName,
+  resolveFontBytes,
+} from './fonts.js';
 export type {
   CFImagesBinding,
   CFImagesInputHandle,
@@ -77,6 +86,12 @@ export const compose = {
   // Satori — typography (no legacy precedent)
   renderText: satori.renderText,
   ensureResvgInit: satori.ensureResvgInit,
+
+  // Built-in font registry (server-side, resolved by id)
+  resolveFontBytes: fonts.resolveFontBytes,
+  isFontId: fonts.isFontId,
+  fontDisplayName: fonts.fontDisplayName,
+  listFontIds: fonts.listFontIds,
 
   // Compose WASM lifecycle — lazy ensure shared by codecs + satori. The
   // ops self-init internally; exposed here for front-loading at startup.

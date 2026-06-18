@@ -77,6 +77,7 @@ export type {
   SatoriJsx,
   SatoriFont,
   SatoriRenderOptions,
+  FontId,
   CFImagesBinding,
   CFImagesInputHandle,
   CFImagesTransformHandle,
@@ -84,6 +85,13 @@ export type {
   CFImagesOutputFormat,
   CFImagesFit,
   CFImagesDrawLayer,
+} from './compose/index.js';
+export {
+  DEFAULT_FONT_ID,
+  isFontId,
+  listFontIds,
+  fontDisplayName,
+  resolveFontBytes,
 } from './compose/index.js';
 
 // Compose WASM lifecycle (D-RA-16). The transport layer (@limner/mcp's
