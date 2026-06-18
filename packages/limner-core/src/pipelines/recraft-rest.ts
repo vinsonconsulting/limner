@@ -12,6 +12,7 @@
 import { base64ToBytes } from '../base64.js';
 import { PipelineError } from './errors.js';
 import { asRecord, httpResponseToError, isAbortError } from './_http.js';
+import { fetchInputImage, imageFilename } from './_image-input.js';
 import type {
   RecraftGenerateArgs,
   RecraftGenerateResult,
@@ -20,6 +21,8 @@ import type {
 
 const BASE_URL = 'https://external.api.recraft.ai/v1';
 const GENERATIONS_ENDPOINT = `${BASE_URL}/images/generations`;
+const IMAGE_TO_IMAGE_ENDPOINT = `${BASE_URL}/images/imageToImage`;
+const DEFAULT_STRENGTH = 0.5;
 
 export class RestRecraftTransport implements RecraftTransport {
   // The default fetch forwards through an arrow rather than storing the bare
@@ -32,6 +35,18 @@ export class RestRecraftTransport implements RecraftTransport {
   ) {}
 
   async generateImage(args: RecraftGenerateArgs): Promise<RecraftGenerateResult> {
+    // #15: an `image` URL routes to image-to-image (multipart); otherwise
+    // text-to-image generations (JSON).
+    const response = args.image
+      ? await this.requestImageToImage(args)
+      : await this.requestGeneration(args);
+    if (!response.ok) {
+      throw await httpResponseToError('recraft', response);
+    }
+    return parseRecraftResponse(await response.json());
+  }
+
+  private async requestGeneration(args: RecraftGenerateArgs): Promise<Response> {
     const body: Record<string, unknown> = {
       prompt: args.prompt,
       style: args.style,
@@ -40,10 +55,8 @@ export class RestRecraftTransport implements RecraftTransport {
       ...(args.substyle ? { substyle: args.substyle } : {}),
       ...(args.model ? { model: args.model } : {}),
     };
-
-    let response: Response;
     try {
-      response = await this.fetchImpl(GENERATIONS_ENDPOINT, {
+      return await this.fetchImpl(GENERATIONS_ENDPOINT, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${this.apiKey}`,
@@ -52,23 +65,44 @@ export class RestRecraftTransport implements RecraftTransport {
         body: JSON.stringify(body),
       });
     } catch (err) {
-      if (isAbortError(err)) {
-        throw new PipelineError('recraft', 'aborted', 'request aborted', err);
-      }
-      throw new PipelineError(
-        'recraft',
-        'upstream_unavailable',
-        `network error: ${stringifyError(err)}`,
-        err,
-      );
+      throw networkError(err);
     }
-
-    if (!response.ok) {
-      throw await httpResponseToError('recraft', response);
-    }
-
-    return parseRecraftResponse(await response.json());
   }
+
+  // Fetch the source URL, then POST /images/imageToImage (multipart). Do NOT
+  // set Content-Type — fetch derives the boundary from the FormData body.
+  private async requestImageToImage(args: RecraftGenerateArgs): Promise<Response> {
+    const { bytes, contentType } = await fetchInputImage('recraft', args.image!, this.fetchImpl);
+    const form = new FormData();
+    form.append('prompt', args.prompt);
+    form.append('strength', String(args.strength ?? DEFAULT_STRENGTH));
+    form.append('style', args.style);
+    form.append('n', '1');
+    if (args.substyle) form.append('substyle', args.substyle);
+    if (args.model) form.append('model', args.model);
+    form.append('image', new Blob([bytes], { type: contentType }), imageFilename(contentType));
+    try {
+      return await this.fetchImpl(IMAGE_TO_IMAGE_ENDPOINT, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${this.apiKey}` },
+        body: form,
+      });
+    } catch (err) {
+      throw networkError(err);
+    }
+  }
+}
+
+function networkError(err: unknown): PipelineError {
+  if (isAbortError(err)) {
+    return new PipelineError('recraft', 'aborted', 'request aborted', err);
+  }
+  return new PipelineError(
+    'recraft',
+    'upstream_unavailable',
+    `network error: ${stringifyError(err)}`,
+    err,
+  );
 }
 
 // Recraft's generations response mirrors OpenAI's Images API: data[0] carries

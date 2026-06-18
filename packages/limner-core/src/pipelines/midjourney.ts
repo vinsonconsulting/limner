@@ -26,6 +26,15 @@ export type MidjourneyOptions = {
   // field). Document explicitly to avoid caller confusion.
   seed?: number;
   quality?: 0.25 | 0.5 | 1 | 2;
+  // #15 native image-input. Midjourney composes a prompt string (HITL), so
+  // image-input is by reference, not upload:
+  //   image    -> image-prompt URL, prepended to the prompt (+ --iw weight)
+  //   styleRef -> --sref <url> (style reference)
+  //   omniRef  -> --oref <url> (v7 omni/character reference)
+  image?: string;
+  imageWeight?: number; // --iw, 0..3 (default 1)
+  styleRef?: string;
+  omniRef?: string;
 };
 
 // Midjourney is unusual in Limner's pipeline set: it does not call any
@@ -66,8 +75,20 @@ export class MidjourneyPipeline implements PipelineRunner {
         `aspectRatio must be N:N format (e.g. 16:9): ${opts.aspectRatio}`,
       );
     }
+    if (opts.imageWeight !== undefined && (opts.imageWeight < 0 || opts.imageWeight > 3)) {
+      throw new PipelineError(this.id, 'invalid_input', `imageWeight out of range (0-3): ${opts.imageWeight}`);
+    }
+    for (const [name, value] of [['image', opts.image], ['styleRef', opts.styleRef], ['omniRef', opts.omniRef]] as const) {
+      if (value !== undefined && !/^https?:\/\/\S+$/.test(value)) {
+        throw new PipelineError(this.id, 'invalid_input', `${name} must be an http(s) image URL: ${value}`);
+      }
+    }
 
-    const parts: string[] = [prompt];
+    // Image-prompt URL goes at the START of the prompt (Midjourney syntax);
+    // the text prompt and flags follow.
+    const parts: string[] = [];
+    if (opts.image) parts.push(opts.image);
+    parts.push(prompt);
 
     // Negative prompts: union of input.negativePrompt and opts.no.
     const negatives: string[] = [];
@@ -97,6 +118,12 @@ export class MidjourneyPipeline implements PipelineRunner {
     if (seed !== undefined) parts.push(`--seed ${seed}`);
 
     if (opts.quality !== undefined) parts.push(`--q ${opts.quality}`);
+
+    // Image-input flags (#15): --iw applies to the image prompt; --sref / --oref
+    // are reference-image URLs.
+    if (opts.imageWeight !== undefined) parts.push(`--iw ${opts.imageWeight}`);
+    if (opts.styleRef) parts.push(`--sref ${opts.styleRef}`);
+    if (opts.omniRef) parts.push(`--oref ${opts.omniRef}`);
 
     return {
       kind: 'text',

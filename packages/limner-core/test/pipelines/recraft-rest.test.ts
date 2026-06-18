@@ -104,6 +104,60 @@ describe('RestRecraftTransport — error mapping', () => {
   });
 });
 
+describe('RestRecraftTransport — image-to-image (#15)', () => {
+  test('an image URL routes to /images/imageToImage as multipart', async () => {
+    const fetchMock = vi.fn(async (url: unknown) => {
+      if (String(url).includes('/images/imageToImage')) {
+        return new Response(JSON.stringify({ data: [{ url: 'https://img.recraft.ai/out.png' }] }), {
+          status: 200,
+        });
+      }
+      return new Response(new Uint8Array([1, 2, 3]), {
+        status: 200,
+        headers: { 'content-type': 'image/png' },
+      });
+    }) as unknown as typeof fetch;
+
+    const t = new RestRecraftTransport('rk', fetchMock);
+    const out = await t.generateImage({
+      prompt: 'restyle',
+      size: '1024x1024',
+      style: 'realistic_image',
+      image: 'https://src.example/x.png',
+      strength: 0.4,
+    });
+
+    const calls = (fetchMock as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls.some((c) => String(c[0]) === 'https://src.example/x.png')).toBe(true);
+    const call = calls.find((c) => String(c[0]).includes('/images/imageToImage'))!;
+    const init = call[1] as RequestInit;
+    expect(init.method).toBe('POST');
+    expect(init.body).toBeInstanceOf(FormData);
+    const form = init.body as FormData;
+    expect(form.get('prompt')).toBe('restyle');
+    expect(form.get('strength')).toBe('0.4');
+    expect(form.get('style')).toBe('realistic_image');
+    expect(form.get('image')).toBeInstanceOf(Blob);
+    const headers = (init.headers ?? {}) as Record<string, string>;
+    expect(headers['Content-Type']).toBeUndefined();
+    expect(out.url).toBe('https://img.recraft.ai/out.png');
+  });
+
+  test('defaults strength to 0.5 when omitted', async () => {
+    const fetchMock = vi.fn(async (url: unknown) =>
+      String(url).includes('/imageToImage')
+        ? new Response(JSON.stringify({ data: [{ url: 'https://x' }] }), { status: 200 })
+        : new Response(new Uint8Array([1]), { status: 200, headers: { 'content-type': 'image/png' } }),
+    ) as unknown as typeof fetch;
+    const t = new RestRecraftTransport('rk', fetchMock);
+    await t.generateImage({ prompt: 'x', size: '1024x1024', style: 'realistic_image', image: 'https://s/x.png' });
+    const call = (fetchMock as unknown as ReturnType<typeof vi.fn>).mock.calls.find((c) =>
+      String(c[0]).includes('imageToImage'),
+    )!;
+    expect(((call[1] as RequestInit).body as FormData).get('strength')).toBe('0.5');
+  });
+});
+
 describe('RestRecraftTransport — Workers receiver binding (regression)', () => {
   // Mirror the DallePipeline #59 guard: the default fetch must keep its
   // receiver, or the Cloudflare Workers runtime throws "Illegal invocation".

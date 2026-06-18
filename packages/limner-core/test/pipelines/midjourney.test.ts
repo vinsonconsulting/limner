@@ -203,3 +203,28 @@ describe('MidjourneyPipeline — output metadata', () => {
     });
   });
 });
+
+describe('MidjourneyPipeline — image-input (#15)', () => {
+  test('image-prompt URL leads the prompt; --iw/--sref/--oref are appended', async () => {
+    const out = await gen('a portrait', {
+      image: 'https://img.example/ref.png',
+      imageWeight: 2,
+      styleRef: 'https://img.example/s.png',
+      omniRef: 'https://img.example/o.png',
+    });
+    expect(out.content.startsWith('https://img.example/ref.png a portrait')).toBe(true);
+    expect(out.content).toContain('--iw 2');
+    expect(out.content).toContain('--sref https://img.example/s.png');
+    expect(out.content).toContain('--oref https://img.example/o.png');
+  });
+
+  test('rejects a non-URL reference', async () => {
+    await expect(gen('x', { styleRef: 'not-a-url' })).rejects.toMatchObject({ code: 'invalid_input' });
+  });
+
+  test('rejects imageWeight out of range', async () => {
+    await expect(gen('x', { image: 'https://i/x.png', imageWeight: 5 })).rejects.toMatchObject({
+      code: 'invalid_input',
+    });
+  });
+});

@@ -6,6 +6,7 @@ import {
   isAbortError,
   parseSize,
 } from './_http.js';
+import { fetchInputImage, imageFilename } from './_image-input.js';
 import type {
   PipelineContext,
   PipelineGenerateInput,
@@ -27,9 +28,14 @@ export type DalleOptions = {
   outputFormat?: 'png' | 'jpeg' | 'webp';
   // gpt-image only. 'transparent' requires output_format 'png' or 'webp'.
   background?: 'auto' | 'transparent' | 'opaque';
+  // #15 native image-input. A source image URL — when set, the pipeline fetches
+  // it and calls the image-edits endpoint (likeness-preserving restyle) instead
+  // of text-to-image. A URL (not inline base64) so it never rides the MCP wire.
+  image?: string;
 };
 
 const ENDPOINT = 'https://api.openai.com/v1/images/generations';
+const EDITS_ENDPOINT = 'https://api.openai.com/v1/images/edits';
 const DEFAULT_SIZE = '1024x1024';
 
 export class DallePipeline implements PipelineRunner {
@@ -60,35 +66,17 @@ export class DallePipeline implements PipelineRunner {
     const opts = (input.options ?? {}) as DalleOptions;
     const model = opts.model ?? 'gpt-image-1';
     const size = opts.size ?? DEFAULT_SIZE;
+    const apiKey = ctx.secrets['OPENAI_API_KEY'] ?? '';
 
-    // OpenAI's 2025/2026 consolidation removed `response_format` and `style`
-    // from the Images API surface; the pipeline never sends them. quality /
-    // output_format / background apply across the gpt-image family and are
-    // sent only when the caller sets them.
-    const body: Record<string, unknown> = {
-      model,
-      prompt,
-      n: 1,
-      size,
-    };
-    if (isGptImageModel(model)) {
-      if (opts.quality) body.quality = opts.quality;
-      if (opts.outputFormat) body.output_format = opts.outputFormat;
-      if (opts.background) body.background = opts.background;
-    }
-
+    // #15: an `image` URL routes to the image-edits endpoint (multipart) for a
+    // likeness-preserving restyle; otherwise text-to-image generations (JSON).
     let response: Response;
     try {
-      response = await this.fetchImpl(ENDPOINT, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${ctx.secrets['OPENAI_API_KEY']}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-        signal: ctx.abortSignal,
-      });
+      response = opts.image
+        ? await this.requestEdit(opts.image, model, size, prompt, opts, apiKey, ctx.abortSignal)
+        : await this.requestGeneration(model, size, prompt, opts, apiKey, ctx.abortSignal);
     } catch (err) {
+      if (err instanceof PipelineError) throw err;
       if (isAbortError(err)) {
         throw new PipelineError(this.id, 'aborted', 'request aborted', err);
       }
@@ -137,6 +125,63 @@ export class DallePipeline implements PipelineRunner {
       height: h,
       metadata,
     };
+  }
+
+  // Text-to-image: POST /v1/images/generations (JSON). gpt-image
+  // quality/output_format/background are sent only when set; the 2025/2026
+  // consolidation removed response_format/style, so they're never sent.
+  private requestGeneration(
+    model: string,
+    size: string,
+    prompt: string,
+    opts: DalleOptions,
+    apiKey: string,
+    signal?: AbortSignal,
+  ): Promise<Response> {
+    const body: Record<string, unknown> = { model, prompt, n: 1, size };
+    if (isGptImageModel(model)) {
+      if (opts.quality) body.quality = opts.quality;
+      if (opts.outputFormat) body.output_format = opts.outputFormat;
+      if (opts.background) body.background = opts.background;
+    }
+    return this.fetchImpl(ENDPOINT, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      ...(signal ? { signal } : {}),
+    });
+  }
+
+  // Image-edit (#15): fetch the source URL, then POST /v1/images/edits
+  // (multipart). Do NOT set Content-Type — fetch derives the multipart
+  // boundary from the FormData body.
+  private async requestEdit(
+    imageUrl: string,
+    model: string,
+    size: string,
+    prompt: string,
+    opts: DalleOptions,
+    apiKey: string,
+    signal?: AbortSignal,
+  ): Promise<Response> {
+    const { bytes, contentType } = await fetchInputImage(this.id, imageUrl, this.fetchImpl, signal);
+    const form = new FormData();
+    form.append('model', model);
+    form.append('prompt', prompt);
+    form.append('n', '1');
+    form.append('size', size);
+    if (isGptImageModel(model)) {
+      if (opts.quality) form.append('quality', opts.quality);
+      if (opts.outputFormat) form.append('output_format', opts.outputFormat);
+      if (opts.background) form.append('background', opts.background);
+    }
+    form.append('image', new Blob([bytes], { type: contentType }), imageFilename(contentType));
+    return this.fetchImpl(EDITS_ENDPOINT, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}` },
+      body: form,
+      ...(signal ? { signal } : {}),
+    });
   }
 }
 
