@@ -211,6 +211,62 @@ describe('DallePipeline — happy path', () => {
   });
 });
 
+describe('DallePipeline — image-input (#15)', () => {
+  test('an image URL routes to /v1/images/edits as multipart', async () => {
+    const onePixelPng =
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABh6FO1AAAAABJRU5ErkJggg==';
+    const fetchMock = vi.fn(async (url: unknown) => {
+      if (String(url).includes('/v1/images/edits')) {
+        return new Response(JSON.stringify({ data: [{ b64_json: onePixelPng }] }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      // The source-image fetch.
+      return new Response(new Uint8Array([1, 2, 3]), {
+        status: 200,
+        headers: { 'content-type': 'image/png' },
+      });
+    }) as unknown as typeof fetch;
+
+    const p = new DallePipeline(fetchMock);
+    const out = (await p.generate(
+      { prompt: 'restyle as line art', options: { image: 'https://assets.example/src.png', size: '1024x1024' } },
+      ctx,
+    )) as PipelineImageOutput;
+    expect(out.kind).toBe('image');
+    expect(out.data).toBeInstanceOf(Uint8Array);
+
+    const calls = (fetchMock as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls.some((c) => String(c[0]) === 'https://assets.example/src.png')).toBe(true);
+    const editCall = calls.find((c) => String(c[0]).includes('/v1/images/edits'))!;
+    const init = editCall[1] as RequestInit;
+    expect(init.method).toBe('POST');
+    expect(init.body).toBeInstanceOf(FormData);
+    const form = init.body as FormData;
+    expect(form.get('prompt')).toBe('restyle as line art');
+    expect(form.get('model')).toBe('gpt-image-1');
+    expect(form.get('size')).toBe('1024x1024');
+    expect(form.get('image')).toBeInstanceOf(Blob);
+    // Multipart: Authorization only, no Content-Type (fetch sets the boundary).
+    const headers = (init.headers ?? {}) as Record<string, string>;
+    expect(headers.Authorization).toBe('Bearer sk-test-123');
+    expect(headers['Content-Type']).toBeUndefined();
+  });
+
+  test('a failed source-image fetch surfaces invalid_input', async () => {
+    const fetchMock = vi.fn(async (url: unknown) =>
+      String(url).includes('/v1/images/edits')
+        ? new Response('{}', { status: 200 })
+        : new Response('nope', { status: 404 }),
+    ) as unknown as typeof fetch;
+    const p = new DallePipeline(fetchMock);
+    await expect(
+      p.generate({ prompt: 'x', options: { image: 'https://assets.example/missing.png' } }, ctx),
+    ).rejects.toMatchObject({ code: 'invalid_input' });
+  });
+});
+
 describe('DallePipeline — Workers receiver binding (regression)', () => {
   // The Cloudflare Workers runtime rejects a *detached* global `fetch` with
   // "Illegal invocation: function called with incorrect `this` reference."

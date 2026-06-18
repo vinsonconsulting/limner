@@ -44,11 +44,13 @@ const dalleInputSchema = z.object({
     .describe('Output image format. Defaults to png server-side.'),
   background: z.enum(['auto', 'transparent', 'opaque']).optional()
     .describe('transparent requires outputFormat png/webp.'),
+  image: z.string().url().optional()
+    .describe('Source image URL for a likeness-preserving edit/restyle (gpt-image-1 image-edits). Pass a fetchable URL — e.g. an artifact URL from a prior generate — not inline base64.'),
 });
 
 const generateDalle: Tool<z.infer<typeof dalleInputSchema>> = {
   name: 'limner_generate_dalle',
-  description: 'Generate an image via OpenAI Images API (gpt-image-1 default). Paid API — each call bills your OpenAI account.',
+  description: 'Generate or edit an image via OpenAI Images API (gpt-image-1 default; pass `image` to restyle a source). Paid API — each call bills your OpenAI account.',
   inputSchema: dalleInputSchema,
   // Calls a paid external API (OpenAI) — open-world, non-idempotent.
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
@@ -66,12 +68,20 @@ const midjourneyInputSchema = z.object({
   chaos: z.number().int().min(0).max(100).optional(),
   modelVersion: z.string().optional().describe('e.g. "6", "7"'),
   seed: z.number().int().optional(),
+  image: z.string().url().optional()
+    .describe('Image-prompt URL, composed at the start of the prompt. Use a fetchable URL.'),
+  imageWeight: z.number().min(0).max(3).optional()
+    .describe('Midjourney --iw image weight, 0-3 (default 1). Applies to `image`.'),
+  styleRef: z.string().url().optional()
+    .describe('Style-reference URL → --sref.'),
+  omniRef: z.string().url().optional()
+    .describe('Omni-reference URL (v7 subject/character consistency) → --oref.'),
 });
 
 const generateMidjourney: Tool<z.infer<typeof midjourneyInputSchema>> = {
   name: 'limner_generate_midjourney',
   description:
-    'Compose a Midjourney prompt string (prompt-only; no image generation; downstream tool runs the HITL step).',
+    'Compose a Midjourney prompt string (prompt-only; no image generation; downstream tool runs the HITL step). Supports image-prompt + --sref/--oref reference URLs.',
   inputSchema: midjourneyInputSchema,
   // Prompt-only string composition: no external call, deterministic.
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
@@ -88,12 +98,16 @@ const recraftInputSchema = z.object({
   substyle: z.string().optional(),
   model: z.string().optional().describe('e.g. "recraftv3", "recraftv2".'),
   size: z.string().optional().describe('e.g. "1024x1024", "1365x1024", "1024x1365".'),
+  image: z.string().url().optional()
+    .describe('Source image URL for image-to-image. Pass a fetchable URL, not inline base64.'),
+  strength: z.number().min(0).max(1).optional()
+    .describe('Image-to-image strength 0-1 (lower = closer to the source). Default 0.5. Used only with `image`.'),
 });
 
 const generateRecraft: Tool<z.infer<typeof recraftInputSchema>> = {
   name: 'limner_generate_recraft',
   description:
-    'Generate an image via Recraft\'s REST API (external.api.recraft.ai). Paid API — each call bills your Recraft account.',
+    'Generate or restyle an image via Recraft\'s REST API (external.api.recraft.ai; pass `image` for image-to-image). Paid API — each call bills your Recraft account.',
   inputSchema: recraftInputSchema,
   // Calls a paid external service (Recraft) — open-world, non-idempotent.
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },

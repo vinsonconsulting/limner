@@ -19,15 +19,24 @@ export type RecraftOptions = {
   substyle?: string;
   model?: 'recraftv3' | 'recraftv2' | (string & {});
   size?: '1024x1024' | '1365x1024' | '1024x1365' | (string & {});
+  // #15 native image-input. A source image URL — when set, the transport calls
+  // Recraft's image-to-image endpoint instead of text-to-image. URL, not inline
+  // base64 (it never rides the MCP wire).
+  image?: string;
+  // Image-to-image strength 0-1 (lower = closer to the source). Default 0.5.
+  strength?: number;
 };
 
-// Arguments passed through to Recraft's MCP generate_image tool.
+// Arguments passed through to the Recraft transport. `image`/`strength` select
+// the image-to-image path.
 export type RecraftGenerateArgs = {
   prompt: string;
   size: string;
   style: string;
   substyle?: string;
   model?: string;
+  image?: string;
+  strength?: number;
 };
 
 // Result returned by a RecraftTransport. Mirrors PipelineImageOutput's
@@ -85,6 +94,8 @@ export class RecraftPipeline implements PipelineRunner {
       style: opts.style ?? DEFAULT_STYLE,
       ...(opts.substyle ? { substyle: opts.substyle } : {}),
       ...(opts.model ? { model: opts.model } : {}),
+      ...(opts.image ? { image: opts.image } : {}),
+      ...(opts.strength !== undefined ? { strength: opts.strength } : {}),
     };
 
     let result: RecraftGenerateResult;
