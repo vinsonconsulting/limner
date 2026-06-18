@@ -314,7 +314,7 @@ describe('meta tools', () => {
       });
       const payload = parseStructured(result);
       expect(payload['id']).toBe('recraft');
-      expect(payload['kind']).toBe('mcp-adapter');
+      expect(payload['kind']).toBe('api');
       expect(payload['requiredSecrets']).toEqual(['RECRAFT_API_KEY']);
     } finally {
       await close();

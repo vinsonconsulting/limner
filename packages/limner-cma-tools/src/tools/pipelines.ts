@@ -19,10 +19,10 @@ import {
   DallePipeline,
   MidjourneyPipeline,
   RecraftPipeline,
+  RestRecraftTransport,
   type PipelineGenerateInput,
 } from '@limner/core';
 import { pipelineTools as mcpPipelineTools } from '@limner/mcp';
-import { McpRecraftTransport } from '@limner/mcp';
 
 import { defineTool, type CustomTool } from '../runtime.js';
 import { uploadImageToR2, imageReturnEnvelope } from '../r2-upload.js';
@@ -126,42 +126,36 @@ export const generateMidjourneyTool: CustomTool = defineTool({
 export const generateRecraftTool: CustomTool = defineTool({
   name: 'limner_generate_recraft',
   description:
-    'Generate an image via Recraft (composed-MCP adapter per D-RA-14). Remote mode hits mcp.recraft.ai; local mode spawns the recraft-ai stdio binary. Uploads result to R2.',
+    'Generate an image via Recraft\'s REST API (external.api.recraft.ai). Uploads the result to R2 and returns its URL.',
   inputSchema: schemaFor('limner_generate_recraft'),
   requires: (env) => Boolean(env['BUCKET']) && Boolean(env['RECRAFT_API_KEY']),
   run: async (input, { env }) => {
-    const mode = (input as { mode?: 'remote' | 'local' }).mode ?? 'remote';
     const secrets: Record<string, string> = {};
     if (env['RECRAFT_API_KEY']) secrets['RECRAFT_API_KEY'] = String(env['RECRAFT_API_KEY']);
-    if (env['IMAGE_STORAGE_DIRECTORY']) secrets['IMAGE_STORAGE_DIRECTORY'] = String(env['IMAGE_STORAGE_DIRECTORY']);
-    const transport = await McpRecraftTransport.connect(mode, secrets);
-    try {
-      const pipeline = new RecraftPipeline(mode, transport);
-      const out = await pipeline.generate(
-        {
-          prompt: String((input as { prompt: string }).prompt),
-          options: input as Record<string, unknown>,
-        },
-        { secrets },
-      );
-      if (out.kind === 'text') {
-        return JSON.stringify({ text: out.content, ...(out.metadata ?? {}) });
-      }
-      if (out.data) {
-        return emitImage(env, out.data, out.mimeType, 'recraft', {
-          width: out.width,
-          height: out.height,
-          ...(out.metadata ?? {}),
-        });
-      }
-      return imageReturnEnvelope(out.url ?? '', out.mimeType, {
+    const transport = new RestRecraftTransport(secrets['RECRAFT_API_KEY'] ?? '');
+    const pipeline = new RecraftPipeline(transport);
+    const out = await pipeline.generate(
+      {
+        prompt: String((input as { prompt: string }).prompt),
+        options: input as Record<string, unknown>,
+      },
+      { secrets },
+    );
+    if (out.kind === 'text') {
+      return JSON.stringify({ text: out.content, ...(out.metadata ?? {}) });
+    }
+    if (out.data) {
+      return emitImage(env, out.data, out.mimeType, 'recraft', {
         width: out.width,
         height: out.height,
         ...(out.metadata ?? {}),
       });
-    } finally {
-      await transport.close();
     }
+    return imageReturnEnvelope(out.url ?? '', out.mimeType, {
+      width: out.width,
+      height: out.height,
+      ...(out.metadata ?? {}),
+    });
   },
 });
 

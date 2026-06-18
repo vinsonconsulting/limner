@@ -7,18 +7,12 @@ import type {
   PipelineRunner,
 } from './types.js';
 
-// D-RA-14: Recraft is integrated as a composed-MCP adapter rather than a
-// direct REST client. The adapter normalizes Recraft's first-party MCP
-// tools into rasa's pipeline surface, giving uniform error mapping,
-// telemetry, and naming alongside the API-backed pipelines.
-//
-// Two transport modes:
-//   - 'remote': mcp.recraft.ai/mcp (Streamable HTTP, API-key header auth)
-//   - 'local':  github.com/recraft-ai/mcp-recraft-server (stdio process)
-//
-// Sets precedent for any future composed-MCP pipeline.
-
-export type RecraftMode = 'remote' | 'local';
+// D-RA-25 (amends D-RA-14): Recraft is called via direct REST
+// (external.api.recraft.ai). RestRecraftTransport (pipelines/recraft-rest.ts)
+// is the production implementation; the pipeline depends only on the
+// RecraftTransport seam below, so the wire protocol is swappable. The
+// transport DI seam stays available as the "composed adapter" pattern for any
+// future pipeline that needs to wrap an external surface.
 
 export type RecraftOptions = {
   style?: 'digital_illustration' | 'vector_illustration' | 'realistic_image' | (string & {});
@@ -63,29 +57,21 @@ const DEFAULT_STYLE = 'realistic_image';
 export class RecraftPipeline implements PipelineRunner {
   readonly id = 'recraft';
   readonly displayName = 'Recraft';
-  readonly kind = 'mcp-adapter' as const;
-  // Reflects the architectural transport mode (matches ComposedMcpPipeline.transport).
-  readonly transport: 'remote-http' | 'local-stdio';
-  readonly requiredSecrets: readonly string[];
+  // Direct REST (D-RA-25), same as the other API-backed pipelines.
+  readonly kind = 'api' as const;
+  readonly requiredSecrets: readonly string[] = ['RECRAFT_API_KEY'];
 
   private readonly transportImpl: RecraftTransport;
 
-  constructor(mode: RecraftMode = 'remote', transportImpl?: RecraftTransport) {
-    this.transport = mode === 'remote' ? 'remote-http' : 'local-stdio';
-    // Remote mode requires an API key for mcp.recraft.ai header auth.
-    // Local stdio mode doesn't (the user's Recraft server handles its own
-    // auth, typically env-based, outside Limner's secret surface).
-    this.requiredSecrets = mode === 'remote' ? ['RECRAFT_API_KEY'] : [];
-    this.transportImpl = transportImpl ?? makePlaceholderTransport(mode);
+  constructor(transportImpl?: RecraftTransport) {
+    this.transportImpl = transportImpl ?? makePlaceholderTransport();
   }
 
   async generate(
     input: PipelineGenerateInput,
     ctx: PipelineContext,
   ): Promise<PipelineGenerateOutput> {
-    if (this.transport === 'remote-http') {
-      assertSecrets(this.id, this.requiredSecrets, ctx.secrets);
-    }
+    assertSecrets(this.id, this.requiredSecrets, ctx.secrets);
 
     const prompt = input.prompt.trim();
     if (prompt.length === 0) {
@@ -127,7 +113,6 @@ export class RecraftPipeline implements PipelineRunner {
     const [w, h] = parseSize(args.size);
     const metadata: Record<string, unknown> = {
       pipeline: this.id,
-      transport: this.transport,
       style: args.style,
       size: args.size,
     };
@@ -158,19 +143,16 @@ export class RecraftPipeline implements PipelineRunner {
 }
 
 // Default transport when none is injected. Throws on use with a clear
-// pointer to where the real impl is expected to land. Lets the pipeline
-// surface compile and be wired into the MCP server now, without forcing
-// the full @modelcontextprotocol/sdk Client + transport plumbing into
-// Phase 2.
-function makePlaceholderTransport(mode: RecraftMode): RecraftTransport {
+// pointer to the production impl. Production wires RestRecraftTransport
+// (pipelines/recraft-rest.ts); tests inject a double.
+function makePlaceholderTransport(): RecraftTransport {
   return {
     async generateImage(): Promise<RecraftGenerateResult> {
       throw new PipelineError(
         'recraft',
         'upstream_unavailable',
-        `Default ${mode} transport not implemented in Phase 2 v1; ` +
-          `pass a RecraftTransport implementation to the RecraftPipeline ` +
-          `constructor (Phase 4 will ship an MCP-SDK-backed default).`,
+        'No RecraftTransport provided; construct RecraftPipeline with a ' +
+          'RestRecraftTransport (pipelines/recraft-rest.ts) or inject a test double.',
       );
     },
   };

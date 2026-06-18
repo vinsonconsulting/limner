@@ -21,8 +21,8 @@ export { DallePipeline, type DalleOptions } from './dalle.js';
 export {
   RecraftPipeline,
   type RecraftOptions,
-  type RecraftMode,
   type RecraftTransport,
   type RecraftGenerateArgs,
   type RecraftGenerateResult,
 } from './recraft.js';
+export { RestRecraftTransport } from './recraft-rest.js';

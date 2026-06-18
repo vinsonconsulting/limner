@@ -153,7 +153,7 @@ describe('meta cma-tools', () => {
     const out = await tool.run({ id: 'recraft' }, { env: env() });
     const parsed = JSON.parse(out);
     expect(parsed.id).toBe('recraft');
-    expect(parsed.kind).toBe('mcp-adapter');
+    expect(parsed.kind).toBe('api');
   });
 
   test('pipeline_capabilities returns error for unknown pipeline', async () => {

@@ -22,6 +22,3 @@ export type { Resource } from './resources/index.js';
 export { resources, registerResources } from './resources/index.js';
 export type { Prompt, PromptArgument } from './prompts/index.js';
 export { prompts, registerPrompts } from './prompts/index.js';
-
-// Transports (Recraft MCP adapter; Phase 5 reuses the connection logic).
-export { McpRecraftTransport } from './transports/mcp-recraft.js';

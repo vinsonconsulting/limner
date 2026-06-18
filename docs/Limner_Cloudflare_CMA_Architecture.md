@@ -39,7 +39,7 @@ All 11 decisions resolved on 2026-05-20. D-RA-12 added 2026-05-22. D-RA-13 throu
 | D-RA-11 | Off-ramp criteria | Five named triggers; quantitative thresholds deferred |
 | D-RA-12 | CMA agent consumption path | Path B (MCP via OAuth) from v1; migrate to Path A after dogfooding window |
 | D-RA-13 | OSS pivot with variant family | Apache 2.0 + CLA (contributor agreement later superseded by DCO-only; see CONTRIBUTING.md); rasa / pixel / ascii multi-repo; git fork; `us.limner/*` namespace via `limner.us` |
-| D-RA-14 | Recraft pipeline integration | Compose first-party Recraft MCP (`mcp.recraft.ai` remote + local stdio); adapter pattern; sets precedent for any future composed external MCP |
+| D-RA-14 | Recraft pipeline integration | Compose first-party Recraft MCP (`mcp.recraft.ai` remote + local stdio); adapter pattern; sets precedent for any future composed external MCP. **Amended by D-RA-25: Recraft now calls direct REST (`external.api.recraft.ai/v1`); the `RecraftTransport` DI seam is retained as the reusable adapter pattern** |
 | D-RA-15 | D1 canonical state hardening | D1 is mandatory not preferred under self-hosted CMA; CMA managed memory and self-hosted sandboxes mutually exclusive; Phase 6 migration is one-way |
 | D-RA-16 | rasa v1 composition strategy | Hybrid V8 stack: Photon + jSquash + Satori/resvg + Cloudflare Images Transformations. No Containers in rasa v1; Sharp/libvips path abandoned |
 | D-RA-17 | Pixellab dropped from rasa | Specialty tools live in variants, not rasa foundation. Pixellab moves to limner-pixel (Phase C of D-RA-13 build sequencing); rasa pipeline registry shrinks to 4 |
@@ -264,7 +264,7 @@ Port the 3 pipelines from Python reference (Pixellab dropped per D-RA-17, RetroD
 
 - `midjourney.ts` — prompt composition only (no API call); returns formatted prompt
 - `dalle.ts` — OpenAI Images API client
-- `recraft.ts` — **Adapter wrapping Recraft's first-party MCP server** per D-RA-14, not a direct API client. Two transport modes: remote (`mcp.recraft.ai/mcp` API-key auth) and local (stdio via `github.com/recraft-ai/mcp-recraft-server`). The adapter normalizes Recraft's MCP tools into rasa's pipeline surface for consistent naming, error handling, and telemetry. Sets precedent for any future composed external MCP server.
+- `recraft.ts` — **Direct REST client** for `external.api.recraft.ai/v1/images/generations` (`RestRecraftTransport`, Bearer auth) per **D-RA-25** (amends D-RA-14, which originally composed Recraft's first-party MCP). The pipeline depends only on the `RecraftTransport` seam, so the wire protocol is swappable; that DI seam stays available as the "composed adapter" pattern for any future pipeline that needs to wrap an external surface.
 
 Each pipeline is a class implementing the rasa pipeline contract. The contract has two interfaces: `ApiBackedPipeline` (direct REST client: dalle) and `ComposedMcpPipeline` (adapter over external MCP: recraft today, others as vendors ship MCPs). API calls and adapter calls both use native `fetch` / MCP SDK. Credential consumption goes through the bindings layer (Cloudflare Secrets in Workers mode; env vars in local mode).
 

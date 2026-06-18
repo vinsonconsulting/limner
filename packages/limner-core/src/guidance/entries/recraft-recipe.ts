@@ -3,9 +3,9 @@ import type { GuidanceEntry } from '../types.js';
 /**
  * Concept #4 — Recraft prompt recipe. The single source shared by the Recraft
  * concept's prompt and skill. Knob names and values mirror @limner/core's
- * RecraftOptions (pipelines/recraft.ts), a composed-MCP adapter over Recraft's
- * first-party tools. Recraft is the pipeline that generates true vector (SVG)
- * art from scratch.
+ * RecraftOptions (pipelines/recraft.ts), a direct REST client for Recraft's
+ * Images API (D-RA-25). Recraft is the pipeline that generates true vector
+ * (SVG) art from scratch.
  */
 export const recraftRecipe: GuidanceEntry = {
   id: 'recraft-recipe',

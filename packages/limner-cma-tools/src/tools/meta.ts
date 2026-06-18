@@ -23,7 +23,7 @@ function pipelineList() {
   return [
     new MidjourneyPipeline(),
     new DallePipeline(),
-    new RecraftPipeline('remote'),
+    new RecraftPipeline(),
   ];
 }
 
