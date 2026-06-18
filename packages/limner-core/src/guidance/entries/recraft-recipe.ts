@@ -30,7 +30,7 @@ export const recraftRecipe: GuidanceEntry = {
         [
           'substyle',
           'style-specific string (e.g. pixel_art, hand_drawn, line_art)',
-          'Narrows the chosen style; must be valid for that style',
+          'Optional; narrows the chosen style. Must be a value Recraft defines for that style — an invalid pair returns HTTP 400. Omit when unsure',
         ],
         ['model', 'recraftv3 (default-era), recraftv2', 'Generation model version'],
         ['size', '1024x1024, 1365x1024, 1024x1365', 'Output dimensions / orientation'],
@@ -41,7 +41,8 @@ export const recraftRecipe: GuidanceEntry = {
       kind: 'bullets',
       items: [
         'Choose style `vector_illustration` to get SVG output rather than a raster — ideal for logos, icons, and scalable brand art.',
-        'Pick `style` first (the family), then a `substyle` that exists within it; an unmatched substyle is rejected upstream.',
+        'Pick `style` first (the family), then a `substyle` that exists within it; an unmatched substyle is rejected upstream (HTTP 400). When unsure, omit `substyle`.',
+        'Painting *media* — oil, gouache, watercolor — go in the **prompt text**, not `substyle`: there is no `oil_painting` substyle. Pair painterly prompts with `style: realistic_image`.',
         'For brand consistency, keep style/substyle fixed across a set and vary only the prompt subject.',
         'Hand the SVG off to Inkscape or Affinity Designer for path cleanup and print prep.',
       ],
