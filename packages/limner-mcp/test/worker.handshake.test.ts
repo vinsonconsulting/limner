@@ -40,9 +40,6 @@ const CONFIG = resolve(__dirname, 'wrangler.handshake.toml');
 const FIXTURE = readFileSync(
   resolve(__dirname, '../../limner-core/test/compose/fixtures/checker-64.png'),
 );
-const FONT = readFileSync(
-  resolve(__dirname, '../../limner-core/assets/fonts/IBMPlexSans-Regular.ttf'),
-);
 
 function b64(bytes: Uint8Array | Buffer): string {
   return Buffer.from(bytes).toString('base64');
@@ -216,7 +213,7 @@ describe('worker MCP: DO-backed Streamable HTTP handshake (Phase 6c regression g
               },
               width: 120,
               height: 60,
-              fonts: [{ name: 'IBM Plex Sans', data: b64(FONT) }],
+              fonts: [{ fontId: 'ibm-plex-sans' }],
             },
           },
         },

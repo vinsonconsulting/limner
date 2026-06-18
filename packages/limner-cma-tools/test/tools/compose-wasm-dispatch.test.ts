@@ -36,10 +36,8 @@ import {
 import { composeTool as cmaComposeTool } from '../../src/tools/compose.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const FONT_PATH = resolve(__dirname, '../../../limner-core/assets/fonts/IBMPlexSans-Regular.ttf');
 const FIXTURE_PATH = resolve(__dirname, '../../../limner-core/test/compose/fixtures/checker-64.png');
 
-const FONT_BYTES = new Uint8Array(readFileSync(FONT_PATH));
 const PNG_FIXTURE = new Uint8Array(readFileSync(FIXTURE_PATH));
 
 // Acquire-only: register the Node provider but never call ensureComposeWasm.
@@ -131,11 +129,45 @@ describe('Path B (mcp dispatch) self-inits via core lazy-ensure', () => {
           jsx: RENDER_TEXT_JSX,
           width: 200,
           height: 80,
-          fonts: [{ name: 'IBM Plex Sans', data: b64encode(FONT_BYTES) }],
+          fonts: [{ fontId: 'ibm-plex-sans' }],
         },
       });
       expect(result.isError).toBeFalsy();
       expectPngMagic(decodeImageContent(result));
+    } finally {
+      await close();
+    }
+  });
+
+  test('renderText defaults to the bundled font when fonts omitted', { timeout: 30_000 }, async () => {
+    const { client, close } = await connectedPair();
+    try {
+      const result = await client.callTool({
+        name: 'limner_compose',
+        arguments: { op: 'renderText', jsx: RENDER_TEXT_JSX, width: 200, height: 80 },
+      });
+      expect(result.isError).toBeFalsy();
+      expectPngMagic(decodeImageContent(result));
+    } finally {
+      await close();
+    }
+  });
+
+  test('renderText rejects an unknown fontId', { timeout: 30_000 }, async () => {
+    const { client, close } = await connectedPair();
+    try {
+      const result = await client.callTool({
+        name: 'limner_compose',
+        arguments: {
+          op: 'renderText',
+          jsx: RENDER_TEXT_JSX,
+          width: 200,
+          height: 80,
+          fonts: [{ fontId: 'comic-sans' }],
+        },
+      });
+      expect(result.isError).toBe(true);
+      expect(JSON.stringify(result.content)).toMatch(/unknown fontId/);
     } finally {
       await close();
     }
@@ -173,7 +205,7 @@ describe('Path A (cma-tools dispatch) self-inits via core lazy-ensure', () => {
         jsx: RENDER_TEXT_JSX,
         width: 200,
         height: 80,
-        fonts: [{ name: 'IBM Plex Sans', data: b64encode(FONT_BYTES) }],
+        fonts: [{ fontId: 'ibm-plex-sans' }],
       },
       { env: { BUCKET: bucket } },
     );
