@@ -54,6 +54,7 @@ export type {
   RecraftTransport,
   RecraftGenerateArgs,
   RecraftGenerateResult,
+  RecraftTransformArgs,
 } from './pipelines/index.js';
 export {
   PipelineError,

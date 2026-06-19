@@ -36,7 +36,7 @@ export {
 
 export { pipelineTools, composeTool, memoryTools, projectTools, metaTools };
 
-// 15 tools total: 3 pipelines + 1 compose + 4 memory + 3 project + 4 meta.
+// 16 tools total: 4 pipelines (incl. limner_upscale) + 1 compose + 4 memory + 3 project + 4 meta.
 // Mirrors the Path B (@limner/mcp) tool surface per D-RA-12.
 export const LIMNER_TOOLS = [
   ...pipelineTools,

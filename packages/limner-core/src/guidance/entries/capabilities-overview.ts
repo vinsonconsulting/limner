@@ -32,6 +32,13 @@ export const capabilitiesOverview: GuidanceEntry = {
       kind: 'paragraph',
       text: 'A WASM-backed compose stack handles decode/encode across formats, resizing and fitting, typographic overlays (Satori + resvg), and Cloudflare Images transforms, with no native binaries required.',
     },
+    { kind: 'heading', level: 2, text: 'Post-processing' },
+    {
+      kind: 'bullets',
+      items: [
+        'Upscale: enlarge and sharpen a raster image toward print scale. The generators top out around 1024 to 1536 px, so upscaling lifts a finished asset to a size that holds up at 300 dpi.',
+      ],
+    },
     { kind: 'heading', level: 2, text: 'Memory & projects' },
     {
       kind: 'paragraph',

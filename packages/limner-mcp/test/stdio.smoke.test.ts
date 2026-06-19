@@ -43,7 +43,7 @@ describe('stdio entry point smoke', () => {
       await client.connect(transport);
       try {
         const result = await client.listTools();
-        // 15 tools total: 3 pipeline + 1 compose + 4 memory + 3 project + 4 meta.
+        // 16 tools total: 4 pipeline (incl. upscale) + 1 compose + 4 memory + 3 project + 4 meta.
         const names = result.tools.map((t) => t.name).sort();
         expect(names).toEqual(
           [
@@ -61,6 +61,7 @@ describe('stdio entry point smoke', () => {
             'limner_recall',
             'limner_record',
             'limner_record_project_note',
+            'limner_upscale',
             'limner_version',
           ],
         );
