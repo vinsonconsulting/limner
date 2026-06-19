@@ -26,6 +26,7 @@ export const SKILL_SOURCES: readonly SkillSource[] = [
   { skillDir: 'file-types', guidanceId: 'file-types' },
   { skillDir: 'external-tools', guidanceId: 'external-tools' },
   { skillDir: 'midjourney', guidanceId: 'midjourney-recipe' },
+  { skillDir: 'dalle', guidanceId: 'dalle-recipe' },
 ];
 
 export const SKILL_MARKER_END = '<!-- END GENERATED -->';

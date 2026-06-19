@@ -32,7 +32,7 @@ describe('mcp server: prompts', () => {
     const { client, close } = await connected();
     try {
       const result = await client.listPrompts();
-      expect(result.prompts).toHaveLength(2);
+      expect(result.prompts).toHaveLength(3);
       const p = result.prompts.find((x) => x.name === 'capability-tour');
       expect(p?.arguments).toEqual([
         { name: 'focus', description: expect.any(String), required: false },
@@ -47,6 +47,19 @@ describe('mcp server: prompts', () => {
     try {
       const result = await client.listPrompts();
       const p = result.prompts.find((x) => x.name === 'midjourney-builder');
+      expect(p).toBeDefined();
+      const subject = p!.arguments?.find((a) => a.name === 'subject');
+      expect(subject?.required).toBe(true);
+    } finally {
+      await close();
+    }
+  });
+
+  test('prompts/list advertises dalle-builder with subject required', async () => {
+    const { client, close } = await connected();
+    try {
+      const result = await client.listPrompts();
+      const p = result.prompts.find((x) => x.name === 'dalle-builder');
       expect(p).toBeDefined();
       const subject = p!.arguments?.find((a) => a.name === 'subject');
       expect(subject?.required).toBe(true);
@@ -123,6 +136,44 @@ describe('mcp server: prompts', () => {
     const { client, close } = await connected();
     try {
       await expect(client.getPrompt({ name: 'midjourney-builder' })).rejects.toThrow();
+    } finally {
+      await close();
+    }
+  });
+
+  test('prompts/get returns the dalle-recipe-derived message with the subject', async () => {
+    const { client, close } = await connected();
+    try {
+      const result = await client.getPrompt({
+        name: 'dalle-builder',
+        arguments: { subject: 'a transparent OPEN sign' },
+      });
+      const text = (result.messages[0]!.content as { text: string }).text;
+      expect(text).toContain(serializeGuidance(getGuidance('dalle-recipe')!));
+      expect(text).toContain('write a DALL·E prompt for: a transparent OPEN sign');
+    } finally {
+      await close();
+    }
+  });
+
+  test('prompts/get threads optional knobs into the dalle-builder message', async () => {
+    const { client, close } = await connected();
+    try {
+      const result = await client.getPrompt({
+        name: 'dalle-builder',
+        arguments: { subject: 'a logo', background: 'transparent' },
+      });
+      const text = (result.messages[0]!.content as { text: string }).text;
+      expect(text).toContain('Background: transparent');
+    } finally {
+      await close();
+    }
+  });
+
+  test('prompts/get rejects dalle-builder without the required subject', async () => {
+    const { client, close } = await connected();
+    try {
+      await expect(client.getPrompt({ name: 'dalle-builder' })).rejects.toThrow();
     } finally {
       await close();
     }
