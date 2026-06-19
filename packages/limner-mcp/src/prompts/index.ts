@@ -129,7 +129,49 @@ const dalleBuilder: Prompt = {
   },
 };
 
-export const prompts: readonly Prompt[] = [capabilityTour, midjourneyBuilder, dalleBuilder];
+// recraft-builder — concept #4. Serializes the recraft-recipe guidance
+// verbatim, then frames a build request from the supplied subject and knobs.
+const recraftBuilder: Prompt = {
+  name: 'recraft-builder',
+  description: getGuidance('recraft-recipe')!.summary,
+  arguments: [
+    { name: 'subject', description: 'The concrete subject to depict.', required: true },
+    {
+      name: 'style',
+      description: 'Optional style family (digital_illustration, vector_illustration, realistic_image).',
+      required: false,
+    },
+    {
+      name: 'substyle',
+      description: 'Optional substyle within the chosen style (omit when unsure).',
+      required: false,
+    },
+    { name: 'size', description: 'Optional size (e.g. "1024x1024", "1365x1024").', required: false },
+  ],
+  build: (args) => {
+    const subject = args['subject'];
+    if (!subject) {
+      throw new Error('recraft-builder requires a "subject" argument');
+    }
+    const base = serializeGuidance(getGuidance('recraft-recipe')!);
+    const knobs = [
+      args['style'] && `Style: ${args['style']}`,
+      args['substyle'] && `Substyle: ${args['substyle']}`,
+      args['size'] && `Size: ${args['size']}`,
+    ].filter(Boolean);
+    const request = [`Using the recipe above, write a Recraft prompt for: ${subject}`, ...knobs].join(
+      '\n',
+    );
+    return [{ role: 'user', content: { type: 'text', text: `${base}\n${request}\n` } }];
+  },
+};
+
+export const prompts: readonly Prompt[] = [
+  capabilityTour,
+  midjourneyBuilder,
+  dalleBuilder,
+  recraftBuilder,
+];
 
 /**
  * Wire prompt definitions into a Server. Installs two handlers:

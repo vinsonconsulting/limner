@@ -1,7 +1,7 @@
 import type { GuidanceEntry } from '../types.js';
 
 /**
- * Concept #4 — Recraft prompt recipe. The single source shared by the Recraft
+ * Concept #4: Recraft prompt recipe. The single source shared by the Recraft
  * concept's prompt and skill. Knob names and values mirror @limner/core's
  * RecraftOptions (pipelines/recraft.ts), a direct REST client for Recraft's
  * Images API (D-RA-25). Recraft is the pipeline that generates true vector
@@ -11,11 +11,11 @@ export const recraftRecipe: GuidanceEntry = {
   id: 'recraft-recipe',
   title: 'Recraft prompt recipe',
   summary:
-    'How to drive Limner’s Recraft pipeline — choosing style vs. substyle and generating vector (SVG) art from scratch with brand-consistent control.',
+    'How to drive Limner’s Recraft pipeline, choosing style vs. substyle and generating vector (SVG) art from scratch with brand-consistent control.',
   body: [
     {
       kind: 'paragraph',
-      text: 'Recraft is Limner’s brand-and-vector pipeline: it generates raster or true vector (SVG) art and supports fine style control. Its defining feature is vector-from-scratch — pick a vector style and Recraft produces resolution-independent SVG you can refine in a vector editor (see the external-tools reference). Style is the broad family; substyle narrows it.',
+      text: 'Recraft is Limner’s brand-and-vector pipeline: it generates raster or true vector (SVG) art and supports fine style control. Its defining feature is vector-from-scratch: pick a vector style and Recraft produces resolution-independent SVG you can refine in a vector editor (see the external-tools reference). Style is the broad family; substyle narrows it.',
     },
     { kind: 'heading', level: 2, text: 'Parameters' },
     {
@@ -30,7 +30,7 @@ export const recraftRecipe: GuidanceEntry = {
         [
           'substyle',
           'style-specific string (e.g. pixel_art, hand_drawn, line_art)',
-          'Optional; narrows the chosen style. Must be a value Recraft defines for that style — an invalid pair returns HTTP 400. Omit when unsure',
+          'Optional; narrows the chosen style. Must be a value Recraft defines for that style; an invalid pair returns HTTP 400. Omit when unsure',
         ],
         ['model', 'recraftv3 (default-era), recraftv2', 'Generation model version'],
         ['size', '1024x1024, 1365x1024, 1024x1365', 'Output dimensions / orientation'],
@@ -40,11 +40,35 @@ export const recraftRecipe: GuidanceEntry = {
     {
       kind: 'bullets',
       items: [
-        'Choose style `vector_illustration` to get SVG output rather than a raster — ideal for logos, icons, and scalable brand art.',
+        'Choose style `vector_illustration` to get SVG output rather than a raster, ideal for logos, icons, and scalable brand art.',
         'Pick `style` first (the family), then a `substyle` that exists within it; an unmatched substyle is rejected upstream (HTTP 400). When unsure, omit `substyle`.',
-        'Painting *media* — oil, gouache, watercolor — go in the **prompt text**, not `substyle`: there is no `oil_painting` substyle. Pair painterly prompts with `style: realistic_image`.',
+        'Painting *media* (oil, gouache, watercolor) go in the **prompt text**, not `substyle`; there is no `oil_painting` substyle. Pair painterly prompts with the `realistic_image` style.',
         'For brand consistency, keep style/substyle fixed across a set and vary only the prompt subject.',
         'Hand the SVG off to Inkscape or Affinity Designer for path cleanup and print prep.',
+      ],
+    },
+    { kind: 'heading', level: 2, text: 'Image to image' },
+    {
+      kind: 'paragraph',
+      text: 'Pass a source image by URL to transform it instead of generating from scratch. Recraft restyles the input toward your prompt and chosen style. Use a fetchable URL, not inline data.',
+    },
+    {
+      kind: 'table',
+      columns: ['Knob', 'Values', 'Effect'],
+      rows: [
+        ['image', 'URL', 'Source image to transform; routes to the image-to-image endpoint'],
+        [
+          'strength',
+          '0-1 (default 0.5)',
+          'How far to move from the source; low stays close, high follows the prompt more',
+        ],
+      ],
+    },
+    {
+      kind: 'bullets',
+      items: [
+        'Keep style and substyle consistent with the rest of a set so the transformed image matches.',
+        'Raise strength to restyle boldly, lower it to preserve the source composition.',
       ],
     },
   ],
