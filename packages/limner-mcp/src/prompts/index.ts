@@ -198,8 +198,46 @@ const illuminatedManuscriptPrompt: Prompt = {
   },
 };
 
+// pipeline-router — concept #1. A thin router: it serializes the
+// pipeline-router reference verbatim, then asks for a routed recommendation for
+// the supplied asset goal. The routing procedure lives in the pipeline-router
+// skill the agent loads next; this prompt only frames the decision.
+const pipelineRouterPrompt: Prompt = {
+  name: 'pipeline-router',
+  description: getGuidance('pipeline-router')!.summary,
+  arguments: [
+    {
+      name: 'subject',
+      description:
+        'The asset you need, stated as a goal (e.g. "a scalable app icon", "a painterly hero image").',
+      required: true,
+    },
+    {
+      name: 'priorities',
+      description:
+        'Optional constraints to weigh (e.g. "cost-sensitive", "must be vector", "needed today").',
+      required: false,
+    },
+  ],
+  build: (args) => {
+    const subject = args['subject'];
+    if (!subject) {
+      throw new Error('pipeline-router requires a "subject" argument');
+    }
+    const base = serializeGuidance(getGuidance('pipeline-router')!);
+    const lines = [
+      `Using the routing reference above, recommend a pipeline (and any finishing steps) for: ${subject}`,
+    ];
+    if (args['priorities']) {
+      lines.push(`Priorities: ${args['priorities']}`);
+    }
+    return [{ role: 'user', content: { type: 'text', text: `${base}\n${lines.join('\n')}\n` } }];
+  },
+};
+
 export const prompts: readonly Prompt[] = [
   capabilityTour,
+  pipelineRouterPrompt,
   midjourneyBuilder,
   dalleBuilder,
   recraftBuilder,

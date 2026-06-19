@@ -32,11 +32,24 @@ describe('mcp server: prompts', () => {
     const { client, close } = await connected();
     try {
       const result = await client.listPrompts();
-      expect(result.prompts).toHaveLength(5);
+      expect(result.prompts).toHaveLength(6);
       const p = result.prompts.find((x) => x.name === 'capability-tour');
       expect(p?.arguments).toEqual([
         { name: 'focus', description: expect.any(String), required: false },
       ]);
+    } finally {
+      await close();
+    }
+  });
+
+  test('prompts/list advertises pipeline-router with subject required', async () => {
+    const { client, close } = await connected();
+    try {
+      const result = await client.listPrompts();
+      const p = result.prompts.find((x) => x.name === 'pipeline-router');
+      expect(p).toBeDefined();
+      const subject = p!.arguments?.find((a) => a.name === 'subject');
+      expect(subject?.required).toBe(true);
     } finally {
       await close();
     }
@@ -121,6 +134,47 @@ describe('mcp server: prompts', () => {
       const m = result.messages[0]!;
       expect(m.content.type).toBe('text');
       expect((m.content as { text: string }).text).toContain('Focus requested: compose');
+    } finally {
+      await close();
+    }
+  });
+
+  test('prompts/get returns the pipeline-router-derived message with the subject', async () => {
+    const { client, close } = await connected();
+    try {
+      const result = await client.getPrompt({
+        name: 'pipeline-router',
+        arguments: { subject: 'a scalable app icon' },
+      });
+      const m = result.messages[0]!;
+      expect(m.role).toBe('user');
+      const text = (m.content as { text: string }).text;
+      // The guidance slice appears verbatim (byte-identical to the serializer).
+      expect(text).toContain(serializeGuidance(getGuidance('pipeline-router')!));
+      expect(text).toContain('recommend a pipeline (and any finishing steps) for: a scalable app icon');
+    } finally {
+      await close();
+    }
+  });
+
+  test('prompts/get threads the priorities knob into the pipeline-router message', async () => {
+    const { client, close } = await connected();
+    try {
+      const result = await client.getPrompt({
+        name: 'pipeline-router',
+        arguments: { subject: 'a logo', priorities: 'must be vector' },
+      });
+      const text = (result.messages[0]!.content as { text: string }).text;
+      expect(text).toContain('Priorities: must be vector');
+    } finally {
+      await close();
+    }
+  });
+
+  test('prompts/get rejects pipeline-router without the required subject', async () => {
+    const { client, close } = await connected();
+    try {
+      await expect(client.getPrompt({ name: 'pipeline-router' })).rejects.toThrow();
     } finally {
       await close();
     }
