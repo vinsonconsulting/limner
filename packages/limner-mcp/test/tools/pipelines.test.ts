@@ -35,13 +35,14 @@ async function connectedPair(
 const localBindings = { kind: 'local' } as unknown as Bindings;
 
 describe('pipelineTools registry surface', () => {
-  test('exposes generate_dalle, generate_midjourney, generate_recraft, upscale', () => {
+  test('exposes generate_dalle, generate_midjourney, generate_recraft, upscale, vectorize', () => {
     const names = pipelineTools.map((t) => t.name);
     expect(names).toEqual([
       'limner_generate_dalle',
       'limner_generate_midjourney',
       'limner_generate_recraft',
       'limner_upscale',
+      'limner_vectorize',
     ]);
   });
 });
@@ -282,6 +283,63 @@ describe('limner_upscale', () => {
       expect(key).toMatch(/^generated\/recraft-upscale\/[0-9a-f-]+\.png$/);
       const content = result.content as Array<{ type: string; text?: string }>;
       expect(content[0]!.type).toBe('text');
+      expect(content[0]!.text).toBe(`https://assets.example/artifact/${key}`);
+    } finally {
+      globalThis.fetch = realFetch;
+      await close();
+    }
+  });
+});
+
+describe('limner_vectorize', () => {
+  test('missing RECRAFT_API_KEY surfaces as isError=true', async () => {
+    const ctx: ToolContext = { bindings: localBindings, secrets: {} };
+    const { client, close } = await connectedPair(pipelineTools, ctx);
+    try {
+      const result = await client.callTool({
+        name: 'limner_vectorize',
+        arguments: { image: 'https://src.example/x.png' },
+      });
+      expect(result.isError).toBe(true);
+      expect(JSON.stringify(result.content)).toMatch(/RECRAFT_API_KEY/);
+    } finally {
+      await close();
+    }
+  });
+
+  // The handler fetches the source URL, then POSTs it to /images/vectorize.
+  // The SVG bytes re-host under an .svg key when a delivery store is wired.
+  test('re-hosts the SVG to a capability URL with an .svg key', async () => {
+    const svgB64 = btoa('<svg xmlns="http://www.w3.org/2000/svg"/>');
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn(async (url: unknown) =>
+      String(url).includes('/images/vectorize')
+        ? new Response(JSON.stringify({ image: { b64_json: svgB64 } }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          })
+        : new Response(new Uint8Array([1, 2, 3]), {
+            status: 200,
+            headers: { 'content-type': 'image/png' },
+          }),
+    ) as unknown as typeof fetch;
+    const put = vi.fn().mockResolvedValue({ key: 'x' });
+    const ctx: ToolContext = {
+      bindings: localBindings,
+      secrets: { RECRAFT_API_KEY: 'rk-test' },
+      delivery: { bucket: { put } as unknown as R2Bucket, baseUrl: 'https://assets.example' },
+    };
+    const { client, close } = await connectedPair(pipelineTools, ctx);
+    try {
+      const result = await client.callTool({
+        name: 'limner_vectorize',
+        arguments: { image: 'https://src.example/logo.png' },
+      });
+      expect(result.isError).toBeFalsy();
+      expect(put).toHaveBeenCalledOnce();
+      const key = put.mock.calls[0]![0] as string;
+      expect(key).toMatch(/^generated\/recraft-vectorize\/[0-9a-f-]+\.svg$/);
+      const content = result.content as Array<{ type: string; text?: string }>;
       expect(content[0]!.text).toBe(`https://assets.example/artifact/${key}`);
     } finally {
       globalThis.fetch = realFetch;

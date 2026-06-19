@@ -3,8 +3,8 @@ import { describe, expect, test } from 'vitest';
 import { LIMNER_TOOLS } from '../src/index.js';
 
 describe('LIMNER_TOOLS registry', () => {
-  test('exposes 16 tools total', () => {
-    expect(LIMNER_TOOLS).toHaveLength(16);
+  test('exposes 17 tools total', () => {
+    expect(LIMNER_TOOLS).toHaveLength(17);
   });
 
   test('all tool names are unique', () => {
@@ -31,6 +31,7 @@ describe('LIMNER_TOOLS registry', () => {
         'limner_record',
         'limner_record_project_note',
         'limner_upscale',
+        'limner_vectorize',
         'limner_version',
       ],
     );
@@ -43,7 +44,7 @@ describe('LIMNER_TOOLS registry', () => {
   });
 
   test('image-returning tools gate on env.BUCKET', () => {
-    const imageTools = ['limner_generate_dalle', 'limner_generate_recraft', 'limner_upscale', 'limner_compose'];
+    const imageTools = ['limner_generate_dalle', 'limner_generate_recraft', 'limner_upscale', 'limner_vectorize', 'limner_compose'];
     for (const name of imageTools) {
       const t = LIMNER_TOOLS.find((x) => x.name === name);
       expect(t).toBeDefined();

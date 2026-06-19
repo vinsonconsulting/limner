@@ -63,6 +63,7 @@ const EXPECTED_TOOLS = [
   'limner_record',
   'limner_record_project_note',
   'limner_upscale',
+  'limner_vectorize',
   'limner_version',
 ];
 
@@ -116,7 +117,7 @@ async function post(body: unknown, sessionId?: string): Promise<Response> {
 
 describe('worker MCP: DO-backed Streamable HTTP handshake (Phase 6c regression guard)', () => {
   test(
-    'initialize -> tools/list returns the full 16-tool registry; tools/call routes; prompts/resources advertise',
+    'initialize -> tools/list returns the full 17-tool registry; tools/call routes; prompts/resources advertise',
     { timeout: 60_000 },
     async () => {
       // 1. initialize — opens the session; the server returns an Mcp-Session-Id.

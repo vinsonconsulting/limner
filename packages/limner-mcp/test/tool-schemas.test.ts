@@ -28,8 +28,8 @@ const ALL_TOOLS = [
 ];
 
 describe('tool input_schemas are valid for the Anthropic tool API', () => {
-  test('all 16 tools are present', () => {
-    expect(ALL_TOOLS).toHaveLength(16);
+  test('all 17 tools are present', () => {
+    expect(ALL_TOOLS).toHaveLength(17);
   });
 
   test.each(ALL_TOOLS.map((t) => [t.name, t] as const))(
@@ -117,7 +117,12 @@ describe('tool annotations (A5) — behavioral hints', () => {
 
   test('only the external-API tools are open-world', () => {
     const openWorld = ALL_TOOLS.filter((t) => t.annotations?.openWorldHint).map((t) => t.name).sort();
-    expect(openWorld).toEqual(['limner_generate_dalle', 'limner_generate_recraft', 'limner_upscale']);
+    expect(openWorld).toEqual([
+      'limner_generate_dalle',
+      'limner_generate_recraft',
+      'limner_upscale',
+      'limner_vectorize',
+    ]);
   });
 
   // r5: exactly the appending/external-effect tools are non-idempotent.
@@ -135,6 +140,7 @@ describe('tool annotations (A5) — behavioral hints', () => {
       'limner_record',
       'limner_record_project_note',
       'limner_upscale',
+      'limner_vectorize',
     ]);
   });
 });
