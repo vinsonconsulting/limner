@@ -1,7 +1,7 @@
 import type { GuidanceEntry } from '../types.js';
 
 /**
- * Concept #14 — image/document file-type reference. This single entry feeds
+ * Concept #14: image/document file-type reference. This single entry feeds
  * BOTH the MCP resource (limner://reference/file-types) and the CMA file-types
  * skill, proving one guidance source can drive two surfaces without drift.
  */
@@ -9,7 +9,7 @@ export const fileTypes: GuidanceEntry = {
   id: 'file-types',
   title: 'Image & document file types',
   summary:
-    'Reference matrix for the formats Limner reads and writes — compression, alpha, color model, and typical use.',
+    'Reference matrix for the formats Limner reads and writes: compression, alpha, color model, and typical use.',
   body: [
     {
       kind: 'paragraph',
@@ -24,7 +24,7 @@ export const fileTypes: GuidanceEntry = {
           'Lossless',
           'Yes',
           'RGB / RGBA',
-          'UI assets, screenshots, line art — crisp edges or transparency',
+          'UI assets, screenshots, line art (crisp edges or transparency)',
         ],
         [
           'JPEG',
@@ -38,21 +38,21 @@ export const fileTypes: GuidanceEntry = {
           'Lossy or lossless',
           'Yes',
           'RGB / RGBA',
-          'Web delivery — smaller than PNG/JPEG at similar quality',
+          'Web delivery (smaller than PNG/JPEG at similar quality)',
         ],
         [
           'AVIF',
           'Lossy or lossless',
           'Yes',
           'RGB / RGBA',
-          'Next-gen web delivery — best compression, newer decoder support',
+          'Next-gen web delivery (best compression, newer decoder support)',
         ],
         [
           'SVG',
           'Lossless (vector)',
           'Yes',
           'RGB',
-          'Icons, logos, diagrams — resolution-independent markup',
+          'Icons, logos, diagrams (resolution-independent markup)',
         ],
         [
           'TIFF',
