@@ -12,6 +12,7 @@ const MIME_TO_EXT: Record<string, string> = {
   'image/jpeg': 'jpg',
   'image/webp': 'webp',
   'image/avif': 'avif',
+  'image/svg+xml': 'svg',
 };
 
 function extFor(mime: string): string {
