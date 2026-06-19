@@ -25,4 +25,4 @@ export {
   type RecraftGenerateArgs,
   type RecraftGenerateResult,
 } from './recraft.js';
-export { RestRecraftTransport } from './recraft-rest.js';
+export { RestRecraftTransport, type RecraftTransformArgs } from './recraft-rest.js';

@@ -17,6 +17,7 @@ import { z } from 'zod';
 import {
   bytesToBase64,
   uploadArtifact,
+  assertSecrets,
   DallePipeline,
   MidjourneyPipeline,
   RecraftPipeline,
@@ -25,6 +26,7 @@ import {
   type PipelineGenerateInput,
   type PipelineGenerateOutput,
   type PipelineContext,
+  type RecraftGenerateResult,
 } from '@limner/core';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
@@ -121,6 +123,32 @@ const generateRecraft: Tool<z.infer<typeof recraftInputSchema>> = {
   },
 };
 
+// ---------------- limner_upscale ----------------
+
+const upscaleInputSchema = z.object({
+  image: z.string().url()
+    .describe('Source image URL to upscale. Pass a fetchable URL (e.g. an artifact URL from a prior generate), not inline base64.'),
+});
+
+const upscale: Tool<z.infer<typeof upscaleInputSchema>> = {
+  name: 'limner_upscale',
+  description:
+    'Upscale a raster image (crisp: sharpen + enlarge toward print scale) via Recraft\'s REST API. Returns a larger PNG. Paid API — each call bills your Recraft account.',
+  inputSchema: upscaleInputSchema,
+  // Calls a paid external service (Recraft) — open-world, non-idempotent.
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+  handler: async (input, ctx) => {
+    // Assert the secret first so an absent key surfaces as a clean
+    // missing-credential tool error, mirroring the recraft generate path.
+    assertSecrets('recraft', ['RECRAFT_API_KEY'], ctx.secrets);
+    const transport = new RestRecraftTransport(ctx.secrets['RECRAFT_API_KEY'] ?? '');
+    // Request bytes (b64_json) so we re-host to a durable capability URL (PR D)
+    // instead of passing through Recraft's transient hosted URL.
+    const result = await transport.upscaleImage({ image: input.image, responseFormat: 'b64_json' });
+    return deliverTransform(result, ctx, 'recraft-upscale', 'image/png');
+  },
+};
+
 // ---------------- Shared helpers ----------------
 
 function buildPipelineContext(ctx: ToolContext): PipelineContext {
@@ -154,6 +182,26 @@ async function maybeDeliver(
   const url = await uploadArtifact(ctx.delivery, out.data, out.mimeType, pipelineId);
   // Drop the bytes; formatImageOutput then returns the URL form.
   return { ...out, data: undefined, url };
+}
+
+// Adapt a transform result (upscale/vectorize — no PipelineRunner, just a
+// RecraftGenerateResult) onto the shared image-delivery path: re-host bytes to
+// a capability URL when a delivery store is configured, else return inline.
+// `defaultMime` stamps the output when the transport returned a hosted url only.
+async function deliverTransform(
+  result: RecraftGenerateResult,
+  ctx: ToolContext,
+  pipelineId: string,
+  defaultMime: string,
+): Promise<CallToolResult> {
+  const out: PipelineGenerateOutput = {
+    kind: 'image',
+    ...(result.url ? { url: result.url } : {}),
+    ...(result.data ? { data: result.data } : {}),
+    mimeType: result.mimeType ?? defaultMime,
+    metadata: { pipeline: pipelineId },
+  };
+  return formatImageOutput(await maybeDeliver(out, ctx, pipelineId), pipelineId);
 }
 
 async function runPipeline(
@@ -214,4 +262,5 @@ export const pipelineTools: readonly Tool[] = [
   generateDalle,
   generateMidjourney,
   generateRecraft,
+  upscale,
 ] as const;

@@ -158,6 +158,74 @@ describe('RestRecraftTransport — image-to-image (#15)', () => {
   });
 });
 
+describe('RestRecraftTransport — crisp upscale (D-RA-14)', () => {
+  test('fetches the source then POSTs multipart file to /images/crispUpscale', async () => {
+    const fetchMock = vi.fn(async (url: unknown) => {
+      if (String(url).includes('/images/crispUpscale')) {
+        return new Response(JSON.stringify({ image: { url: 'https://img.recraft.ai/up.png' } }), {
+          status: 200,
+        });
+      }
+      return new Response(new Uint8Array([1, 2, 3]), {
+        status: 200,
+        headers: { 'content-type': 'image/png' },
+      });
+    }) as unknown as typeof fetch;
+
+    const t = new RestRecraftTransport('rk-up', fetchMock);
+    const out = await t.upscaleImage({ image: 'https://src.example/small.png' });
+
+    const calls = (fetchMock as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    // The source image is fetched server-side (URL in, never inline base64).
+    expect(calls.some((c) => String(c[0]) === 'https://src.example/small.png')).toBe(true);
+    const call = calls.find((c) => String(c[0]).includes('/images/crispUpscale'))!;
+    const init = call[1] as RequestInit;
+    expect(init.method).toBe('POST');
+    expect(init.body).toBeInstanceOf(FormData);
+    expect((init.body as FormData).get('file')).toBeInstanceOf(Blob);
+    const headers = (init.headers ?? {}) as Record<string, string>;
+    expect(headers.Authorization).toBe('Bearer rk-up');
+    // No Content-Type — fetch derives the multipart boundary from FormData.
+    expect(headers['Content-Type']).toBeUndefined();
+    expect(out.url).toBe('https://img.recraft.ai/up.png');
+  });
+
+  test('forwards response_format and decodes b64_json as PNG', async () => {
+    const onePixelPng =
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABh6FO1AAAAABJRU5ErkJggg==';
+    const fetchMock = vi.fn(async (url: unknown) =>
+      String(url).includes('/crispUpscale')
+        ? new Response(JSON.stringify({ image: { b64_json: onePixelPng } }), { status: 200 })
+        : new Response(new Uint8Array([1]), { status: 200, headers: { 'content-type': 'image/png' } }),
+    ) as unknown as typeof fetch;
+
+    const t = new RestRecraftTransport('rk', fetchMock);
+    const out = await t.upscaleImage({ image: 'https://s/x.png', responseFormat: 'b64_json' });
+    const call = (fetchMock as unknown as ReturnType<typeof vi.fn>).mock.calls.find((c) =>
+      String(c[0]).includes('crispUpscale'),
+    )!;
+    expect(((call[1] as RequestInit).body as FormData).get('response_format')).toBe('b64_json');
+    expect(out.url).toBeUndefined();
+    // PNG magic: 89 50 4E 47 0D 0A 1A 0A
+    expect(out.data!.slice(0, 8)).toEqual(
+      new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    );
+    expect(out.mimeType).toBe('image/png');
+  });
+
+  test('401 maps to unauthorized', async () => {
+    const fetchMock = vi.fn(async (url: unknown) =>
+      String(url).includes('/crispUpscale')
+        ? new Response('nope', { status: 401 })
+        : new Response(new Uint8Array([1]), { status: 200, headers: { 'content-type': 'image/png' } }),
+    ) as unknown as typeof fetch;
+    const t = new RestRecraftTransport('rk', fetchMock);
+    await expect(t.upscaleImage({ image: 'https://s/x.png' })).rejects.toMatchObject({
+      code: 'unauthorized',
+    });
+  });
+});
+
 describe('RestRecraftTransport — Workers receiver binding (regression)', () => {
   // Mirror the DallePipeline #59 guard: the default fetch must keep its
   // receiver, or the Cloudflare Workers runtime throws "Illegal invocation".

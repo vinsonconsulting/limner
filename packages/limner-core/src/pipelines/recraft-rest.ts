@@ -22,7 +22,17 @@ import type {
 const BASE_URL = 'https://external.api.recraft.ai/v1';
 const GENERATIONS_ENDPOINT = `${BASE_URL}/images/generations`;
 const IMAGE_TO_IMAGE_ENDPOINT = `${BASE_URL}/images/imageToImage`;
+const CRISP_UPSCALE_ENDPOINT = `${BASE_URL}/images/crispUpscale`;
 const DEFAULT_STRENGTH = 0.5;
+
+// D-RA-14 (wave-2): the prompt-less image transforms (upscale, vectorize).
+// A source image URL is fetched server-side and posted as multipart `file`,
+// the same shape Recraft's processing endpoints share. `responseFormat`
+// defaults to Recraft's `url`; tools that re-host to R2 request `b64_json`.
+export type RecraftTransformArgs = {
+  image: string;
+  responseFormat?: 'url' | 'b64_json';
+};
 
 export class RestRecraftTransport implements RecraftTransport {
   // The default fetch forwards through an arrow rather than storing the bare
@@ -67,6 +77,41 @@ export class RestRecraftTransport implements RecraftTransport {
     } catch (err) {
       throw networkError(err);
     }
+  }
+
+  // D-RA-14 (wave-2): crisp upscale (sharpen + enlarge toward print scale).
+  // Prompt-less transform; routes through the shared multipart helper.
+  async upscaleImage(args: RecraftTransformArgs): Promise<RecraftGenerateResult> {
+    return this.requestImageTransform(CRISP_UPSCALE_ENDPOINT, args, 'image/png');
+  }
+
+  // Shared path for the prompt-less transforms: fetch the source URL, then
+  // POST it as multipart `file`. Do NOT set Content-Type — fetch derives the
+  // boundary from the FormData body. `b64MimeType` is the mime to stamp on a
+  // b64_json response (png for upscale, image/svg+xml for vectorize).
+  private async requestImageTransform(
+    endpoint: string,
+    args: RecraftTransformArgs,
+    b64MimeType: string,
+  ): Promise<RecraftGenerateResult> {
+    const { bytes, contentType } = await fetchInputImage('recraft', args.image, this.fetchImpl);
+    const form = new FormData();
+    form.append('file', new Blob([bytes], { type: contentType }), imageFilename(contentType));
+    if (args.responseFormat) form.append('response_format', args.responseFormat);
+    let response: Response;
+    try {
+      response = await this.fetchImpl(endpoint, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${this.apiKey}` },
+        body: form,
+      });
+    } catch (err) {
+      throw networkError(err);
+    }
+    if (!response.ok) {
+      throw await httpResponseToError('recraft', response);
+    }
+    return parseRecraftImageResponse(await response.json(), b64MimeType);
   }
 
   // Fetch the source URL, then POST /images/imageToImage (multipart). Do NOT
@@ -125,6 +170,31 @@ function parseRecraftResponse(json: unknown): RecraftGenerateResult {
     'recraft',
     'upstream_error',
     'recraft response missing both url and b64_json',
+  );
+}
+
+// crispUpscale / vectorize return `{ image: { url? , b64_json? } }`, unlike the
+// generations `{ data: [{ ... }] }` shape. Accept either (some processing
+// endpoints echo the data[] form); prefer url so callers skip a base64
+// round-trip. For b64 the mime is caller-supplied (png for upscale,
+// image/svg+xml for vectorize) since Recraft does not echo it.
+function parseRecraftImageResponse(json: unknown, b64MimeType: string): RecraftGenerateResult {
+  const obj = asRecord(json);
+  const image = asRecord(obj['image']);
+  const fromData = Array.isArray(obj['data']) ? asRecord((obj['data'] as unknown[])[0]) : {};
+
+  const url = image['url'] ?? fromData['url'];
+  if (typeof url === 'string') {
+    return { url };
+  }
+  const b64 = image['b64_json'] ?? fromData['b64_json'];
+  if (typeof b64 === 'string') {
+    return { data: base64ToBytes(b64), mimeType: b64MimeType };
+  }
+  throw new PipelineError(
+    'recraft',
+    'upstream_error',
+    'recraft transform response missing both url and b64_json',
   );
 }
 

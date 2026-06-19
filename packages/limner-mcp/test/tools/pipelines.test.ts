@@ -35,9 +35,14 @@ async function connectedPair(
 const localBindings = { kind: 'local' } as unknown as Bindings;
 
 describe('pipelineTools registry surface', () => {
-  test('exposes generate_dalle, generate_midjourney, generate_recraft', () => {
+  test('exposes generate_dalle, generate_midjourney, generate_recraft, upscale', () => {
     const names = pipelineTools.map((t) => t.name);
-    expect(names).toEqual(['limner_generate_dalle', 'limner_generate_midjourney', 'limner_generate_recraft']);
+    expect(names).toEqual([
+      'limner_generate_dalle',
+      'limner_generate_midjourney',
+      'limner_generate_recraft',
+      'limner_upscale',
+    ]);
   });
 });
 
@@ -218,6 +223,66 @@ describe('limner_generate_recraft', () => {
       expect(
         (result as { structuredContent?: Record<string, unknown> }).structuredContent,
       ).toMatchObject({ pipeline: 'recraft', url: 'https://img.recraft.ai/abc.png' });
+    } finally {
+      globalThis.fetch = realFetch;
+      await close();
+    }
+  });
+});
+
+describe('limner_upscale', () => {
+  test('missing RECRAFT_API_KEY surfaces as isError=true', async () => {
+    const ctx: ToolContext = { bindings: localBindings, secrets: {} };
+    const { client, close } = await connectedPair(pipelineTools, ctx);
+    try {
+      const result = await client.callTool({
+        name: 'limner_upscale',
+        arguments: { image: 'https://src.example/x.png' },
+      });
+      expect(result.isError).toBe(true);
+      // assertSecrets runs before any REST call.
+      expect(JSON.stringify(result.content)).toMatch(/RECRAFT_API_KEY/);
+    } finally {
+      await close();
+    }
+  });
+
+  // The handler fetches the source URL, then POSTs it to /images/crispUpscale.
+  // With a delivery store wired, the upscaled bytes re-host to a capability URL.
+  test('re-hosts the upscaled bytes to a capability URL when delivery is set', async () => {
+    const onePixelPng =
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABh6FO1AAAAABJRU5ErkJggg==';
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn(async (url: unknown) =>
+      String(url).includes('/images/crispUpscale')
+        ? new Response(JSON.stringify({ image: { b64_json: onePixelPng } }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          })
+        : new Response(Uint8Array.from(atob(onePixelPng), (c) => c.charCodeAt(0)), {
+            status: 200,
+            headers: { 'content-type': 'image/png' },
+          }),
+    ) as unknown as typeof fetch;
+    const put = vi.fn().mockResolvedValue({ key: 'x' });
+    const ctx: ToolContext = {
+      bindings: localBindings,
+      secrets: { RECRAFT_API_KEY: 'rk-test' },
+      delivery: { bucket: { put } as unknown as R2Bucket, baseUrl: 'https://assets.example' },
+    };
+    const { client, close } = await connectedPair(pipelineTools, ctx);
+    try {
+      const result = await client.callTool({
+        name: 'limner_upscale',
+        arguments: { image: 'https://src.example/small.png' },
+      });
+      expect(result.isError).toBeFalsy();
+      expect(put).toHaveBeenCalledOnce();
+      const key = put.mock.calls[0]![0] as string;
+      expect(key).toMatch(/^generated\/recraft-upscale\/[0-9a-f-]+\.png$/);
+      const content = result.content as Array<{ type: string; text?: string }>;
+      expect(content[0]!.type).toBe('text');
+      expect(content[0]!.text).toBe(`https://assets.example/artifact/${key}`);
     } finally {
       globalThis.fetch = realFetch;
       await close();

@@ -159,9 +159,33 @@ export const generateRecraftTool: CustomTool = defineTool({
   },
 });
 
+// ---------------- limner_upscale ----------------
+
+export const upscaleTool: CustomTool = defineTool({
+  name: 'limner_upscale',
+  description:
+    'Upscale a raster image (crisp: sharpen + enlarge toward print scale) via Recraft\'s REST API. Uploads the result to R2 and returns its URL.',
+  inputSchema: schemaFor('limner_upscale'),
+  requires: (env) => Boolean(env['BUCKET']) && Boolean(env['RECRAFT_API_KEY']),
+  run: async (input, { env }) => {
+    const transport = new RestRecraftTransport(String(env['RECRAFT_API_KEY'] ?? ''));
+    // Request bytes so the result re-hosts to R2 (durable URL) rather than
+    // passing through Recraft's transient hosted URL.
+    const result = await transport.upscaleImage({
+      image: String((input as { image: string }).image),
+      responseFormat: 'b64_json',
+    });
+    if (result.data) {
+      return emitImage(env, result.data, result.mimeType ?? 'image/png', 'upscale', {});
+    }
+    return imageReturnEnvelope(result.url ?? '', result.mimeType ?? 'image/png', {});
+  },
+});
+
 // Exported registry — index.ts spreads this into LIMNER_TOOLS.
 export const pipelineTools: readonly CustomTool[] = [
   generateDalleTool,
   generateMidjourneyTool,
   generateRecraftTool,
+  upscaleTool,
 ] as const;
