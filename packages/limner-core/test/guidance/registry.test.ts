@@ -53,6 +53,7 @@ describe('wave-1 guidance entries (D-RA-24)', () => {
     ['midjourney-recipe', '--stylize'],
     ['dalle-recipe', 'gpt-image-1'],
     ['recraft-recipe', 'vector_illustration'],
+    ['illuminated-manuscript', 'Historiated initial'],
   ];
 
   test('registers and looks up every wave-1 entry by id', () => {
