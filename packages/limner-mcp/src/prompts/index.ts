@@ -166,11 +166,44 @@ const recraftBuilder: Prompt = {
   },
 };
 
+// illuminated-manuscript — concept #18, the flagship. A thin launcher: it
+// serializes the illuminated-manuscript reference verbatim and frames the
+// full research-to-delivery loop around the supplied subject. The procedure
+// lives in the illuminated-manuscript skill the agent then loads.
+const illuminatedManuscriptPrompt: Prompt = {
+  name: 'illuminated-manuscript',
+  description: getGuidance('illuminated-manuscript')!.summary,
+  arguments: [
+    { name: 'subject', description: 'The scene or text the page should illuminate.', required: true },
+    {
+      name: 'tradition',
+      description: 'Optional tradition to research (e.g. "13th-century Gothic", "Insular").',
+      required: false,
+    },
+  ],
+  build: (args) => {
+    const subject = args['subject'];
+    if (!subject) {
+      throw new Error('illuminated-manuscript requires a "subject" argument');
+    }
+    const base = serializeGuidance(getGuidance('illuminated-manuscript')!);
+    const lines = [
+      `Using the reference above, produce an illuminated manuscript page for: ${subject}`,
+      'Run the full loop: research the tradition, generate the elements, compose them, and deliver one page.',
+    ];
+    if (args['tradition']) {
+      lines.push(`Tradition to research: ${args['tradition']}`);
+    }
+    return [{ role: 'user', content: { type: 'text', text: `${base}\n${lines.join('\n')}\n` } }];
+  },
+};
+
 export const prompts: readonly Prompt[] = [
   capabilityTour,
   midjourneyBuilder,
   dalleBuilder,
   recraftBuilder,
+  illuminatedManuscriptPrompt,
 ];
 
 /**

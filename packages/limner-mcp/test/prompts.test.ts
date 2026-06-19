@@ -32,7 +32,7 @@ describe('mcp server: prompts', () => {
     const { client, close } = await connected();
     try {
       const result = await client.listPrompts();
-      expect(result.prompts).toHaveLength(4);
+      expect(result.prompts).toHaveLength(5);
       const p = result.prompts.find((x) => x.name === 'capability-tour');
       expect(p?.arguments).toEqual([
         { name: 'focus', description: expect.any(String), required: false },
@@ -73,6 +73,19 @@ describe('mcp server: prompts', () => {
     try {
       const result = await client.listPrompts();
       const p = result.prompts.find((x) => x.name === 'recraft-builder');
+      expect(p).toBeDefined();
+      const subject = p!.arguments?.find((a) => a.name === 'subject');
+      expect(subject?.required).toBe(true);
+    } finally {
+      await close();
+    }
+  });
+
+  test('prompts/list advertises illuminated-manuscript with subject required', async () => {
+    const { client, close } = await connected();
+    try {
+      const result = await client.listPrompts();
+      const p = result.prompts.find((x) => x.name === 'illuminated-manuscript');
       expect(p).toBeDefined();
       const subject = p!.arguments?.find((a) => a.name === 'subject');
       expect(subject?.required).toBe(true);
@@ -225,6 +238,45 @@ describe('mcp server: prompts', () => {
     const { client, close } = await connected();
     try {
       await expect(client.getPrompt({ name: 'recraft-builder' })).rejects.toThrow();
+    } finally {
+      await close();
+    }
+  });
+
+  test('prompts/get returns the illuminated-manuscript loop framing with the subject', async () => {
+    const { client, close } = await connected();
+    try {
+      const result = await client.getPrompt({
+        name: 'illuminated-manuscript',
+        arguments: { subject: 'the opening of Genesis' },
+      });
+      const text = (result.messages[0]!.content as { text: string }).text;
+      expect(text).toContain(serializeGuidance(getGuidance('illuminated-manuscript')!));
+      expect(text).toContain('produce an illuminated manuscript page for: the opening of Genesis');
+      expect(text).toContain('research the tradition');
+    } finally {
+      await close();
+    }
+  });
+
+  test('prompts/get threads the tradition into the illuminated-manuscript message', async () => {
+    const { client, close } = await connected();
+    try {
+      const result = await client.getPrompt({
+        name: 'illuminated-manuscript',
+        arguments: { subject: 'a calendar page', tradition: 'Insular' },
+      });
+      const text = (result.messages[0]!.content as { text: string }).text;
+      expect(text).toContain('Tradition to research: Insular');
+    } finally {
+      await close();
+    }
+  });
+
+  test('prompts/get rejects illuminated-manuscript without the required subject', async () => {
+    const { client, close } = await connected();
+    try {
+      await expect(client.getPrompt({ name: 'illuminated-manuscript' })).rejects.toThrow();
     } finally {
       await close();
     }
