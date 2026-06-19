@@ -30,6 +30,30 @@ export const FILE_TYPES_SKILL_TITLE = 'Limner file types';
 /** Top-level directory the uploaded skill files share (SKILL.md sits at its root). */
 export const FILE_TYPES_SKILL_ROOT = 'file-types';
 
+/** One skill the Limner agent carries: its directory (= upload root) and display title. */
+export interface SkillManifestEntry {
+  /** Directory under packages/limner-agent/skills/; also the upload root path. */
+  skillDir: string;
+  /** Human-readable display title for the uploaded skill (1-64 chars, A4-safe). */
+  displayTitle: string;
+}
+
+/**
+ * The wave-1 skills attached to the Limner agent, in attach order. file-types
+ * reuses the original constants so the proven single-skill path is unchanged;
+ * the rest were authored in wave-1. Adding a skill here (plus its SKILL.md and a
+ * SKILL_SOURCES row for the generated region) is all create-agent needs to ship it.
+ * Display titles stay A4-safe: descriptive, no Anthropic/Claude product implication.
+ */
+export const SKILL_MANIFEST: readonly SkillManifestEntry[] = [
+  { skillDir: FILE_TYPES_SKILL_ROOT, displayTitle: FILE_TYPES_SKILL_TITLE },
+  { skillDir: 'external-tools', displayTitle: 'Limner external tools' },
+  { skillDir: 'midjourney', displayTitle: 'Limner Midjourney recipe' },
+  { skillDir: 'dalle', displayTitle: 'Limner DALL·E recipe' },
+  { skillDir: 'recraft', displayTitle: 'Limner Recraft recipe' },
+  { skillDir: 'illuminated-manuscript', displayTitle: 'Limner illuminated manuscript' },
+];
+
 const RESERVED_WORDS = ['anthropic', 'claude'] as const;
 
 /** One file in a skill upload (maps to a multipart files[] entry). */
@@ -130,6 +154,47 @@ export function buildSkillUpload(
     rootPath: opts.rootPath,
     files: [{ path: `${opts.rootPath}/SKILL.md`, content: skillMd, contentType: 'text/markdown' }],
   };
+}
+
+/** One skill to upload: its manifest entry plus its read SKILL.md and optional prior id. */
+export interface SkillUploadInput {
+  skillDir: string;
+  displayTitle: string;
+  skillMd: string;
+  /** Existing skill id to version; absent → create a fresh skill. */
+  existingSkillId?: string;
+}
+
+/** A per-skill upload plan tagged with its directory and the API endpoint it targets. */
+export interface SkillUploadPlanEntry extends SkillUploadPlan {
+  skillDir: string;
+  existingSkillId?: string;
+  /** POST /v1/skills (create) or POST /v1/skills/{id}/versions (version). */
+  endpoint: string;
+}
+
+/**
+ * Build the upload plan for each skill, choosing the create-vs-version endpoint
+ * from whether a prior skill id is supplied. Validates every skill's frontmatter
+ * (throws on the first violation) so a bad SKILL.md fails before any network call.
+ */
+export function buildSkillUploadPlans(
+  inputs: readonly SkillUploadInput[],
+): SkillUploadPlanEntry[] {
+  return inputs.map((input) => {
+    const plan = buildSkillUpload(input.skillMd, {
+      displayTitle: input.displayTitle,
+      rootPath: input.skillDir,
+    });
+    return {
+      ...plan,
+      skillDir: input.skillDir,
+      existingSkillId: input.existingSkillId,
+      endpoint: input.existingSkillId
+        ? `POST /v1/skills/${input.existingSkillId}/versions`
+        : 'POST /v1/skills',
+    };
+  });
 }
 
 /**

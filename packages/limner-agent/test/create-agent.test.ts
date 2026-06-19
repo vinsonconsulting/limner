@@ -12,9 +12,11 @@ import {
   FILE_TYPES_SKILL_TITLE,
   LIMNER_AGENT_MODEL,
   LIMNER_AGENT_NAME,
+  SKILL_MANIFEST,
   assertA4,
   buildAgentPlan,
   buildSkillUpload,
+  buildSkillUploadPlans,
   validateSkillFrontmatter,
   type SkillAttachment,
 } from '../src/agent-def.js';
@@ -109,5 +111,71 @@ describe('create-agent: agent plan', () => {
 
   test('throws when the system prompt lacks the A4 framing', () => {
     expect(() => buildAgentPlan({ system: 'no framing', skills: [attachment] })).toThrow(/A4 framing/);
+  });
+});
+
+describe('create-agent: multi-skill manifest', () => {
+  test('lists the six wave-1 skills in attach order with valid titles', () => {
+    expect(SKILL_MANIFEST.map((s) => s.skillDir)).toEqual([
+      'file-types',
+      'external-tools',
+      'midjourney',
+      'dalle',
+      'recraft',
+      'illuminated-manuscript',
+    ]);
+    for (const { displayTitle } of SKILL_MANIFEST) {
+      expect(displayTitle.length).toBeGreaterThan(0);
+      expect(displayTitle.length).toBeLessThanOrEqual(64);
+      // A4: no Anthropic/Claude product implication in the public display title.
+      expect(displayTitle.toLowerCase()).not.toContain('anthropic');
+      expect(displayTitle.toLowerCase()).not.toContain('claude');
+    }
+  });
+
+  test('file-types entry reuses the existing title/root constants (back-compat)', () => {
+    const ft = SKILL_MANIFEST[0];
+    expect(ft.skillDir).toBe(FILE_TYPES_SKILL_ROOT);
+    expect(ft.displayTitle).toBe(FILE_TYPES_SKILL_TITLE);
+  });
+});
+
+describe('create-agent: multi-skill upload plans', () => {
+  const validMd = (name: string): string =>
+    `---\nname: ${name}\ndescription: ok description\nlicense: Apache-2.0\n---\n\n# body\n`;
+
+  test('builds one plan per skill with SKILL.md at each skill root', () => {
+    const plans = buildSkillUploadPlans([
+      { skillDir: 'file-types', displayTitle: 'Limner file types', skillMd: validMd('file-types') },
+      { skillDir: 'dalle', displayTitle: 'Limner DALL·E recipe', skillMd: validMd('dalle') },
+    ]);
+    expect(plans).toHaveLength(2);
+    expect(plans[0].files[0].path).toBe('file-types/SKILL.md');
+    expect(plans[1].files[0].path).toBe('dalle/SKILL.md');
+    expect(plans[1].displayTitle).toBe('Limner DALL·E recipe');
+  });
+
+  test('chooses the create vs version endpoint per existingSkillId', () => {
+    const plans = buildSkillUploadPlans([
+      {
+        skillDir: 'file-types',
+        displayTitle: 'Limner file types',
+        skillMd: validMd('file-types'),
+        existingSkillId: 'skill_abc',
+      },
+      { skillDir: 'dalle', displayTitle: 'Limner DALL·E recipe', skillMd: validMd('dalle') },
+    ]);
+    expect(plans[0].endpoint).toBe('POST /v1/skills/skill_abc/versions');
+    expect(plans[0].existingSkillId).toBe('skill_abc');
+    expect(plans[1].endpoint).toBe('POST /v1/skills');
+    expect(plans[1].existingSkillId).toBeUndefined();
+  });
+
+  test('validates each skill frontmatter (rejects a bad name)', () => {
+    expect(() =>
+      buildSkillUploadPlans([
+        { skillDir: 'x', displayTitle: 'Limner x', skillMd: validMd('Bad_Name') },
+      ]),
+    ).toThrow(/1-64 chars/);
   });
 });
