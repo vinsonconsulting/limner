@@ -32,7 +32,7 @@ describe('mcp server: prompts', () => {
     const { client, close } = await connected();
     try {
       const result = await client.listPrompts();
-      expect(result.prompts).toHaveLength(3);
+      expect(result.prompts).toHaveLength(4);
       const p = result.prompts.find((x) => x.name === 'capability-tour');
       expect(p?.arguments).toEqual([
         { name: 'focus', description: expect.any(String), required: false },
@@ -60,6 +60,19 @@ describe('mcp server: prompts', () => {
     try {
       const result = await client.listPrompts();
       const p = result.prompts.find((x) => x.name === 'dalle-builder');
+      expect(p).toBeDefined();
+      const subject = p!.arguments?.find((a) => a.name === 'subject');
+      expect(subject?.required).toBe(true);
+    } finally {
+      await close();
+    }
+  });
+
+  test('prompts/list advertises recraft-builder with subject required', async () => {
+    const { client, close } = await connected();
+    try {
+      const result = await client.listPrompts();
+      const p = result.prompts.find((x) => x.name === 'recraft-builder');
       expect(p).toBeDefined();
       const subject = p!.arguments?.find((a) => a.name === 'subject');
       expect(subject?.required).toBe(true);
@@ -174,6 +187,44 @@ describe('mcp server: prompts', () => {
     const { client, close } = await connected();
     try {
       await expect(client.getPrompt({ name: 'dalle-builder' })).rejects.toThrow();
+    } finally {
+      await close();
+    }
+  });
+
+  test('prompts/get returns the recraft-recipe-derived message with the subject', async () => {
+    const { client, close } = await connected();
+    try {
+      const result = await client.getPrompt({
+        name: 'recraft-builder',
+        arguments: { subject: 'a fox-head logo' },
+      });
+      const text = (result.messages[0]!.content as { text: string }).text;
+      expect(text).toContain(serializeGuidance(getGuidance('recraft-recipe')!));
+      expect(text).toContain('write a Recraft prompt for: a fox-head logo');
+    } finally {
+      await close();
+    }
+  });
+
+  test('prompts/get threads optional knobs into the recraft-builder message', async () => {
+    const { client, close } = await connected();
+    try {
+      const result = await client.getPrompt({
+        name: 'recraft-builder',
+        arguments: { subject: 'an icon set', style: 'vector_illustration' },
+      });
+      const text = (result.messages[0]!.content as { text: string }).text;
+      expect(text).toContain('Style: vector_illustration');
+    } finally {
+      await close();
+    }
+  });
+
+  test('prompts/get rejects recraft-builder without the required subject', async () => {
+    const { client, close } = await connected();
+    try {
+      await expect(client.getPrompt({ name: 'recraft-builder' })).rejects.toThrow();
     } finally {
       await close();
     }
