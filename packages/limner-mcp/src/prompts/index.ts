@@ -57,7 +57,46 @@ const capabilityTour: Prompt = {
   },
 };
 
-export const prompts: readonly Prompt[] = [capabilityTour];
+// midjourney-builder — concept #2. Serializes the midjourney-recipe guidance
+// verbatim, then frames a build request from the supplied subject and knobs.
+// The guidance slice stays byte-identical to the serializer; only the request
+// lines below it vary with the arguments.
+const midjourneyBuilder: Prompt = {
+  name: 'midjourney-builder',
+  description: getGuidance('midjourney-recipe')!.summary,
+  arguments: [
+    { name: 'subject', description: 'The concrete subject to depict.', required: true },
+    {
+      name: 'style',
+      description: 'Optional style and medium direction (e.g. "cinematic, 35mm, volumetric light").',
+      required: false,
+    },
+    { name: 'aspect', description: 'Optional aspect ratio (e.g. "16:9").', required: false },
+    {
+      name: 'version',
+      description: 'Optional Midjourney version (e.g. "v7", "niji-6").',
+      required: false,
+    },
+  ],
+  build: (args) => {
+    const subject = args['subject'];
+    if (!subject) {
+      throw new Error('midjourney-builder requires a "subject" argument');
+    }
+    const base = serializeGuidance(getGuidance('midjourney-recipe')!);
+    const knobs = [
+      args['style'] && `Style direction: ${args['style']}`,
+      args['aspect'] && `Aspect ratio: ${args['aspect']}`,
+      args['version'] && `Version: ${args['version']}`,
+    ].filter(Boolean);
+    const request = [`Using the recipe above, build a Midjourney prompt for: ${subject}`, ...knobs].join(
+      '\n',
+    );
+    return [{ role: 'user', content: { type: 'text', text: `${base}\n${request}\n` } }];
+  },
+};
+
+export const prompts: readonly Prompt[] = [capabilityTour, midjourneyBuilder];
 
 /**
  * Wire prompt definitions into a Server. Installs two handlers:
