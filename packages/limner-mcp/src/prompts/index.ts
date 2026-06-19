@@ -57,7 +57,154 @@ const capabilityTour: Prompt = {
   },
 };
 
-export const prompts: readonly Prompt[] = [capabilityTour];
+// midjourney-builder — concept #2. Serializes the midjourney-recipe guidance
+// verbatim, then frames a build request from the supplied subject and knobs.
+// The guidance slice stays byte-identical to the serializer; only the request
+// lines below it vary with the arguments.
+const midjourneyBuilder: Prompt = {
+  name: 'midjourney-builder',
+  description: getGuidance('midjourney-recipe')!.summary,
+  arguments: [
+    { name: 'subject', description: 'The concrete subject to depict.', required: true },
+    {
+      name: 'style',
+      description: 'Optional style and medium direction (e.g. "cinematic, 35mm, volumetric light").',
+      required: false,
+    },
+    { name: 'aspect', description: 'Optional aspect ratio (e.g. "16:9").', required: false },
+    {
+      name: 'version',
+      description: 'Optional Midjourney version (e.g. "v7", "niji-6").',
+      required: false,
+    },
+  ],
+  build: (args) => {
+    const subject = args['subject'];
+    if (!subject) {
+      throw new Error('midjourney-builder requires a "subject" argument');
+    }
+    const base = serializeGuidance(getGuidance('midjourney-recipe')!);
+    const knobs = [
+      args['style'] && `Style direction: ${args['style']}`,
+      args['aspect'] && `Aspect ratio: ${args['aspect']}`,
+      args['version'] && `Version: ${args['version']}`,
+    ].filter(Boolean);
+    const request = [`Using the recipe above, build a Midjourney prompt for: ${subject}`, ...knobs].join(
+      '\n',
+    );
+    return [{ role: 'user', content: { type: 'text', text: `${base}\n${request}\n` } }];
+  },
+};
+
+// dalle-builder — concept #3. Serializes the dalle-recipe guidance verbatim,
+// then frames a build request from the supplied subject and knobs.
+const dalleBuilder: Prompt = {
+  name: 'dalle-builder',
+  description: getGuidance('dalle-recipe')!.summary,
+  arguments: [
+    { name: 'subject', description: 'The concrete subject to depict.', required: true },
+    { name: 'size', description: 'Optional size (e.g. "1024x1024", "1024x1536").', required: false },
+    { name: 'quality', description: 'Optional quality (low, medium, high, auto).', required: false },
+    {
+      name: 'background',
+      description: 'Optional background (auto, transparent, opaque).',
+      required: false,
+    },
+  ],
+  build: (args) => {
+    const subject = args['subject'];
+    if (!subject) {
+      throw new Error('dalle-builder requires a "subject" argument');
+    }
+    const base = serializeGuidance(getGuidance('dalle-recipe')!);
+    const knobs = [
+      args['size'] && `Size: ${args['size']}`,
+      args['quality'] && `Quality: ${args['quality']}`,
+      args['background'] && `Background: ${args['background']}`,
+    ].filter(Boolean);
+    const request = [`Using the recipe above, write a DALL·E prompt for: ${subject}`, ...knobs].join(
+      '\n',
+    );
+    return [{ role: 'user', content: { type: 'text', text: `${base}\n${request}\n` } }];
+  },
+};
+
+// recraft-builder — concept #4. Serializes the recraft-recipe guidance
+// verbatim, then frames a build request from the supplied subject and knobs.
+const recraftBuilder: Prompt = {
+  name: 'recraft-builder',
+  description: getGuidance('recraft-recipe')!.summary,
+  arguments: [
+    { name: 'subject', description: 'The concrete subject to depict.', required: true },
+    {
+      name: 'style',
+      description: 'Optional style family (digital_illustration, vector_illustration, realistic_image).',
+      required: false,
+    },
+    {
+      name: 'substyle',
+      description: 'Optional substyle within the chosen style (omit when unsure).',
+      required: false,
+    },
+    { name: 'size', description: 'Optional size (e.g. "1024x1024", "1365x1024").', required: false },
+  ],
+  build: (args) => {
+    const subject = args['subject'];
+    if (!subject) {
+      throw new Error('recraft-builder requires a "subject" argument');
+    }
+    const base = serializeGuidance(getGuidance('recraft-recipe')!);
+    const knobs = [
+      args['style'] && `Style: ${args['style']}`,
+      args['substyle'] && `Substyle: ${args['substyle']}`,
+      args['size'] && `Size: ${args['size']}`,
+    ].filter(Boolean);
+    const request = [`Using the recipe above, write a Recraft prompt for: ${subject}`, ...knobs].join(
+      '\n',
+    );
+    return [{ role: 'user', content: { type: 'text', text: `${base}\n${request}\n` } }];
+  },
+};
+
+// illuminated-manuscript — concept #18, the flagship. A thin launcher: it
+// serializes the illuminated-manuscript reference verbatim and frames the
+// full research-to-delivery loop around the supplied subject. The procedure
+// lives in the illuminated-manuscript skill the agent then loads.
+const illuminatedManuscriptPrompt: Prompt = {
+  name: 'illuminated-manuscript',
+  description: getGuidance('illuminated-manuscript')!.summary,
+  arguments: [
+    { name: 'subject', description: 'The scene or text the page should illuminate.', required: true },
+    {
+      name: 'tradition',
+      description: 'Optional tradition to research (e.g. "13th-century Gothic", "Insular").',
+      required: false,
+    },
+  ],
+  build: (args) => {
+    const subject = args['subject'];
+    if (!subject) {
+      throw new Error('illuminated-manuscript requires a "subject" argument');
+    }
+    const base = serializeGuidance(getGuidance('illuminated-manuscript')!);
+    const lines = [
+      `Using the reference above, produce an illuminated manuscript page for: ${subject}`,
+      'Run the full loop: research the tradition, generate the elements, compose them, and deliver one page.',
+    ];
+    if (args['tradition']) {
+      lines.push(`Tradition to research: ${args['tradition']}`);
+    }
+    return [{ role: 'user', content: { type: 'text', text: `${base}\n${lines.join('\n')}\n` } }];
+  },
+};
+
+export const prompts: readonly Prompt[] = [
+  capabilityTour,
+  midjourneyBuilder,
+  dalleBuilder,
+  recraftBuilder,
+  illuminatedManuscriptPrompt,
+];
 
 /**
  * Wire prompt definitions into a Server. Installs two handlers:

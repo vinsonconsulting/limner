@@ -39,7 +39,18 @@ const fileTypesResource: Resource = {
   read: () => serializeGuidance(getGuidance('file-types')!),
 };
 
-export const resources: readonly Resource[] = [fileTypesResource];
+// limner://reference/external-tools (concept #16): serialized from the
+// external-tools guidance entry, the same source the CMA external-tools skill
+// renders, so resource and skill cannot drift.
+const externalToolsResource: Resource = {
+  uri: 'limner://reference/external-tools',
+  name: 'external-tools',
+  description: getGuidance('external-tools')!.summary,
+  mimeType: 'text/markdown',
+  read: () => serializeGuidance(getGuidance('external-tools')!),
+};
+
+export const resources: readonly Resource[] = [fileTypesResource, externalToolsResource];
 
 /**
  * Wire resource definitions into a Server. Installs two handlers:

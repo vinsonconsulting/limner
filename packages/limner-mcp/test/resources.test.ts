@@ -29,15 +29,17 @@ async function connected(): Promise<{ client: Client; close: () => Promise<void>
 }
 
 describe('mcp server: resources', () => {
-  test('resources/list advertises the file-types reference', async () => {
+  test('resources/list advertises the file-types and external-tools references', async () => {
     const { client, close } = await connected();
     try {
       const result = await client.listResources();
-      expect(result.resources).toHaveLength(1);
-      const r = result.resources[0]!;
-      expect(r.uri).toBe('limner://reference/file-types');
-      expect(r.name).toBe('file-types');
-      expect(r.mimeType).toBe('text/markdown');
+      expect(result.resources).toHaveLength(2);
+      const fileTypes = result.resources.find((r) => r.name === 'file-types');
+      expect(fileTypes?.uri).toBe('limner://reference/file-types');
+      expect(fileTypes?.mimeType).toBe('text/markdown');
+      const externalTools = result.resources.find((r) => r.name === 'external-tools');
+      expect(externalTools?.uri).toBe('limner://reference/external-tools');
+      expect(externalTools?.mimeType).toBe('text/markdown');
     } finally {
       await close();
     }
@@ -51,9 +53,21 @@ describe('mcp server: resources', () => {
       const c = result.contents[0]!;
       expect(c.uri).toBe('limner://reference/file-types');
       expect(c.mimeType).toBe('text/markdown');
-      // Byte-identical to the @limner/core serializer over the same entry —
-      // proves the read dispatches through guidance, not a hardcoded copy.
+      // Byte-identical to the @limner/core serializer over the same entry,
+      // proving the read dispatches through guidance, not a hardcoded copy.
       expect(c.text).toBe(serializeGuidance(getGuidance('file-types')!));
+    } finally {
+      await close();
+    }
+  });
+
+  test('resources/read serves the external-tools reference from guidance', async () => {
+    const { client, close } = await connected();
+    try {
+      const result = await client.readResource({ uri: 'limner://reference/external-tools' });
+      const c = result.contents[0]!;
+      expect(c.uri).toBe('limner://reference/external-tools');
+      expect(c.text).toBe(serializeGuidance(getGuidance('external-tools')!));
     } finally {
       await close();
     }

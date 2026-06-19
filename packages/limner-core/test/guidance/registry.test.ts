@@ -53,6 +53,7 @@ describe('wave-1 guidance entries (D-RA-24)', () => {
     ['midjourney-recipe', '--stylize'],
     ['dalle-recipe', 'gpt-image-1'],
     ['recraft-recipe', 'vector_illustration'],
+    ['illuminated-manuscript', 'Historiated initial'],
   ];
 
   test('registers and looks up every wave-1 entry by id', () => {
@@ -86,5 +87,10 @@ describe('wave-1 guidance entries (D-RA-24)', () => {
     expect(md).toContain('Going deeper');
     expect(md).toContain('Recraft');
     expect(md).toContain('GIMP');
+  });
+
+  test('capabilities-overview reflects native image-input (PR #64)', () => {
+    const md = serializeGuidance(getGuidance('capabilities-overview')!);
+    expect(md).toContain('image as input');
   });
 });

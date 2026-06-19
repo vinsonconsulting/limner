@@ -5,9 +5,11 @@
 // builders in agent-def.ts are likewise internal (the create-agent test imports
 // them directly from src/).
 export {
-  SKILL_MARKER_BEGIN,
   SKILL_MARKER_END,
+  markerBegin,
   generatedBlock,
   spliceGenerated,
   extractGenerated,
+  SKILL_SOURCES,
 } from './skill-gen.js';
+export type { SkillSource } from './skill-gen.js';
