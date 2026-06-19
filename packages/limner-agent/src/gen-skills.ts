@@ -1,6 +1,6 @@
 // Skill generator (D-RA-24). The ONLY file in this package that touches
-// node:fs. Reads skills/file-types/SKILL.md, splices in the guidance-derived
-// block, and writes it back.
+// node:fs. For each entry in SKILL_SOURCES, reads skills/<skillDir>/SKILL.md,
+// splices in the guidance-derived block, and writes it back if changed.
 //
 // Run via `pnpm --filter @limner/limner-agent gen:skills`, which executes the
 // BUILT dist/gen-skills.js — the source uses `.js` import specifiers (repo
@@ -15,18 +15,20 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import process from 'node:process';
 
-import { generatedBlock, spliceGenerated } from './skill-gen.js';
+import { generatedBlock, spliceGenerated, SKILL_SOURCES } from './skill-gen.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 // From dist/gen-skills.js up one level to the package root, then into skills/.
-const SKILL_PATH = resolve(here, '../skills/file-types/SKILL.md');
+const skillsDir = resolve(here, '../skills');
 
-const existing = readFileSync(SKILL_PATH, 'utf8');
-const next = spliceGenerated(existing, generatedBlock());
-
-if (next !== existing) {
-  writeFileSync(SKILL_PATH, next);
-  process.stdout.write(`gen:skills: updated ${SKILL_PATH}\n`);
-} else {
-  process.stdout.write(`gen:skills: ${SKILL_PATH} already up to date\n`);
+for (const { skillDir, guidanceId } of SKILL_SOURCES) {
+  const skillPath = resolve(skillsDir, skillDir, 'SKILL.md');
+  const existing = readFileSync(skillPath, 'utf8');
+  const next = spliceGenerated(existing, generatedBlock(guidanceId), guidanceId);
+  if (next !== existing) {
+    writeFileSync(skillPath, next);
+    process.stdout.write(`gen:skills: updated ${skillPath}\n`);
+  } else {
+    process.stdout.write(`gen:skills: ${skillPath} already up to date\n`);
+  }
 }
