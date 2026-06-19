@@ -1,7 +1,7 @@
 import type { GuidanceEntry } from '../types.js';
 
 /**
- * Concept #16 — external editor reference. Limner generates and composes, but
+ * Concept #16: external editor reference. Limner generates and composes, but
  * hands off to a desktop editor when a task wants manual retouching, vector
  * authoring, or print prep. This entry is the shared source for the editor
  * handoff guidance consumed by the export/handoff concepts (#12/#13).
@@ -10,7 +10,7 @@ export const externalTools: GuidanceEntry = {
   id: 'external-tools',
   title: 'External editors & handoff targets',
   summary:
-    'Reference for the desktop editors Limner hands off to — GIMP, the Affinity suite, Inkscape, and Krita — and the task each is suited to.',
+    'Reference for the desktop editors Limner hands off to (GIMP, the Affinity suite, Inkscape, and Krita) and the task each is suited to.',
   body: [
     {
       kind: 'paragraph',
