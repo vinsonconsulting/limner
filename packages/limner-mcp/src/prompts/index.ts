@@ -96,7 +96,40 @@ const midjourneyBuilder: Prompt = {
   },
 };
 
-export const prompts: readonly Prompt[] = [capabilityTour, midjourneyBuilder];
+// dalle-builder — concept #3. Serializes the dalle-recipe guidance verbatim,
+// then frames a build request from the supplied subject and knobs.
+const dalleBuilder: Prompt = {
+  name: 'dalle-builder',
+  description: getGuidance('dalle-recipe')!.summary,
+  arguments: [
+    { name: 'subject', description: 'The concrete subject to depict.', required: true },
+    { name: 'size', description: 'Optional size (e.g. "1024x1024", "1024x1536").', required: false },
+    { name: 'quality', description: 'Optional quality (low, medium, high, auto).', required: false },
+    {
+      name: 'background',
+      description: 'Optional background (auto, transparent, opaque).',
+      required: false,
+    },
+  ],
+  build: (args) => {
+    const subject = args['subject'];
+    if (!subject) {
+      throw new Error('dalle-builder requires a "subject" argument');
+    }
+    const base = serializeGuidance(getGuidance('dalle-recipe')!);
+    const knobs = [
+      args['size'] && `Size: ${args['size']}`,
+      args['quality'] && `Quality: ${args['quality']}`,
+      args['background'] && `Background: ${args['background']}`,
+    ].filter(Boolean);
+    const request = [`Using the recipe above, write a DALL·E prompt for: ${subject}`, ...knobs].join(
+      '\n',
+    );
+    return [{ role: 'user', content: { type: 'text', text: `${base}\n${request}\n` } }];
+  },
+};
+
+export const prompts: readonly Prompt[] = [capabilityTour, midjourneyBuilder, dalleBuilder];
 
 /**
  * Wire prompt definitions into a Server. Installs two handlers:
