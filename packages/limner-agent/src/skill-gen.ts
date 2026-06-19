@@ -24,6 +24,7 @@ export type SkillSource = {
  */
 export const SKILL_SOURCES: readonly SkillSource[] = [
   { skillDir: 'file-types', guidanceId: 'file-types' },
+  { skillDir: 'external-tools', guidanceId: 'external-tools' },
 ];
 
 export const SKILL_MARKER_END = '<!-- END GENERATED -->';
