@@ -226,6 +226,46 @@ describe('RestRecraftTransport — crisp upscale (D-RA-14)', () => {
   });
 });
 
+describe('RestRecraftTransport — vectorize (D-RA-14)', () => {
+  test('POSTs multipart file to /images/vectorize and stamps svg mime on b64', async () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg"/>';
+    const svgB64 = btoa(svg);
+    const fetchMock = vi.fn(async (url: unknown) =>
+      String(url).includes('/images/vectorize')
+        ? new Response(JSON.stringify({ image: { b64_json: svgB64 } }), { status: 200 })
+        : new Response(new Uint8Array([1, 2, 3]), { status: 200, headers: { 'content-type': 'image/png' } }),
+    ) as unknown as typeof fetch;
+
+    const t = new RestRecraftTransport('rk-vec', fetchMock);
+    const out = await t.vectorizeImage({
+      image: 'https://src.example/logo.png',
+      responseFormat: 'b64_json',
+    });
+    const call = (fetchMock as unknown as ReturnType<typeof vi.fn>).mock.calls.find((c) =>
+      String(c[0]).includes('/images/vectorize'),
+    )!;
+    const init = call[1] as RequestInit;
+    expect(init.method).toBe('POST');
+    expect((init.body as FormData).get('file')).toBeInstanceOf(Blob);
+    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer rk-vec');
+    expect(out.mimeType).toBe('image/svg+xml');
+    expect(new TextDecoder().decode(out.data!)).toContain('<svg');
+  });
+
+  test('returns the hosted url when Recraft responds with one', async () => {
+    const fetchMock = vi.fn(async (url: unknown) =>
+      String(url).includes('/vectorize')
+        ? new Response(JSON.stringify({ image: { url: 'https://img.recraft.ai/out.svg' } }), {
+            status: 200,
+          })
+        : new Response(new Uint8Array([1]), { status: 200, headers: { 'content-type': 'image/png' } }),
+    ) as unknown as typeof fetch;
+    const t = new RestRecraftTransport('rk', fetchMock);
+    const out = await t.vectorizeImage({ image: 'https://s/x.png' });
+    expect(out.url).toBe('https://img.recraft.ai/out.svg');
+  });
+});
+
 describe('RestRecraftTransport — Workers receiver binding (regression)', () => {
   // Mirror the DallePipeline #59 guard: the default fetch must keep its
   // receiver, or the Cloudflare Workers runtime throws "Illegal invocation".

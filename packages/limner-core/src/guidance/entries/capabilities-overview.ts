@@ -37,6 +37,7 @@ export const capabilitiesOverview: GuidanceEntry = {
       kind: 'bullets',
       items: [
         'Upscale: enlarge and sharpen a raster image toward print scale. The generators top out around 1024 to 1536 px, so upscaling lifts a finished asset to a size that holds up at 300 dpi.',
+        'Vectorize: trace a raster image into a scalable SVG, so a logo or icon stays crisp at any size and is ready for editing in a vector tool.',
       ],
     },
     { kind: 'heading', level: 2, text: 'Memory & projects' },

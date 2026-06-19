@@ -182,10 +182,32 @@ export const upscaleTool: CustomTool = defineTool({
   },
 });
 
+// ---------------- limner_vectorize ----------------
+
+export const vectorizeTool: CustomTool = defineTool({
+  name: 'limner_vectorize',
+  description:
+    'Vectorize a raster image into a scalable SVG via Recraft\'s REST API. Uploads the SVG to R2 and returns its URL.',
+  inputSchema: schemaFor('limner_vectorize'),
+  requires: (env) => Boolean(env['BUCKET']) && Boolean(env['RECRAFT_API_KEY']),
+  run: async (input, { env }) => {
+    const transport = new RestRecraftTransport(String(env['RECRAFT_API_KEY'] ?? ''));
+    const result = await transport.vectorizeImage({
+      image: String((input as { image: string }).image),
+      responseFormat: 'b64_json',
+    });
+    if (result.data) {
+      return emitImage(env, result.data, result.mimeType ?? 'image/svg+xml', 'vectorize', {});
+    }
+    return imageReturnEnvelope(result.url ?? '', result.mimeType ?? 'image/svg+xml', {});
+  },
+});
+
 // Exported registry — index.ts spreads this into LIMNER_TOOLS.
 export const pipelineTools: readonly CustomTool[] = [
   generateDalleTool,
   generateMidjourneyTool,
   generateRecraftTool,
   upscaleTool,
+  vectorizeTool,
 ] as const;

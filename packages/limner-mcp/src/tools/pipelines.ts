@@ -149,6 +149,28 @@ const upscale: Tool<z.infer<typeof upscaleInputSchema>> = {
   },
 };
 
+// ---------------- limner_vectorize ----------------
+
+const vectorizeInputSchema = z.object({
+  image: z.string().url()
+    .describe('Source raster image URL to vectorize. Pass a fetchable URL (e.g. an artifact URL from a prior generate), not inline base64.'),
+});
+
+const vectorize: Tool<z.infer<typeof vectorizeInputSchema>> = {
+  name: 'limner_vectorize',
+  description:
+    'Vectorize a raster image into a scalable SVG via Recraft\'s REST API. Returns an SVG. Paid API — each call bills your Recraft account.',
+  inputSchema: vectorizeInputSchema,
+  // Calls a paid external service (Recraft) — open-world, non-idempotent.
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+  handler: async (input, ctx) => {
+    assertSecrets('recraft', ['RECRAFT_API_KEY'], ctx.secrets);
+    const transport = new RestRecraftTransport(ctx.secrets['RECRAFT_API_KEY'] ?? '');
+    const result = await transport.vectorizeImage({ image: input.image, responseFormat: 'b64_json' });
+    return deliverTransform(result, ctx, 'recraft-vectorize', 'image/svg+xml');
+  },
+};
+
 // ---------------- Shared helpers ----------------
 
 function buildPipelineContext(ctx: ToolContext): PipelineContext {
@@ -263,4 +285,5 @@ export const pipelineTools: readonly Tool[] = [
   generateMidjourney,
   generateRecraft,
   upscale,
+  vectorize,
 ] as const;

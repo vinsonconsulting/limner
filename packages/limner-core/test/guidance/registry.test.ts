@@ -94,9 +94,10 @@ describe('wave-1 guidance entries (D-RA-24)', () => {
     expect(md).toContain('image as input');
   });
 
-  test('capabilities-overview surfaces the upscale post-processing tool (wave-2)', () => {
+  test('capabilities-overview surfaces the post-processing tools (wave-2)', () => {
     const md = serializeGuidance(getGuidance('capabilities-overview')!);
     expect(md).toContain('Post-processing');
     expect(md).toContain('Upscale');
+    expect(md).toContain('Vectorize');
   });
 });

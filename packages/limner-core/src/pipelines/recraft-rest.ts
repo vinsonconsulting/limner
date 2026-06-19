@@ -23,6 +23,7 @@ const BASE_URL = 'https://external.api.recraft.ai/v1';
 const GENERATIONS_ENDPOINT = `${BASE_URL}/images/generations`;
 const IMAGE_TO_IMAGE_ENDPOINT = `${BASE_URL}/images/imageToImage`;
 const CRISP_UPSCALE_ENDPOINT = `${BASE_URL}/images/crispUpscale`;
+const VECTORIZE_ENDPOINT = `${BASE_URL}/images/vectorize`;
 const DEFAULT_STRENGTH = 0.5;
 
 // D-RA-14 (wave-2): the prompt-less image transforms (upscale, vectorize).
@@ -83,6 +84,12 @@ export class RestRecraftTransport implements RecraftTransport {
   // Prompt-less transform; routes through the shared multipart helper.
   async upscaleImage(args: RecraftTransformArgs): Promise<RecraftGenerateResult> {
     return this.requestImageTransform(CRISP_UPSCALE_ENDPOINT, args, 'image/png');
+  }
+
+  // D-RA-14 (wave-2): vectorize a raster image to SVG. Prompt-less transform;
+  // a b64_json response carries the SVG bytes (mime image/svg+xml).
+  async vectorizeImage(args: RecraftTransformArgs): Promise<RecraftGenerateResult> {
+    return this.requestImageTransform(VECTORIZE_ENDPOINT, args, 'image/svg+xml');
   }
 
   // Shared path for the prompt-less transforms: fetch the source URL, then
