@@ -28,11 +28,12 @@ diverges. The `file-types` example proves it: its skill section and the MCP
 ## Layout
 
 ```
-skills/file-types/SKILL.md   # concept #14 knowledge-skill (generated region + prose)
+skills/<concept>/SKILL.md    # the six wave-1 skills: file-types, external-tools,
+                             #   midjourney, dalle, recraft, illuminated-manuscript
 prompts/system-prompt.md     # A4-framed Limner agent system prompt
 src/skill-gen.ts             # pure splice + guidance-derived block (shared logic)
 src/gen-skills.ts            # fs entrypoint — writes SKILL.md (the only fs file)
-src/create-agent.ts          # live agent + skill registration (dry-run default; --execute)
+src/create-agent.ts          # live agent + multi-skill registration (dry-run default; --execute)
 src/test-harness.ts          # pure Test-4 logic: prompts, asset extraction, event reduce, pass/fail
 src/test-agent.ts            # Test-4 runner: drives the live agent (dry-validate default; --execute)
 test/skills-drift.test.ts    # CI guard: committed SKILL.md == serializer output
@@ -60,24 +61,27 @@ forgotten regeneration is caught in CI.
 
 `src/create-agent.ts` (compiled to `dist/create-agent.js`, run via
 `pnpm --filter @limner/limner-agent create-agent`) registers the agent
-definition and its skill(s) against the CMA API. It is **dry-run by default**
-and only touches the network under `--execute`.
+definition and **all skills in `SKILL_MANIFEST`** against the CMA API. It is
+**dry-run by default** and only touches the network under `--execute`.
 
-- **Dry run (default)** — prints the exact create-agent payload and the
-  skill-upload multipart plan, then exits. No network calls, no credentials.
+- **Dry run (default)** — prints the per-skill upload plan for every manifest
+  skill plus the agent attach plan, then exits. No network calls, no credentials.
 - **`--execute`** — performs live registration. Requires `ANTHROPIC_API_KEY` in
   the environment; `@anthropic-ai/sdk` is dynamically imported only on this
   path, and the key is never printed or logged.
 
 What it registers (the SDK applies both beta headers automatically):
 
-- **Skill** — `POST /v1/skills` (multipart: `display_title` + `files[]`) by
-  default, or a new version of an existing skill via `--skill-id`
-  (`POST /v1/skills/{id}/versions`). Beta `skills-2025-10-02`.
+- **Skills** — each of the six wave-1 skills in `SKILL_MANIFEST` (`agent-def.ts`)
+  is uploaded: `POST /v1/skills` (multipart: `display_title` + `files[]`) to
+  create a fresh skill, or `POST /v1/skills/{id}/versions` to version one whose
+  id is supplied via `--skill-id <skillDir>=<id>` (a bare `--skill-id <id>` or
+  `LIMNER_SKILL_ID` maps to `file-types`, the proven single-skill path). Any
+  skill without a supplied id is created fresh. Beta `skills-2025-10-02`.
 - **Agent** — `POST /v1/agents` by default, or a new version of an existing
   agent via `--agent-id` (`POST /v1/agents/{id}`, retrieving the current
-  `version` first to pass as the concurrency token). Beta
-  `managed-agents-2026-04-01`.
+  `version` first to pass as the concurrency token) — with **all** uploaded
+  skills attached in the one update. Beta `managed-agents-2026-04-01`.
 
 The agent payload carries only `{ name, model, system, skills }` — `tools` and
 `mcp_servers` are intentionally omitted. The agent definition (system prompt +
