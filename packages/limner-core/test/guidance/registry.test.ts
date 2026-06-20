@@ -112,6 +112,7 @@ describe('wave-2 guidance entries (D-RA-24)', () => {
     ['aspect-ratio-crops', 'largest rectangle'],
     ['iterate-on-asset', 'does not save generations automatically'],
     ['style-from-images', 'provenance.source to style-from-images'],
+    ['brand-kit', 'provenance.source to brand-kit'],
   ];
 
   test('registers and looks up every wave-2 entry by id', () => {
@@ -206,5 +207,13 @@ describe('wave-2 guidance entries (D-RA-24)', () => {
     expect(md).toContain('provenance.source to style-from-images');
     // the native image-input matching path (#64)
     expect(md).toContain('image input');
+  });
+
+  test('brand-kit reads and writes the shared style profile', () => {
+    const md = serializeGuidance(getGuidance('brand-kit')!);
+    expect(md.startsWith('# Brand kit')).toBe(true);
+    expect(md).toContain('readStyleProfile');
+    expect(md).toContain('upsertStyleProfile');
+    expect(md).toContain('provenance.source to brand-kit');
   });
 });
