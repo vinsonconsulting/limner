@@ -12,11 +12,26 @@ function r2Object(bytes: Uint8Array, contentType: string) {
   };
 }
 
-function envWith(get: (key: string) => Promise<unknown>, signingKey?: string): Env {
+function envWith(get: (key: string) => Promise<unknown>, signingKey?: string, baseUrl?: string): Env {
   return {
     GENERATED_BUCKET: { get: vi.fn(get) },
     ...(signingKey ? { ARTIFACT_SIGNING_KEY: signingKey } : {}),
+    ...(baseUrl ? { ARTIFACT_BASE_URL: baseUrl } : {}),
   } as unknown as Env;
+}
+
+// Mint a valid signed artifact URL for KEY using the real clock, optionally
+// shifting the signing clock to force expiry.
+async function signedUrl(signingKey: string, ttlSeconds: number, now?: number): Promise<string> {
+  const { uploadArtifact } = await import('@limner/core');
+  const put = vi.fn().mockResolvedValue({});
+  return uploadArtifact(
+    { bucket: { put } as unknown as R2Bucket, baseUrl: 'https://mcp.limner.us', signingKey, ttlSeconds },
+    new Uint8Array([1, 2, 3]),
+    'image/png',
+    'dalle',
+    now,
+  );
 }
 
 const KEY = 'generated/dalle/abc-123.png';
@@ -78,18 +93,48 @@ describe('serveArtifact', () => {
   });
 
   test('serves a freshly signed URL when ARTIFACT_SIGNING_KEY is set', async () => {
-    const { uploadArtifact } = await import('@limner/core');
-    const put = vi.fn().mockResolvedValue({});
-    // Sign with the real clock so the URL is within ttl when serveArtifact
-    // verifies (it uses Date.now()).
-    const signed = await uploadArtifact(
-      { bucket: { put } as unknown as R2Bucket, baseUrl: 'https://mcp.limner.us', signingKey: 'sek', ttlSeconds: 600 },
-      new Uint8Array([1, 2, 3]),
-      'image/png',
-      'dalle',
-    );
+    const signed = await signedUrl('sek', 600);
     const env = envWith(async () => r2Object(new Uint8Array([1, 2, 3]), 'image/png'), 'sek');
     const res = await serveArtifact(new Request(signed), env);
     expect(res.status).toBe(200);
+  });
+
+  test('403 for a tampered signature when ARTIFACT_SIGNING_KEY is set', async () => {
+    const signed = await signedUrl('sek', 600);
+    // Flip the last character of the sig param.
+    const tampered = signed.endsWith('A') ? `${signed.slice(0, -1)}B` : `${signed.slice(0, -1)}A`;
+    const env = envWith(async () => r2Object(new Uint8Array([1, 2, 3]), 'image/png'), 'sek');
+    const res = await serveArtifact(new Request(tampered), env);
+    expect(res.status).toBe(403);
+  });
+
+  test('403 for an expired signature when ARTIFACT_SIGNING_KEY is set', async () => {
+    // Sign with a clock ~10h in the past and a 10m ttl → already expired.
+    const signed = await signedUrl('sek', 600, Date.now() - 10 * 3600 * 1000);
+    const env = envWith(async () => r2Object(new Uint8Array([1, 2, 3]), 'image/png'), 'sek');
+    const res = await serveArtifact(new Request(signed), env);
+    expect(res.status).toBe(403);
+  });
+
+  describe('fail-closed on a public origin (A4 hardening)', () => {
+    test('503 when the origin is public https but no ARTIFACT_SIGNING_KEY is set', async () => {
+      // Misconfig: prod base URL but the signing secret was never set. Refuse
+      // to silently downgrade to unsigned capability URLs.
+      const get = vi.fn(async () => r2Object(new Uint8Array([1]), 'image/png'));
+      const env = envWith(get, undefined, 'https://mcp.limner.us');
+      const res = await serveArtifact(new Request(urlFor(KEY)), env);
+      expect(res.status).toBe(503);
+      expect(get).not.toHaveBeenCalled();
+    });
+
+    test('serves unsigned on a local http origin without a signing key (dev)', async () => {
+      const env = envWith(
+        async () => r2Object(new Uint8Array([1, 2, 3]), 'image/png'),
+        undefined,
+        'http://localhost:8787',
+      );
+      const res = await serveArtifact(new Request(urlFor(KEY)), env);
+      expect(res.status).toBe(200);
+    });
   });
 });

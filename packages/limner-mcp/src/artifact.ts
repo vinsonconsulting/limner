@@ -17,6 +17,22 @@ export function isArtifactPath(pathname: string): boolean {
   return pathname.startsWith(ARTIFACT_PATH_PREFIX);
 }
 
+// A public origin (https, non-loopback host) is a production deployment and
+// MUST sign artifact URLs. Local/dev origins (http://localhost) may serve
+// capability-only URLs. Drives the fail-closed check in serveArtifact.
+function requiresSignedArtifacts(baseUrl: string | undefined): boolean {
+  if (!baseUrl) return false;
+  let parsed: URL;
+  try {
+    parsed = new URL(baseUrl);
+  } catch {
+    return false;
+  }
+  if (parsed.protocol !== 'https:') return false;
+  const host = parsed.hostname.toLowerCase().replace(/^\[/, '').replace(/\]$/, '');
+  return host !== 'localhost' && host !== '127.0.0.1' && host !== '::1';
+}
+
 export async function serveArtifact(request: Request, env: Env): Promise<Response> {
   if (request.method !== 'GET' && request.method !== 'HEAD') {
     return new Response('method not allowed', { status: 405 });
@@ -34,6 +50,11 @@ export async function serveArtifact(request: Request, env: Env): Promise<Respons
   if (env.ARTIFACT_SIGNING_KEY) {
     const ok = await verifyArtifactSignature(key, url.searchParams, env.ARTIFACT_SIGNING_KEY);
     if (!ok) return new Response('forbidden', { status: 403 });
+  } else if (requiresSignedArtifacts(env.ARTIFACT_BASE_URL)) {
+    // Fail closed: a public https origin with no signing key configured is a
+    // deploy misconfiguration. Refuse to serve rather than silently downgrade
+    // to unsigned capability URLs.
+    return new Response('artifact signing not configured', { status: 503 });
   }
 
   const obj = await env.GENERATED_BUCKET.get(key);
