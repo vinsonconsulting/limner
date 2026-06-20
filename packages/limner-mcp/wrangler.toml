@@ -198,3 +198,7 @@ crons = ["0 3 * * *"]
 # Prod secrets (operator runs once):
 #   wrangler secret put OPENAI_API_KEY  --env production
 #   wrangler secret put RECRAFT_API_KEY --env production
+#   wrangler secret put OAUTH_CONSENT_SIGNING_KEY --env production
+# (D-RA-22) OAUTH_CONSENT_SIGNING_KEY signs the consent CSRF token. Required on
+# a public deploy: without it the consent flow fails closed for non-trusted
+# clients (503). Generate 32+ random bytes; pipe over stdin, never echo.

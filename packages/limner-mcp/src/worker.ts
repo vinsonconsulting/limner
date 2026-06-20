@@ -92,6 +92,10 @@ export interface Env {
   // clear a human consent step. Plain var (a client_id is public, A4-safe);
   // absent/empty trusts no client. Consumed by isTrustedClient (auth/oauth.ts).
   OAUTH_TRUSTED_CLIENT_IDS?: string;
+  // D-RA-22 — HMAC-SHA256 secret for the consent CSRF token. A Cloudflare
+  // Secret (`wrangler secret put`), never committed. Absent → the consent flow
+  // fails closed for non-trusted clients (trusted clients still auto-approve).
+  OAUTH_CONSENT_SIGNING_KEY?: string;
   // OAuthProvider injects this at runtime; declared here for the
   // apiHandler's type signature.
   OAUTH_PROVIDER: OAuthHelpers;
