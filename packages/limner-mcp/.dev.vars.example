@@ -4,3 +4,7 @@
 # the providers on the deployer's own accounts.
 OPENAI_API_KEY=
 RECRAFT_API_KEY=
+# D-RA-22 — HMAC secret for the OAuth consent CSRF token. Set any random value
+# locally so the /authorize consent flow works under `wrangler dev`; without it,
+# non-trusted clients fail closed (503). Production uses a Cloudflare Secret.
+OAUTH_CONSENT_SIGNING_KEY=

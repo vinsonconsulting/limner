@@ -1,7 +1,7 @@
-// A1 mechanical hardening: the dogfood /authorize handler still auto-approves,
-// but the issued scope is PINNED to ['mcp'] regardless of what the client
-// requests — so a client cannot mint a broader-scoped token. (The /authorize
-// rate-limit lives in the worker wiring and is covered by rate-limit.test.ts.)
+// D-RA-22: the /authorize flow routes through the consent handlers. This suite
+// covers the router (defaultHandler) wiring + the first-party allowlist;
+// the consent page, CSRF, approve/deny, and the ['mcp'] scope pin live in
+// consent.test.ts.
 
 import { describe, expect, test } from 'vitest';
 
@@ -11,18 +11,15 @@ type Fetch = NonNullable<typeof defaultHandler.fetch>;
 type CompleteAuthArgs = { userId: string; scope: string[] };
 
 // Build an OAuthEnv whose OAUTH_PROVIDER records the completeAuthorization
-// args and reports whatever scope (and optional clientId) the "client"
-// requested. `opts.trustedClientIds` seeds the OAUTH_TRUSTED_CLIENT_IDS var.
-function makeEnv(
-  requestedScope: string[] | undefined,
-  opts?: { clientId?: string; trustedClientIds?: string },
-): {
+// args. No signing key is set, so non-trusted /authorize requests fail closed —
+// which is exactly what the router-level tests assert (delegation happened).
+function makeEnv(opts?: { clientId?: string; trustedClientIds?: string }): {
   env: OAuthEnv;
   captured: () => CompleteAuthArgs | undefined;
 } {
   let captured: CompleteAuthArgs | undefined;
   const provider = {
-    parseAuthRequest: async () => ({ scope: requestedScope, clientId: opts?.clientId }),
+    parseAuthRequest: async () => ({ scope: ['admin'], clientId: opts?.clientId }),
     completeAuthorization: async (args: CompleteAuthArgs) => {
       captured = args;
       return { redirectTo: 'https://client.example/cb?code=abc' };
@@ -33,48 +30,15 @@ function makeEnv(
     (env as { OAUTH_TRUSTED_CLIENT_IDS?: string }).OAUTH_TRUSTED_CLIENT_IDS =
       opts.trustedClientIds;
   }
-  return {
-    env,
-    captured: () => captured,
-  };
+  return { env, captured: () => captured };
 }
 
 const CTX = {} as Parameters<Fetch>[2];
 
-function authorize(env: OAuthEnv, url: string): Promise<Response> {
-  const req = new Request(url) as unknown as Parameters<Fetch>[0];
+function send(env: OAuthEnv, url: string, init?: RequestInit): Promise<Response> {
+  const req = new Request(url, init) as unknown as Parameters<Fetch>[0];
   return defaultHandler.fetch!(req, env, CTX) as unknown as Promise<Response>;
 }
-
-describe('OAuth /authorize — mechanical hardening (A1)', () => {
-  test('pins the issued scope to ["mcp"], ignoring the client-requested scope', async () => {
-    const { env, captured } = makeEnv(['admin', 'everything']);
-    const res = await authorize(
-      env,
-      'https://mcp.example.com/authorize?response_type=code&client_id=c&scope=admin',
-    );
-    expect(res.status).toBe(302);
-    expect(captured()?.scope).toEqual(['mcp']);
-    expect(captured()?.userId).toBe('limner-dogfood');
-  });
-
-  test('pins scope to ["mcp"] even when the client requests no scope', async () => {
-    const { env, captured } = makeEnv(undefined);
-    const res = await authorize(
-      env,
-      'https://mcp.example.com/authorize?response_type=code&client_id=c',
-    );
-    expect(res.status).toBe(302);
-    expect(captured()?.scope).toEqual(['mcp']);
-  });
-
-  test('serves a plain-text root page rather than 404', async () => {
-    const { env } = makeEnv(undefined);
-    const res = await authorize(env, 'https://mcp.example.com/');
-    expect(res.status).toBe(200);
-    expect(res.headers.get('content-type')).toContain('text/plain');
-  });
-});
 
 describe('isTrustedClient — first-party allowlist (agent-compat)', () => {
   function envWith(trustedClientIds: string | undefined): OAuthEnv {
@@ -107,16 +71,13 @@ describe('isTrustedClient — first-party allowlist (agent-compat)', () => {
   });
 });
 
-describe('OAuth /authorize — trusted-client short-circuit (agent-compat)', () => {
-  // In this PR every client still auto-approves; the trusted path is split out
-  // so the live agent's compatibility is guaranteed before the consent screen
-  // changes the behavior of non-trusted clients in the next PR.
+describe('OAuth /authorize — router (defaultHandler)', () => {
   test('auto-approves a trusted client with the pinned ["mcp"] scope', async () => {
-    const { env, captured } = makeEnv(['admin'], {
+    const { env, captured } = makeEnv({
       clientId: 'agent-client',
       trustedClientIds: 'agent-client',
     });
-    const res = await authorize(
+    const res = await send(
       env,
       'https://mcp.example.com/authorize?response_type=code&client_id=agent-client&scope=admin',
     );
@@ -125,16 +86,42 @@ describe('OAuth /authorize — trusted-client short-circuit (agent-compat)', () 
     expect(captured()?.userId).toBe('limner-dogfood');
   });
 
-  test('still auto-approves a non-trusted client (unchanged dogfood behavior)', async () => {
-    const { env, captured } = makeEnv(['admin'], {
+  test('delegates a non-trusted GET to consent (fails closed without a signing key)', async () => {
+    const { env, captured } = makeEnv({
       clientId: 'random-client',
       trustedClientIds: 'agent-client',
     });
-    const res = await authorize(
+    const res = await send(
       env,
       'https://mcp.example.com/authorize?response_type=code&client_id=random-client&scope=admin',
     );
-    expect(res.status).toBe(302);
-    expect(captured()?.scope).toEqual(['mcp']);
+    expect(res.status).toBe(503);
+    expect(captured()).toBeUndefined(); // not auto-approved
+  });
+
+  test('routes POST /authorize to the consent POST handler', async () => {
+    const { env, captured } = makeEnv({ clientId: 'random-client' });
+    const res = await send(env, 'https://mcp.example.com/authorize', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: 'action=approve',
+    });
+    // No signing key configured → the POST handler fails closed (503), proving
+    // the router dispatched the POST branch rather than rendering a page.
+    expect(res.status).toBe(503);
+    expect(captured()).toBeUndefined();
+  });
+
+  test('serves a plain-text root page rather than 404', async () => {
+    const { env } = makeEnv();
+    const res = await send(env, 'https://mcp.example.com/');
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('text/plain');
+  });
+
+  test('returns 404 for an unknown path', async () => {
+    const { env } = makeEnv();
+    const res = await send(env, 'https://mcp.example.com/nope');
+    expect(res.status).toBe(404);
   });
 });
