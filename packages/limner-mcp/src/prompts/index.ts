@@ -402,6 +402,44 @@ const aspectRatioCropsPrompt: Prompt = {
   },
 };
 
+// style-from-images — concept #15. Serializes the style-from-images guidance
+// verbatim, then frames a request from the new subject and the user's reference
+// images. The describe-to-profile + image-input procedure lives in the skill.
+const styleFromImagesPrompt: Prompt = {
+  name: 'style-from-images',
+  description: getGuidance('style-from-images')!.summary,
+  arguments: [
+    { name: 'subject', description: 'What to create in the user’s style.', required: true },
+    {
+      name: 'references',
+      description: 'Optional reference images to match, as URLs or a description.',
+      required: false,
+    },
+    {
+      name: 'notes',
+      description: 'Optional notes on the look to capture (palette, mood, medium).',
+      required: false,
+    },
+  ],
+  build: (args) => {
+    const subject = args['subject'];
+    if (!subject) {
+      throw new Error('style-from-images requires a "subject" argument');
+    }
+    const base = serializeGuidance(getGuidance('style-from-images')!);
+    const lines = [
+      `Using the guidance above, capture the style of the reference images and create: ${subject}`,
+    ];
+    if (args['references']) {
+      lines.push(`Reference images: ${args['references']}`);
+    }
+    if (args['notes']) {
+      lines.push(`Look to capture: ${args['notes']}`);
+    }
+    return [{ role: 'user', content: { type: 'text', text: `${base}\n${lines.join('\n')}\n` } }];
+  },
+};
+
 export const prompts: readonly Prompt[] = [
   capabilityTour,
   pipelineRouterPrompt,
@@ -409,6 +447,7 @@ export const prompts: readonly Prompt[] = [
   multiSizeExportPrompt,
   captionedGraphicPrompt,
   aspectRatioCropsPrompt,
+  styleFromImagesPrompt,
   midjourneyBuilder,
   dalleBuilder,
   recraftBuilder,

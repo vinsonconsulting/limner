@@ -111,6 +111,7 @@ describe('wave-2 guidance entries (D-RA-24)', () => {
     ['captioned-graphic', 'JSX-shaped'],
     ['aspect-ratio-crops', 'largest rectangle'],
     ['iterate-on-asset', 'does not save generations automatically'],
+    ['style-from-images', 'provenance.source to style-from-images'],
   ];
 
   test('registers and looks up every wave-2 entry by id', () => {
@@ -194,6 +195,16 @@ describe('wave-2 guidance entries (D-RA-24)', () => {
     expect(md).toContain('limner_recall');
     expect(md).toContain('does not save generations automatically');
     // the capability-URL-as-image-input iteration path
+    expect(md).toContain('image input');
+  });
+
+  test('style-from-images writes the shared style profile and uses image input', () => {
+    const md = serializeGuidance(getGuidance('style-from-images')!);
+    expect(md.startsWith('# Style from user images')).toBe(true);
+    // writes into the shared style-profile (does not redefine the schema)
+    expect(md).toContain('upsertStyleProfile');
+    expect(md).toContain('provenance.source to style-from-images');
+    // the native image-input matching path (#64)
     expect(md).toContain('image input');
   });
 });
