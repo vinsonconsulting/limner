@@ -37,6 +37,7 @@ export const SKILL_SOURCES: readonly SkillSource[] = [
   { skillDir: 'style-from-images', guidanceId: 'style-from-images' },
   { skillDir: 'brand-kit', guidanceId: 'brand-kit' },
   { skillDir: 'art-research', guidanceId: 'art-research' },
+  { skillDir: 'vectorize', guidanceId: 'vectorize' },
 ];
 
 export const SKILL_MARKER_END = '<!-- END GENERATED -->';

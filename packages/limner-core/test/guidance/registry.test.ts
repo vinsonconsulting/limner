@@ -114,6 +114,7 @@ describe('wave-2 guidance entries (D-RA-24)', () => {
     ['style-from-images', 'provenance.source to style-from-images'],
     ['brand-kit', 'provenance.source to brand-kit'],
     ['art-research', 'provenance.source to art-research'],
+    ['vectorize', 'limner_vectorize'],
   ];
 
   test('registers and looks up every wave-2 entry by id', () => {
@@ -225,5 +226,14 @@ describe('wave-2 guidance entries (D-RA-24)', () => {
     expect(md).toContain('web tools');
     expect(md).toContain('upsertStyleProfile');
     expect(md).toContain('provenance.source to art-research');
+  });
+
+  test('vectorize covers the paid SVG trace and when not to use it', () => {
+    const md = serializeGuidance(getGuidance('vectorize')!);
+    expect(md.startsWith('# Vectorize a raster image')).toBe(true);
+    expect(md).toContain('limner_vectorize');
+    expect(md).toContain('SVG');
+    // honest about not tracing photos
+    expect(md).toContain('photograph');
   });
 });

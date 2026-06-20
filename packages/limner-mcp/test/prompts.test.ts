@@ -32,7 +32,7 @@ describe('mcp server: prompts', () => {
     const { client, close } = await connected();
     try {
       const result = await client.listPrompts();
-      expect(result.prompts).toHaveLength(11);
+      expect(result.prompts).toHaveLength(12);
       const p = result.prompts.find((x) => x.name === 'capability-tour');
       expect(p?.arguments).toEqual([
         { name: 'focus', description: expect.any(String), required: false },
@@ -112,6 +112,19 @@ describe('mcp server: prompts', () => {
     try {
       const result = await client.listPrompts();
       const p = result.prompts.find((x) => x.name === 'style-from-images');
+      expect(p).toBeDefined();
+      const subject = p!.arguments?.find((a) => a.name === 'subject');
+      expect(subject?.required).toBe(true);
+    } finally {
+      await close();
+    }
+  });
+
+  test('prompts/list advertises vectorize with subject required', async () => {
+    const { client, close } = await connected();
+    try {
+      const result = await client.listPrompts();
+      const p = result.prompts.find((x) => x.name === 'vectorize');
       expect(p).toBeDefined();
       const subject = p!.arguments?.find((a) => a.name === 'subject');
       expect(subject?.required).toBe(true);
@@ -445,6 +458,47 @@ describe('mcp server: prompts', () => {
     const { client, close } = await connected();
     try {
       await expect(client.getPrompt({ name: 'style-from-images' })).rejects.toThrow();
+    } finally {
+      await close();
+    }
+  });
+
+  test('prompts/get returns the vectorize-derived message with the subject', async () => {
+    const { client, close } = await connected();
+    try {
+      const result = await client.getPrompt({
+        name: 'vectorize',
+        arguments: { subject: 'a flat fox-head logo PNG' },
+      });
+      const m = result.messages[0]!;
+      expect(m.role).toBe('user');
+      const text = (m.content as { text: string }).text;
+      // The guidance slice appears verbatim (byte-identical to the serializer).
+      expect(text).toContain(serializeGuidance(getGuidance('vectorize')!));
+      expect(text).toContain('vectorize this image into an SVG: a flat fox-head logo PNG');
+    } finally {
+      await close();
+    }
+  });
+
+  test('prompts/get threads the intent into the vectorize message', async () => {
+    const { client, close } = await connected();
+    try {
+      const result = await client.getPrompt({
+        name: 'vectorize',
+        arguments: { subject: 'a logo', intent: 'an app icon' },
+      });
+      const text = (result.messages[0]!.content as { text: string }).text;
+      expect(text).toContain('Intended use: an app icon');
+    } finally {
+      await close();
+    }
+  });
+
+  test('prompts/get rejects vectorize without the required subject', async () => {
+    const { client, close } = await connected();
+    try {
+      await expect(client.getPrompt({ name: 'vectorize' })).rejects.toThrow();
     } finally {
       await close();
     }
