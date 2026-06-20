@@ -116,6 +116,28 @@ describe('serveArtifact', () => {
     expect(res.status).toBe(403);
   });
 
+  describe('rate limiting (PR 3)', () => {
+    const limiter = (success: boolean) => ({ limit: vi.fn(async () => ({ success })) });
+
+    test('429 when the rate limiter rejects, before any bucket read', async () => {
+      const get = vi.fn(async () => r2Object(new Uint8Array([1]), 'image/png'));
+      const env = { GENERATED_BUCKET: { get }, RATE_LIMITER: limiter(false) } as unknown as Env;
+      const res = await serveArtifact(new Request(urlFor(KEY)), env);
+      expect(res.status).toBe(429);
+      expect(res.headers.get('retry-after')).toBe('60');
+      expect(get).not.toHaveBeenCalled();
+    });
+
+    test('serves normally when the rate limiter allows', async () => {
+      const env = {
+        GENERATED_BUCKET: { get: vi.fn(async () => r2Object(new Uint8Array([1, 2, 3]), 'image/png')) },
+        RATE_LIMITER: limiter(true),
+      } as unknown as Env;
+      const res = await serveArtifact(new Request(urlFor(KEY)), env);
+      expect(res.status).toBe(200);
+    });
+  });
+
   describe('fail-closed on a public origin (A4 hardening)', () => {
     test('503 when the origin is public https but no ARTIFACT_SIGNING_KEY is set', async () => {
       // Misconfig: prod base URL but the signing secret was never set. Refuse

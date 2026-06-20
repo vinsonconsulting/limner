@@ -60,6 +60,26 @@ export function deriveRateLimitKey(request: Request): string {
 }
 
 /**
+ * Check a request against the per-caller rate limit. Returns true when the
+ * request is allowed. Fails OPEN (returns true) when the binding is absent or
+ * the limiter call throws — a limiter outage must never be the reason the API
+ * goes dark. Shared by the /mcp + /authorize wrapper (withRateLimit) and the
+ * /artifact proxy, which builds its own response.
+ */
+export async function checkRateLimit<E extends RateLimitedEnv>(request: Request, env: E): Promise<boolean> {
+  const limiter = env.RATE_LIMITER;
+  if (!limiter) return true;
+  const key = deriveRateLimitKey(request);
+  try {
+    const outcome = await limiter.limit({ key });
+    return outcome.success;
+  } catch (err) {
+    console.error('rate limiter error; failing open', err);
+    return true;
+  }
+}
+
+/**
  * Wrap a fetch handler with a per-caller rate limit. On rejection,
  * returns HTTP 429 with a JSON-RPC-shaped error body. Fails open when
  * the binding is absent or the limiter call throws.
@@ -67,30 +87,18 @@ export function deriveRateLimitKey(request: Request): string {
 export function withRateLimit<E extends RateLimitedEnv>(inner: FetchHandler<E>): FetchHandler<E> {
   return {
     async fetch(request, env, ctx) {
-      const limiter = env.RATE_LIMITER;
-      if (limiter) {
-        const key = deriveRateLimitKey(request);
-        let allowed = true;
-        try {
-          const outcome = await limiter.limit({ key });
-          allowed = outcome.success;
-        } catch (err) {
-          // Fail open: a limiter outage must not take down the API.
-          console.error('rate limiter error; failing open', err);
-        }
-        if (!allowed) {
-          return new Response(
-            JSON.stringify({
-              jsonrpc: '2.0',
-              id: null,
-              error: { code: -32029, message: 'Rate limit exceeded. Please retry later.' },
-            }),
-            {
-              status: 429,
-              headers: { 'content-type': 'application/json', 'retry-after': '60' },
-            },
-          );
-        }
+      if (!(await checkRateLimit(request, env))) {
+        return new Response(
+          JSON.stringify({
+            jsonrpc: '2.0',
+            id: null,
+            error: { code: -32029, message: 'Rate limit exceeded. Please retry later.' },
+          }),
+          {
+            status: 429,
+            headers: { 'content-type': 'application/json', 'retry-after': '60' },
+          },
+        );
       }
       return inner.fetch(request, env, ctx);
     },
