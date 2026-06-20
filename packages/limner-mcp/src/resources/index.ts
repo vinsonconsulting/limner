@@ -50,7 +50,22 @@ const externalToolsResource: Resource = {
   read: () => serializeGuidance(getGuidance('external-tools')!),
 };
 
-export const resources: readonly Resource[] = [fileTypesResource, externalToolsResource];
+// limner://reference/print-ready (concept #12): serialized from the print-ready
+// guidance entry, the same source the CMA print-ready skill renders, so resource
+// and skill cannot drift. The reference half of a reference-plus-handoff concept.
+const printReadyResource: Resource = {
+  uri: 'limner://reference/print-ready',
+  name: 'print-ready',
+  description: getGuidance('print-ready')!.summary,
+  mimeType: 'text/markdown',
+  read: () => serializeGuidance(getGuidance('print-ready')!),
+};
+
+export const resources: readonly Resource[] = [
+  fileTypesResource,
+  externalToolsResource,
+  printReadyResource,
+];
 
 /**
  * Wire resource definitions into a Server. Installs two handlers:

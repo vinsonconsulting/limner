@@ -115,6 +115,7 @@ describe('wave-2 guidance entries (D-RA-24)', () => {
     ['brand-kit', 'provenance.source to brand-kit'],
     ['art-research', 'provenance.source to art-research'],
     ['vectorize', 'limner_vectorize'],
+    ['print-ready', 'PDF/X'],
   ];
 
   test('registers and looks up every wave-2 entry by id', () => {
@@ -235,5 +236,15 @@ describe('wave-2 guidance entries (D-RA-24)', () => {
     expect(md).toContain('SVG');
     // honest about not tracing photos
     expect(md).toContain('photograph');
+  });
+
+  test('print-ready upscales then hands off for CMYK and press formats', () => {
+    const md = serializeGuidance(getGuidance('print-ready')!);
+    expect(md.startsWith('# Print-ready export')).toBe(true);
+    expect(md).toContain('limner_upscale');
+    expect(md).toContain('300 dpi');
+    // the handoff: Limner stays RGB, press steps are external
+    expect(md).toContain('CMYK');
+    expect(md).toContain('PDF/X');
   });
 });
