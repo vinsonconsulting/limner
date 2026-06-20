@@ -33,6 +33,7 @@ export const SKILL_SOURCES: readonly SkillSource[] = [
   { skillDir: 'brand-stamp', guidanceId: 'brand-stamp' },
   { skillDir: 'multi-size-export', guidanceId: 'multi-size-export' },
   { skillDir: 'captioned-graphic', guidanceId: 'captioned-graphic' },
+  { skillDir: 'iterate-on-asset', guidanceId: 'iterate-on-asset' },
 ];
 
 export const SKILL_MARKER_END = '<!-- END GENERATED -->';

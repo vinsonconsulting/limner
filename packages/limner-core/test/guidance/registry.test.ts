@@ -110,6 +110,7 @@ describe('wave-2 guidance entries (D-RA-24)', () => {
     ['multi-size-export', 'cover and contain agree'],
     ['captioned-graphic', 'JSX-shaped'],
     ['aspect-ratio-crops', 'largest rectangle'],
+    ['iterate-on-asset', 'does not save generations automatically'],
   ];
 
   test('registers and looks up every wave-2 entry by id', () => {
@@ -183,5 +184,16 @@ describe('wave-2 guidance entries (D-RA-24)', () => {
     expect(md).toContain('9:16');
     // the Workers-only subject-aware path
     expect(md).toContain('cfSmartCrop');
+  });
+
+  test('iterate-on-asset is honest that generations are not auto-persisted', () => {
+    const md = serializeGuidance(getGuidance('iterate-on-asset')!);
+    expect(md.startsWith('# Iterate on a prior asset')).toBe(true);
+    // recall depends on notes the agent records itself
+    expect(md).toContain('limner_record');
+    expect(md).toContain('limner_recall');
+    expect(md).toContain('does not save generations automatically');
+    // the capability-URL-as-image-input iteration path
+    expect(md).toContain('image input');
   });
 });

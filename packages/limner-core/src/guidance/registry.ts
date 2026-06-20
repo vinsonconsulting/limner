@@ -12,6 +12,7 @@ import { brandStamp } from './entries/brand-stamp.js';
 import { multiSizeExport } from './entries/multi-size-export.js';
 import { captionedGraphic } from './entries/captioned-graphic.js';
 import { aspectRatioCrops } from './entries/aspect-ratio-crops.js';
+import { iterateOnAsset } from './entries/iterate-on-asset.js';
 
 // Registration order is the public listing order. D-RA-24 concept authoring
 // (wave-1, then wave-2) appends entries here.
@@ -29,6 +30,7 @@ const ENTRIES: readonly GuidanceEntry[] = [
   multiSizeExport,
   captionedGraphic,
   aspectRatioCrops,
+  iterateOnAsset,
 ];
 
 /** All guidance entries keyed by id. */
