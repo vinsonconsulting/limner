@@ -35,6 +35,7 @@ export const SKILL_SOURCES: readonly SkillSource[] = [
   { skillDir: 'captioned-graphic', guidanceId: 'captioned-graphic' },
   { skillDir: 'iterate-on-asset', guidanceId: 'iterate-on-asset' },
   { skillDir: 'style-from-images', guidanceId: 'style-from-images' },
+  { skillDir: 'brand-kit', guidanceId: 'brand-kit' },
 ];
 
 export const SKILL_MARKER_END = '<!-- END GENERATED -->';
