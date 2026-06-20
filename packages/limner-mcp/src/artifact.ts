@@ -11,6 +11,7 @@ import {
   ARTIFACT_PATH_PREFIX,
   verifyArtifactSignature,
 } from '@limner/core';
+import { checkRateLimit } from './rate-limit.js';
 import type { Env } from './worker.js';
 
 export function isArtifactPath(pathname: string): boolean {
@@ -36,6 +37,11 @@ function requiresSignedArtifacts(baseUrl: string | undefined): boolean {
 export async function serveArtifact(request: Request, env: Env): Promise<Response> {
   if (request.method !== 'GET' && request.method !== 'HEAD') {
     return new Response('method not allowed', { status: 405 });
+  }
+  // Meter the public proxy per-caller (keys on IP — no bearer here) before any
+  // R2 work. Reuses the /mcp limiter binding; fails open without it.
+  if (!(await checkRateLimit(request, env))) {
+    return new Response('rate limit exceeded', { status: 429, headers: { 'retry-after': '60' } });
   }
   if (!env.GENERATED_BUCKET) return new Response('not found', { status: 404 });
 

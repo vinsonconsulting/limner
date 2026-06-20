@@ -1,6 +1,11 @@
 import { describe, expect, test, vi } from 'vitest';
 
-import { deriveRateLimitKey, withRateLimit, type RateLimitedEnv } from '../src/rate-limit.js';
+import {
+  checkRateLimit,
+  deriveRateLimitKey,
+  withRateLimit,
+  type RateLimitedEnv,
+} from '../src/rate-limit.js';
 
 const ctx = {} as ExecutionContext;
 
@@ -47,6 +52,30 @@ describe('deriveRateLimitKey', () => {
 
   test('falls back to a shared anon bucket as a last resort', () => {
     expect(deriveRateLimitKey(req())).toBe('anon');
+  });
+});
+
+describe('checkRateLimit', () => {
+  test('true when the limiter allows', async () => {
+    const env = { RATE_LIMITER: limiter(true) } as unknown as RateLimitedEnv;
+    expect(await checkRateLimit(req(), env)).toBe(true);
+  });
+
+  test('false when the limiter rejects', async () => {
+    const env = { RATE_LIMITER: limiter(false) } as unknown as RateLimitedEnv;
+    expect(await checkRateLimit(req({ authorization: 'Bearer t' }), env)).toBe(false);
+    expect((env.RATE_LIMITER as ReturnType<typeof limiter>).limit).toHaveBeenCalledWith({ key: 'tok:f10c3da3' });
+  });
+
+  test('fails open (true) when the RATE_LIMITER binding is absent', async () => {
+    expect(await checkRateLimit(req(), {} as RateLimitedEnv)).toBe(true);
+  });
+
+  test('fails open (true) when the limiter throws', async () => {
+    const env = {
+      RATE_LIMITER: { limit: vi.fn(async () => { throw new Error('down'); }) },
+    } as unknown as RateLimitedEnv;
+    expect(await checkRateLimit(req(), env)).toBe(true);
   });
 });
 
