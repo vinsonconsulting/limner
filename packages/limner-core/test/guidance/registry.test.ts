@@ -108,6 +108,7 @@ describe('wave-2 guidance entries (D-RA-24)', () => {
     ['pipeline-router', 'least post-processing'],
     ['brand-stamp', 'offset from the top-left'],
     ['multi-size-export', 'cover and contain agree'],
+    ['captioned-graphic', 'JSX-shaped'],
   ];
 
   test('registers and looks up every wave-2 entry by id', () => {
@@ -162,5 +163,15 @@ describe('wave-2 guidance entries (D-RA-24)', () => {
     // the local fit behavior and the Workers-only letterbox path
     expect(md).toContain('cover fit');
     expect(md).toContain('contain or pad fit');
+  });
+
+  test('captioned-graphic renders text then composites over the image', () => {
+    const md = serializeGuidance(getGuidance('captioned-graphic')!);
+    expect(md.startsWith('# Captioned graphic')).toBe(true);
+    expect(md).toContain('renderText');
+    // the composite step that lands the text on the base image
+    expect(md).toContain('watermark op');
+    // honest single built-in font claim
+    expect(md).toContain('IBM Plex Sans');
   });
 });

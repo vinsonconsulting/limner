@@ -32,7 +32,7 @@ describe('mcp server: prompts', () => {
     const { client, close } = await connected();
     try {
       const result = await client.listPrompts();
-      expect(result.prompts).toHaveLength(8);
+      expect(result.prompts).toHaveLength(9);
       const p = result.prompts.find((x) => x.name === 'capability-tour');
       expect(p?.arguments).toEqual([
         { name: 'focus', description: expect.any(String), required: false },
@@ -73,6 +73,19 @@ describe('mcp server: prompts', () => {
     try {
       const result = await client.listPrompts();
       const p = result.prompts.find((x) => x.name === 'multi-size-export');
+      expect(p).toBeDefined();
+      const subject = p!.arguments?.find((a) => a.name === 'subject');
+      expect(subject?.required).toBe(true);
+    } finally {
+      await close();
+    }
+  });
+
+  test('prompts/list advertises captioned-graphic with subject required', async () => {
+    const { client, close } = await connected();
+    try {
+      const result = await client.listPrompts();
+      const p = result.prompts.find((x) => x.name === 'captioned-graphic');
       expect(p).toBeDefined();
       const subject = p!.arguments?.find((a) => a.name === 'subject');
       expect(subject?.required).toBe(true);
@@ -283,6 +296,47 @@ describe('mcp server: prompts', () => {
     const { client, close } = await connected();
     try {
       await expect(client.getPrompt({ name: 'multi-size-export' })).rejects.toThrow();
+    } finally {
+      await close();
+    }
+  });
+
+  test('prompts/get returns the captioned-graphic-derived message with the subject', async () => {
+    const { client, close } = await connected();
+    try {
+      const result = await client.getPrompt({
+        name: 'captioned-graphic',
+        arguments: { subject: 'NOW OPEN' },
+      });
+      const m = result.messages[0]!;
+      expect(m.role).toBe('user');
+      const text = (m.content as { text: string }).text;
+      // The guidance slice appears verbatim (byte-identical to the serializer).
+      expect(text).toContain(serializeGuidance(getGuidance('captioned-graphic')!));
+      expect(text).toContain('make a captioned graphic with this text: NOW OPEN');
+    } finally {
+      await close();
+    }
+  });
+
+  test('prompts/get threads optional knobs into the captioned-graphic message', async () => {
+    const { client, close } = await connected();
+    try {
+      const result = await client.getPrompt({
+        name: 'captioned-graphic',
+        arguments: { subject: 'Sale', placement: 'bottom band' },
+      });
+      const text = (result.messages[0]!.content as { text: string }).text;
+      expect(text).toContain('Placement: bottom band');
+    } finally {
+      await close();
+    }
+  });
+
+  test('prompts/get rejects captioned-graphic without the required subject', async () => {
+    const { client, close } = await connected();
+    try {
+      await expect(client.getPrompt({ name: 'captioned-graphic' })).rejects.toThrow();
     } finally {
       await close();
     }
