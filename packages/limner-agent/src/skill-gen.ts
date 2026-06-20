@@ -32,6 +32,7 @@ export const SKILL_SOURCES: readonly SkillSource[] = [
   { skillDir: 'pipeline-router', guidanceId: 'pipeline-router' },
   { skillDir: 'brand-stamp', guidanceId: 'brand-stamp' },
   { skillDir: 'multi-size-export', guidanceId: 'multi-size-export' },
+  { skillDir: 'captioned-graphic', guidanceId: 'captioned-graphic' },
 ];
 
 export const SKILL_MARKER_END = '<!-- END GENERATED -->';

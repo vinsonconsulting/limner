@@ -317,11 +317,61 @@ const multiSizeExportPrompt: Prompt = {
   },
 };
 
+// captioned-graphic — concept #7. Serializes the captioned-graphic guidance
+// verbatim, then frames a request from the supplied text and optional base
+// image, placement, and style. The renderText + composite procedure lives in
+// the skill.
+const captionedGraphicPrompt: Prompt = {
+  name: 'captioned-graphic',
+  description: getGuidance('captioned-graphic')!.summary,
+  arguments: [
+    {
+      name: 'subject',
+      description: 'The text to set on the image (a headline, caption, or quote).',
+      required: true,
+    },
+    {
+      name: 'image',
+      description: 'Optional base image to caption, as a description or a URL.',
+      required: false,
+    },
+    {
+      name: 'placement',
+      description: 'Optional placement (e.g. "bottom band", "centered title").',
+      required: false,
+    },
+    {
+      name: 'style',
+      description: 'Optional type style (e.g. "large headline, white on a dark band").',
+      required: false,
+    },
+  ],
+  build: (args) => {
+    const subject = args['subject'];
+    if (!subject) {
+      throw new Error('captioned-graphic requires a "subject" argument');
+    }
+    const base = serializeGuidance(getGuidance('captioned-graphic')!);
+    const lines = [`Using the guidance above, make a captioned graphic with this text: ${subject}`];
+    if (args['image']) {
+      lines.push(`Base image: ${args['image']}`);
+    }
+    if (args['placement']) {
+      lines.push(`Placement: ${args['placement']}`);
+    }
+    if (args['style']) {
+      lines.push(`Style: ${args['style']}`);
+    }
+    return [{ role: 'user', content: { type: 'text', text: `${base}\n${lines.join('\n')}\n` } }];
+  },
+};
+
 export const prompts: readonly Prompt[] = [
   capabilityTour,
   pipelineRouterPrompt,
   brandStampPrompt,
   multiSizeExportPrompt,
+  captionedGraphicPrompt,
   midjourneyBuilder,
   dalleBuilder,
   recraftBuilder,
