@@ -32,7 +32,7 @@ describe('mcp server: prompts', () => {
     const { client, close } = await connected();
     try {
       const result = await client.listPrompts();
-      expect(result.prompts).toHaveLength(7);
+      expect(result.prompts).toHaveLength(8);
       const p = result.prompts.find((x) => x.name === 'capability-tour');
       expect(p?.arguments).toEqual([
         { name: 'focus', description: expect.any(String), required: false },
@@ -60,6 +60,19 @@ describe('mcp server: prompts', () => {
     try {
       const result = await client.listPrompts();
       const p = result.prompts.find((x) => x.name === 'brand-stamp');
+      expect(p).toBeDefined();
+      const subject = p!.arguments?.find((a) => a.name === 'subject');
+      expect(subject?.required).toBe(true);
+    } finally {
+      await close();
+    }
+  });
+
+  test('prompts/list advertises multi-size-export with subject required', async () => {
+    const { client, close } = await connected();
+    try {
+      const result = await client.listPrompts();
+      const p = result.prompts.find((x) => x.name === 'multi-size-export');
       expect(p).toBeDefined();
       const subject = p!.arguments?.find((a) => a.name === 'subject');
       expect(subject?.required).toBe(true);
@@ -229,6 +242,47 @@ describe('mcp server: prompts', () => {
     const { client, close } = await connected();
     try {
       await expect(client.getPrompt({ name: 'brand-stamp' })).rejects.toThrow();
+    } finally {
+      await close();
+    }
+  });
+
+  test('prompts/get returns the multi-size-export-derived message with the subject', async () => {
+    const { client, close } = await connected();
+    try {
+      const result = await client.getPrompt({
+        name: 'multi-size-export',
+        arguments: { subject: 'a campaign hero image' },
+      });
+      const m = result.messages[0]!;
+      expect(m.role).toBe('user');
+      const text = (m.content as { text: string }).text;
+      // The guidance slice appears verbatim (byte-identical to the serializer).
+      expect(text).toContain(serializeGuidance(getGuidance('multi-size-export')!));
+      expect(text).toContain('export this image at the sizes and formats it needs: a campaign hero image');
+    } finally {
+      await close();
+    }
+  });
+
+  test('prompts/get threads optional knobs into the multi-size-export message', async () => {
+    const { client, close } = await connected();
+    try {
+      const result = await client.getPrompt({
+        name: 'multi-size-export',
+        arguments: { subject: 'a banner', targets: 'web hero, app icon' },
+      });
+      const text = (result.messages[0]!.content as { text: string }).text;
+      expect(text).toContain('Targets: web hero, app icon');
+    } finally {
+      await close();
+    }
+  });
+
+  test('prompts/get rejects multi-size-export without the required subject', async () => {
+    const { client, close } = await connected();
+    try {
+      await expect(client.getPrompt({ name: 'multi-size-export' })).rejects.toThrow();
     } finally {
       await close();
     }

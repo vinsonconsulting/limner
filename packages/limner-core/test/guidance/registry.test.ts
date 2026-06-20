@@ -107,6 +107,7 @@ describe('wave-2 guidance entries (D-RA-24)', () => {
   const WAVE_2: ReadonlyArray<readonly [string, string]> = [
     ['pipeline-router', 'least post-processing'],
     ['brand-stamp', 'offset from the top-left'],
+    ['multi-size-export', 'cover and contain agree'],
   ];
 
   test('registers and looks up every wave-2 entry by id', () => {
@@ -152,5 +153,14 @@ describe('wave-2 guidance entries (D-RA-24)', () => {
     expect(md).toContain('| base | The image to stamp |');
     // stays honest about the missing opacity knob on the local op
     expect(md).toContain('takes no opacity value');
+  });
+
+  test('multi-size-export covers resize/convert and the local cover-fit reality', () => {
+    const md = serializeGuidance(getGuidance('multi-size-export')!);
+    expect(md.startsWith('# Multi-size and format export')).toBe(true);
+    expect(md).toContain('WebP');
+    // the local fit behavior and the Workers-only letterbox path
+    expect(md).toContain('cover fit');
+    expect(md).toContain('contain or pad fit');
   });
 });

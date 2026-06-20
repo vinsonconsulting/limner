@@ -279,10 +279,49 @@ const brandStampPrompt: Prompt = {
   },
 };
 
+// multi-size-export — concept #6. Serializes the multi-size-export guidance
+// verbatim, then frames an export request from the supplied image and optional
+// targets and formats. The resize/convert procedure lives in the skill.
+const multiSizeExportPrompt: Prompt = {
+  name: 'multi-size-export',
+  description: getGuidance('multi-size-export')!.summary,
+  arguments: [
+    { name: 'subject', description: 'The image to export, as a description or a URL.', required: true },
+    {
+      name: 'targets',
+      description: 'Optional destinations or sizes (e.g. "web hero, square social post, app icon").',
+      required: false,
+    },
+    {
+      name: 'formats',
+      description: 'Optional format preferences (e.g. "WebP for web, PNG for the icon").',
+      required: false,
+    },
+  ],
+  build: (args) => {
+    const subject = args['subject'];
+    if (!subject) {
+      throw new Error('multi-size-export requires a "subject" argument');
+    }
+    const base = serializeGuidance(getGuidance('multi-size-export')!);
+    const lines = [
+      `Using the guidance above, export this image at the sizes and formats it needs: ${subject}`,
+    ];
+    if (args['targets']) {
+      lines.push(`Targets: ${args['targets']}`);
+    }
+    if (args['formats']) {
+      lines.push(`Formats: ${args['formats']}`);
+    }
+    return [{ role: 'user', content: { type: 'text', text: `${base}\n${lines.join('\n')}\n` } }];
+  },
+};
+
 export const prompts: readonly Prompt[] = [
   capabilityTour,
   pipelineRouterPrompt,
   brandStampPrompt,
+  multiSizeExportPrompt,
   midjourneyBuilder,
   dalleBuilder,
   recraftBuilder,
