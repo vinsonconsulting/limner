@@ -8,6 +8,7 @@ import { recraftRecipe } from './entries/recraft-recipe.js';
 import { styleProfile } from './entries/style-profile.js';
 import { illuminatedManuscript } from './entries/illuminated-manuscript.js';
 import { pipelineRouter } from './entries/pipeline-router.js';
+import { brandStamp } from './entries/brand-stamp.js';
 
 // Registration order is the public listing order. D-RA-24 concept authoring
 // (wave-1, then wave-2) appends entries here.
@@ -21,6 +22,7 @@ const ENTRIES: readonly GuidanceEntry[] = [
   styleProfile,
   illuminatedManuscript,
   pipelineRouter,
+  brandStamp,
 ];
 
 /** All guidance entries keyed by id. */
