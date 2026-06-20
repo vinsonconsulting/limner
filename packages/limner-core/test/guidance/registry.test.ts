@@ -101,3 +101,46 @@ describe('wave-1 guidance entries (D-RA-24)', () => {
     expect(md).toContain('Vectorize');
   });
 });
+
+describe('wave-2 guidance entries (D-RA-24)', () => {
+  // [id, a substring that must appear in the serialized markdown]
+  const WAVE_2: ReadonlyArray<readonly [string, string]> = [
+    ['pipeline-router', 'least post-processing'],
+  ];
+
+  test('registers and looks up every wave-2 entry by id', () => {
+    for (const [id] of WAVE_2) {
+      expect(getGuidance(id)?.id).toBe(id);
+    }
+  });
+
+  test('lists all entries with unique ids', () => {
+    const ids = listGuidance().map((e) => e.id);
+    for (const [id] of WAVE_2) {
+      expect(ids).toContain(id);
+    }
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  test('serializes each entry: A4 framing, signature content, one trailing newline', () => {
+    for (const [id, marker] of WAVE_2) {
+      const md = serializeGuidance(getGuidance(id)!);
+      expect(md).toContain(A4_FRAMING);
+      expect(md).toContain(marker);
+      expect(md.endsWith('\n')).toBe(true);
+      expect(md.endsWith('\n\n')).toBe(false);
+      // deterministic
+      expect(serializeGuidance(getGuidance(id)!)).toBe(md);
+    }
+  });
+
+  test('pipeline-router routes by output kind, cost, and the three pipelines', () => {
+    const md = serializeGuidance(getGuidance('pipeline-router')!);
+    expect(md.startsWith('# Pipeline router')).toBe(true);
+    expect(md).toContain('Midjourney');
+    expect(md).toContain('DALL·E');
+    expect(md).toContain('Recraft');
+    // the cost asymmetry that drives the routing decision
+    expect(md).toContain('No Limner API charge');
+  });
+});
