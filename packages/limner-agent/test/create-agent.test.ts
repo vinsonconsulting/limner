@@ -115,7 +115,7 @@ describe('create-agent: agent plan', () => {
 });
 
 describe('create-agent: multi-skill manifest', () => {
-  test('lists the six wave-1 skills in attach order with valid titles', () => {
+  test('lists all wave-1 + wave-2 skills in attach order with valid titles', () => {
     expect(SKILL_MANIFEST.map((s) => s.skillDir)).toEqual([
       'file-types',
       'external-tools',
@@ -123,6 +123,16 @@ describe('create-agent: multi-skill manifest', () => {
       'dalle',
       'recraft',
       'illuminated-manuscript',
+      'pipeline-router',
+      'brand-stamp',
+      'multi-size-export',
+      'captioned-graphic',
+      'iterate-on-asset',
+      'style-from-images',
+      'brand-kit',
+      'art-research',
+      'vectorize',
+      'print-ready',
     ]);
     for (const { displayTitle } of SKILL_MANIFEST) {
       expect(displayTitle.length).toBeGreaterThan(0);
