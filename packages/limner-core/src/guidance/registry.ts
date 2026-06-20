@@ -16,6 +16,7 @@ import { iterateOnAsset } from './entries/iterate-on-asset.js';
 import { styleFromImages } from './entries/style-from-images.js';
 import { brandKit } from './entries/brand-kit.js';
 import { artResearch } from './entries/art-research.js';
+import { vectorize } from './entries/vectorize.js';
 
 // Registration order is the public listing order. D-RA-24 concept authoring
 // (wave-1, then wave-2) appends entries here.
@@ -37,6 +38,7 @@ const ENTRIES: readonly GuidanceEntry[] = [
   styleFromImages,
   brandKit,
   artResearch,
+  vectorize,
 ];
 
 /** All guidance entries keyed by id. */

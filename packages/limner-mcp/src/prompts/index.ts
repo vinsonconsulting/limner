@@ -440,6 +440,38 @@ const styleFromImagesPrompt: Prompt = {
   },
 };
 
+// vectorize — concept #13. Serializes the vectorize guidance verbatim, then
+// frames a trace request from the supplied raster and its intended use. The
+// limner_vectorize call and the when-to-vectorize judgment live in the skill.
+const vectorizePrompt: Prompt = {
+  name: 'vectorize',
+  description: getGuidance('vectorize')!.summary,
+  arguments: [
+    {
+      name: 'subject',
+      description: 'The raster image to vectorize, as a description or a URL.',
+      required: true,
+    },
+    {
+      name: 'intent',
+      description: 'Optional intended use (e.g. "an app icon", "a print-ready logo").',
+      required: false,
+    },
+  ],
+  build: (args) => {
+    const subject = args['subject'];
+    if (!subject) {
+      throw new Error('vectorize requires a "subject" argument');
+    }
+    const base = serializeGuidance(getGuidance('vectorize')!);
+    const lines = [`Using the guidance above, vectorize this image into an SVG: ${subject}`];
+    if (args['intent']) {
+      lines.push(`Intended use: ${args['intent']}`);
+    }
+    return [{ role: 'user', content: { type: 'text', text: `${base}\n${lines.join('\n')}\n` } }];
+  },
+};
+
 export const prompts: readonly Prompt[] = [
   capabilityTour,
   pipelineRouterPrompt,
@@ -448,6 +480,7 @@ export const prompts: readonly Prompt[] = [
   captionedGraphicPrompt,
   aspectRatioCropsPrompt,
   styleFromImagesPrompt,
+  vectorizePrompt,
   midjourneyBuilder,
   dalleBuilder,
   recraftBuilder,
