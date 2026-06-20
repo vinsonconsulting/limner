@@ -113,6 +113,7 @@ describe('wave-2 guidance entries (D-RA-24)', () => {
     ['iterate-on-asset', 'does not save generations automatically'],
     ['style-from-images', 'provenance.source to style-from-images'],
     ['brand-kit', 'provenance.source to brand-kit'],
+    ['art-research', 'provenance.source to art-research'],
   ];
 
   test('registers and looks up every wave-2 entry by id', () => {
@@ -215,5 +216,14 @@ describe('wave-2 guidance entries (D-RA-24)', () => {
     expect(md).toContain('readStyleProfile');
     expect(md).toContain('upsertStyleProfile');
     expect(md).toContain('provenance.source to brand-kit');
+  });
+
+  test('art-research uses web tools and writes the style profile', () => {
+    const md = serializeGuidance(getGuidance('art-research')!);
+    expect(md.startsWith('# Art research')).toBe(true);
+    // single-agent web research feeding the shared profile
+    expect(md).toContain('web tools');
+    expect(md).toContain('upsertStyleProfile');
+    expect(md).toContain('provenance.source to art-research');
   });
 });
