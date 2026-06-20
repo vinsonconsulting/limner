@@ -32,7 +32,7 @@ describe('mcp server: prompts', () => {
     const { client, close } = await connected();
     try {
       const result = await client.listPrompts();
-      expect(result.prompts).toHaveLength(6);
+      expect(result.prompts).toHaveLength(7);
       const p = result.prompts.find((x) => x.name === 'capability-tour');
       expect(p?.arguments).toEqual([
         { name: 'focus', description: expect.any(String), required: false },
@@ -47,6 +47,19 @@ describe('mcp server: prompts', () => {
     try {
       const result = await client.listPrompts();
       const p = result.prompts.find((x) => x.name === 'pipeline-router');
+      expect(p).toBeDefined();
+      const subject = p!.arguments?.find((a) => a.name === 'subject');
+      expect(subject?.required).toBe(true);
+    } finally {
+      await close();
+    }
+  });
+
+  test('prompts/list advertises brand-stamp with subject required', async () => {
+    const { client, close } = await connected();
+    try {
+      const result = await client.listPrompts();
+      const p = result.prompts.find((x) => x.name === 'brand-stamp');
       expect(p).toBeDefined();
       const subject = p!.arguments?.find((a) => a.name === 'subject');
       expect(subject?.required).toBe(true);
@@ -175,6 +188,47 @@ describe('mcp server: prompts', () => {
     const { client, close } = await connected();
     try {
       await expect(client.getPrompt({ name: 'pipeline-router' })).rejects.toThrow();
+    } finally {
+      await close();
+    }
+  });
+
+  test('prompts/get returns the brand-stamp-derived message with the subject', async () => {
+    const { client, close } = await connected();
+    try {
+      const result = await client.getPrompt({
+        name: 'brand-stamp',
+        arguments: { subject: 'a product hero shot' },
+      });
+      const m = result.messages[0]!;
+      expect(m.role).toBe('user');
+      const text = (m.content as { text: string }).text;
+      // The guidance slice appears verbatim (byte-identical to the serializer).
+      expect(text).toContain(serializeGuidance(getGuidance('brand-stamp')!));
+      expect(text).toContain('stamp a brand mark or watermark onto: a product hero shot');
+    } finally {
+      await close();
+    }
+  });
+
+  test('prompts/get threads optional knobs into the brand-stamp message', async () => {
+    const { client, close } = await connected();
+    try {
+      const result = await client.getPrompt({
+        name: 'brand-stamp',
+        arguments: { subject: 'a photo', placement: 'bottom-right corner' },
+      });
+      const text = (result.messages[0]!.content as { text: string }).text;
+      expect(text).toContain('Placement: bottom-right corner');
+    } finally {
+      await close();
+    }
+  });
+
+  test('prompts/get rejects brand-stamp without the required subject', async () => {
+    const { client, close } = await connected();
+    try {
+      await expect(client.getPrompt({ name: 'brand-stamp' })).rejects.toThrow();
     } finally {
       await close();
     }

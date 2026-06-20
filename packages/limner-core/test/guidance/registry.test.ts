@@ -106,6 +106,7 @@ describe('wave-2 guidance entries (D-RA-24)', () => {
   // [id, a substring that must appear in the serialized markdown]
   const WAVE_2: ReadonlyArray<readonly [string, string]> = [
     ['pipeline-router', 'least post-processing'],
+    ['brand-stamp', 'offset from the top-left'],
   ];
 
   test('registers and looks up every wave-2 entry by id', () => {
@@ -142,5 +143,14 @@ describe('wave-2 guidance entries (D-RA-24)', () => {
     expect(md).toContain('Recraft');
     // the cost asymmetry that drives the routing decision
     expect(md).toContain('No Limner API charge');
+  });
+
+  test('brand-stamp documents the watermark op without overclaiming opacity', () => {
+    const md = serializeGuidance(getGuidance('brand-stamp')!);
+    expect(md.startsWith('# Brand stamp and watermark')).toBe(true);
+    expect(md).toContain('watermark op');
+    expect(md).toContain('| base | The image to stamp |');
+    // stays honest about the missing opacity knob on the local op
+    expect(md).toContain('takes no opacity value');
   });
 });

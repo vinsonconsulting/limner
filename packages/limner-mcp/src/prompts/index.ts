@@ -235,9 +235,54 @@ const pipelineRouterPrompt: Prompt = {
   },
 };
 
+// brand-stamp — concept #5. Serializes the brand-stamp guidance verbatim, then
+// frames a stamping request from the supplied image and optional mark, placement,
+// and treatment. The compositing procedure lives in the brand-stamp skill.
+const brandStampPrompt: Prompt = {
+  name: 'brand-stamp',
+  description: getGuidance('brand-stamp')!.summary,
+  arguments: [
+    { name: 'subject', description: 'The image to stamp, as a description or a URL.', required: true },
+    {
+      name: 'mark',
+      description: 'Optional brand mark: a logo description or URL, or watermark text such as "DRAFT".',
+      required: false,
+    },
+    {
+      name: 'placement',
+      description: 'Optional placement (e.g. "bottom-right corner", "centered").',
+      required: false,
+    },
+    {
+      name: 'treatment',
+      description: 'Optional treatment (e.g. "faded", "small, 15% of width").',
+      required: false,
+    },
+  ],
+  build: (args) => {
+    const subject = args['subject'];
+    if (!subject) {
+      throw new Error('brand-stamp requires a "subject" argument');
+    }
+    const base = serializeGuidance(getGuidance('brand-stamp')!);
+    const lines = [`Using the guidance above, stamp a brand mark or watermark onto: ${subject}`];
+    if (args['mark']) {
+      lines.push(`Mark: ${args['mark']}`);
+    }
+    if (args['placement']) {
+      lines.push(`Placement: ${args['placement']}`);
+    }
+    if (args['treatment']) {
+      lines.push(`Treatment: ${args['treatment']}`);
+    }
+    return [{ role: 'user', content: { type: 'text', text: `${base}\n${lines.join('\n')}\n` } }];
+  },
+};
+
 export const prompts: readonly Prompt[] = [
   capabilityTour,
   pipelineRouterPrompt,
+  brandStampPrompt,
   midjourneyBuilder,
   dalleBuilder,
   recraftBuilder,
