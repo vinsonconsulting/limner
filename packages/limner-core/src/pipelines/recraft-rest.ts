@@ -183,8 +183,10 @@ function parseRecraftResponse(json: unknown): RecraftGenerateResult {
 // crispUpscale / vectorize return `{ image: { url? , b64_json? } }`, unlike the
 // generations `{ data: [{ ... }] }` shape. Accept either (some processing
 // endpoints echo the data[] form); prefer url so callers skip a base64
-// round-trip. For b64 the mime is caller-supplied (png for upscale,
-// image/svg+xml for vectorize) since Recraft does not echo it.
+// round-trip. Recraft does not echo the output mime, and crispUpscale actually
+// returns WebP rather than the PNG its caller assumes, so for b64 we sniff the
+// decoded bytes' magic and only fall back to the caller-supplied mime for
+// formats without a binary signature (e.g. SVG from vectorize).
 function parseRecraftImageResponse(json: unknown, b64MimeType: string): RecraftGenerateResult {
   const obj = asRecord(json);
   const image = asRecord(obj['image']);
@@ -196,13 +198,47 @@ function parseRecraftImageResponse(json: unknown, b64MimeType: string): RecraftG
   }
   const b64 = image['b64_json'] ?? fromData['b64_json'];
   if (typeof b64 === 'string') {
-    return { data: base64ToBytes(b64), mimeType: b64MimeType };
+    const data = base64ToBytes(b64);
+    return { data, mimeType: sniffImageMime(data, b64MimeType) };
   }
   throw new PipelineError(
     'recraft',
     'upstream_error',
     'recraft transform response missing both url and b64_json',
   );
+}
+
+// Detect a raster image's mime from its leading magic bytes. Returns `fallback`
+// for anything without a recognized binary signature (notably SVG, which is
+// text). Keeps the delivered artifact's mime/extension honest regardless of what
+// the caller assumed the endpoint returns.
+function sniffImageMime(bytes: Uint8Array, fallback: string): string {
+  if (
+    bytes.length >= 8 &&
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x4e &&
+    bytes[3] === 0x47
+  ) {
+    return 'image/png';
+  }
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+    return 'image/jpeg';
+  }
+  if (
+    bytes.length >= 12 &&
+    bytes[0] === 0x52 && // R
+    bytes[1] === 0x49 && // I
+    bytes[2] === 0x46 && // F
+    bytes[3] === 0x46 && // F
+    bytes[8] === 0x57 && // W
+    bytes[9] === 0x45 && // E
+    bytes[10] === 0x42 && // B
+    bytes[11] === 0x50 // P
+  ) {
+    return 'image/webp';
+  }
+  return fallback;
 }
 
 function stringifyError(err: unknown): string {

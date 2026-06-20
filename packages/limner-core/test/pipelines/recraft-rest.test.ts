@@ -213,6 +213,27 @@ describe('RestRecraftTransport — crisp upscale (D-RA-14)', () => {
     expect(out.mimeType).toBe('image/png');
   });
 
+  test('detects WebP bytes and stamps image/webp, not the caller-supplied png', async () => {
+    // crispUpscale's b64_json path returns WebP, not PNG (observed against the
+    // live endpoint). The mime must reflect the actual bytes so the delivered
+    // artifact is stored and served with the right extension/content-type.
+    const webpBytes = new Uint8Array([
+      0x52, 0x49, 0x46, 0x46, 0x10, 0x00, 0x00, 0x00, // 'RIFF' + size
+      0x57, 0x45, 0x42, 0x50, 0x56, 0x50, 0x38, 0x4c, // 'WEBP' 'VP8L'
+    ]);
+    const webpB64 = btoa(String.fromCharCode(...webpBytes));
+    const fetchMock = vi.fn(async (url: unknown) =>
+      String(url).includes('/crispUpscale')
+        ? new Response(JSON.stringify({ image: { b64_json: webpB64 } }), { status: 200 })
+        : new Response(new Uint8Array([1]), { status: 200, headers: { 'content-type': 'image/png' } }),
+    ) as unknown as typeof fetch;
+
+    const t = new RestRecraftTransport('rk', fetchMock);
+    const out = await t.upscaleImage({ image: 'https://s/x.png', responseFormat: 'b64_json' });
+    expect(out.mimeType).toBe('image/webp');
+    expect(out.data!.slice(0, 4)).toEqual(new Uint8Array([0x52, 0x49, 0x46, 0x46]));
+  });
+
   test('401 maps to unauthorized', async () => {
     const fetchMock = vi.fn(async (url: unknown) =>
       String(url).includes('/crispUpscale')

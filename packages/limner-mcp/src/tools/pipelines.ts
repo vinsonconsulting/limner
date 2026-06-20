@@ -133,7 +133,7 @@ const upscaleInputSchema = z.object({
 const upscale: Tool<z.infer<typeof upscaleInputSchema>> = {
   name: 'limner_upscale',
   description:
-    'Upscale a raster image (crisp: sharpen + enlarge toward print scale) via Recraft\'s REST API. Returns a larger PNG. Paid API — each call bills your Recraft account.',
+    'Upscale a raster image (crisp: sharpen + enlarge toward print scale) via Recraft\'s REST API. Returns a larger raster image (PNG or WebP, depending on what the endpoint returns; the output mime reflects the actual bytes). Paid API — each call bills your Recraft account.',
   inputSchema: upscaleInputSchema,
   // Calls a paid external service (Recraft) — open-world, non-idempotent.
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
