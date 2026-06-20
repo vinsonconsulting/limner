@@ -109,6 +109,7 @@ describe('wave-2 guidance entries (D-RA-24)', () => {
     ['brand-stamp', 'offset from the top-left'],
     ['multi-size-export', 'cover and contain agree'],
     ['captioned-graphic', 'JSX-shaped'],
+    ['aspect-ratio-crops', 'largest rectangle'],
   ];
 
   test('registers and looks up every wave-2 entry by id', () => {
@@ -173,5 +174,14 @@ describe('wave-2 guidance entries (D-RA-24)', () => {
     expect(md).toContain('watermark op');
     // honest single built-in font claim
     expect(md).toContain('IBM Plex Sans');
+  });
+
+  test('aspect-ratio-crops covers local crop and Workers smart crop', () => {
+    const md = serializeGuidance(getGuidance('aspect-ratio-crops')!);
+    expect(md.startsWith('# Aspect-ratio crop set')).toBe(true);
+    expect(md).toContain('crop op');
+    expect(md).toContain('9:16');
+    // the Workers-only subject-aware path
+    expect(md).toContain('cfSmartCrop');
   });
 });
