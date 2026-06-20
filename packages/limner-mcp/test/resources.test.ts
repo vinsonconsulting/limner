@@ -33,13 +33,16 @@ describe('mcp server: resources', () => {
     const { client, close } = await connected();
     try {
       const result = await client.listResources();
-      expect(result.resources).toHaveLength(2);
+      expect(result.resources).toHaveLength(3);
       const fileTypes = result.resources.find((r) => r.name === 'file-types');
       expect(fileTypes?.uri).toBe('limner://reference/file-types');
       expect(fileTypes?.mimeType).toBe('text/markdown');
       const externalTools = result.resources.find((r) => r.name === 'external-tools');
       expect(externalTools?.uri).toBe('limner://reference/external-tools');
       expect(externalTools?.mimeType).toBe('text/markdown');
+      const printReady = result.resources.find((r) => r.name === 'print-ready');
+      expect(printReady?.uri).toBe('limner://reference/print-ready');
+      expect(printReady?.mimeType).toBe('text/markdown');
     } finally {
       await close();
     }
@@ -68,6 +71,18 @@ describe('mcp server: resources', () => {
       const c = result.contents[0]!;
       expect(c.uri).toBe('limner://reference/external-tools');
       expect(c.text).toBe(serializeGuidance(getGuidance('external-tools')!));
+    } finally {
+      await close();
+    }
+  });
+
+  test('resources/read serves the print-ready reference from guidance', async () => {
+    const { client, close } = await connected();
+    try {
+      const result = await client.readResource({ uri: 'limner://reference/print-ready' });
+      const c = result.contents[0]!;
+      expect(c.uri).toBe('limner://reference/print-ready');
+      expect(c.text).toBe(serializeGuidance(getGuidance('print-ready')!));
     } finally {
       await close();
     }
