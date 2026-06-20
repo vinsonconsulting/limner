@@ -86,6 +86,12 @@ export interface Env {
   // PR D — optional HMAC-SHA256 secret. When set, artifact URLs are signed +
   // time-limited; when absent, the unguessable UUID key is the capability.
   ARTIFACT_SIGNING_KEY?: string;
+  // D-RA-22 — comma-separated allowlist of first-party OAuth client_ids that
+  // bypass the consent screen and auto-approve. The live CMA agent's
+  // DCR-issued client_id lives here so a fresh re-authorization never has to
+  // clear a human consent step. Plain var (a client_id is public, A4-safe);
+  // absent/empty trusts no client. Consumed by isTrustedClient (auth/oauth.ts).
+  OAUTH_TRUSTED_CLIENT_IDS?: string;
   // OAuthProvider injects this at runtime; declared here for the
   // apiHandler's type signature.
   OAUTH_PROVIDER: OAuthHelpers;

@@ -83,6 +83,11 @@ bucket_name = "limner-rasa-generated-dev"
 # image tools fall back to inline base64.
 [vars]
 ARTIFACT_BASE_URL = "http://localhost:8787"
+# D-RA-22 — comma-separated allowlist of first-party OAuth client_ids that skip
+# the consent screen and auto-approve (agent-compat). Empty here for the local
+# dev surface; the operator pins the live agent's DCR client_id in
+# [env.production.vars] at deploy time. A client_id is public (A4-safe to commit).
+OAUTH_TRUSTED_CLIENT_IDS = ""
 
 # RT-2 (D-RA-20) — daily cron driving the 30-day R2 retention sweep
 # (src/retention.ts, invoked from the scheduled() handler in src/worker.ts).
@@ -165,6 +170,12 @@ bucket_name = "limner-rasa-generated-prod"
 # Optional signed URLs: `wrangler secret put ARTIFACT_SIGNING_KEY --env production`.
 [env.production.vars]
 ARTIFACT_BASE_URL = "https://mcp.limner.us"
+# D-RA-22 — first-party client allowlist (see top-level [vars] note). The
+# operator pins the live CMA agent's DCR-issued client_id here during the gated
+# deploy (recover it via OAuthHelpers.listClients() / listUserGrants, or a
+# wrangler kv read of OAUTH_KV) so its fresh re-auth auto-approves and never
+# hits the consent screen. A client_id is public — safe to commit.
+OAUTH_TRUSTED_CLIENT_IDS = ""
 
 [env.production.triggers]
 crons = ["0 3 * * *"]
