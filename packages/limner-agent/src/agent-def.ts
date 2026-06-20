@@ -39,11 +39,12 @@ export interface SkillManifestEntry {
 }
 
 /**
- * The wave-1 skills attached to the Limner agent, in attach order. file-types
- * reuses the original constants so the proven single-skill path is unchanged;
- * the rest were authored in wave-1. Adding a skill here (plus its SKILL.md and a
- * SKILL_SOURCES row for the generated region) is all create-agent needs to ship it.
- * Display titles stay A4-safe: descriptive, no Anthropic/Claude product implication.
+ * The skills attached to the Limner agent, in attach order: the wave-1 set
+ * first (file-types reuses the original constants so the proven single-skill
+ * path is unchanged), then the wave-2 D-RA-24 concepts. Adding a skill here
+ * (plus its SKILL.md and a SKILL_SOURCES row for the generated region) is all
+ * create-agent needs to ship it. Display titles stay A4-safe: descriptive, no
+ * Anthropic/Claude product implication.
  */
 export const SKILL_MANIFEST: readonly SkillManifestEntry[] = [
   { skillDir: FILE_TYPES_SKILL_ROOT, displayTitle: FILE_TYPES_SKILL_TITLE },
@@ -52,6 +53,16 @@ export const SKILL_MANIFEST: readonly SkillManifestEntry[] = [
   { skillDir: 'dalle', displayTitle: 'Limner DALL·E recipe' },
   { skillDir: 'recraft', displayTitle: 'Limner Recraft recipe' },
   { skillDir: 'illuminated-manuscript', displayTitle: 'Limner illuminated manuscript' },
+  { skillDir: 'pipeline-router', displayTitle: 'Limner pipeline router' },
+  { skillDir: 'brand-stamp', displayTitle: 'Limner brand stamp' },
+  { skillDir: 'multi-size-export', displayTitle: 'Limner multi-size export' },
+  { skillDir: 'captioned-graphic', displayTitle: 'Limner captioned graphic' },
+  { skillDir: 'iterate-on-asset', displayTitle: 'Limner iterate on a prior asset' },
+  { skillDir: 'style-from-images', displayTitle: 'Limner style from user images' },
+  { skillDir: 'brand-kit', displayTitle: 'Limner brand kit' },
+  { skillDir: 'art-research', displayTitle: 'Limner art research' },
+  { skillDir: 'vectorize', displayTitle: 'Limner vectorize' },
+  { skillDir: 'print-ready', displayTitle: 'Limner print-ready export' },
 ];
 
 const RESERVED_WORDS = ['anthropic', 'claude'] as const;
