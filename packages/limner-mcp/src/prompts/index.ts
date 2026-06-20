@@ -366,12 +366,49 @@ const captionedGraphicPrompt: Prompt = {
   },
 };
 
+// aspect-ratio-crops — concept #8. A prompt-only concept (no skill): serializes
+// the aspect-ratio-crops guidance verbatim, then frames a crop-set request from
+// the supplied image and optional ratios and focal point.
+const aspectRatioCropsPrompt: Prompt = {
+  name: 'aspect-ratio-crops',
+  description: getGuidance('aspect-ratio-crops')!.summary,
+  arguments: [
+    { name: 'subject', description: 'The image to crop, as a description or a URL.', required: true },
+    {
+      name: 'ratios',
+      description: 'Optional target ratios (e.g. "1:1, 9:16, 16:9").',
+      required: false,
+    },
+    {
+      name: 'keep',
+      description: 'Optional focal point to keep in frame (e.g. "the product centered").',
+      required: false,
+    },
+  ],
+  build: (args) => {
+    const subject = args['subject'];
+    if (!subject) {
+      throw new Error('aspect-ratio-crops requires a "subject" argument');
+    }
+    const base = serializeGuidance(getGuidance('aspect-ratio-crops')!);
+    const lines = [`Using the guidance above, produce an aspect-ratio crop set from: ${subject}`];
+    if (args['ratios']) {
+      lines.push(`Ratios: ${args['ratios']}`);
+    }
+    if (args['keep']) {
+      lines.push(`Keep in frame: ${args['keep']}`);
+    }
+    return [{ role: 'user', content: { type: 'text', text: `${base}\n${lines.join('\n')}\n` } }];
+  },
+};
+
 export const prompts: readonly Prompt[] = [
   capabilityTour,
   pipelineRouterPrompt,
   brandStampPrompt,
   multiSizeExportPrompt,
   captionedGraphicPrompt,
+  aspectRatioCropsPrompt,
   midjourneyBuilder,
   dalleBuilder,
   recraftBuilder,
