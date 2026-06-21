@@ -13,6 +13,19 @@ function mockFetch(response: Response): typeof fetch {
   return vi.fn().mockResolvedValue(response) as unknown as typeof fetch;
 }
 
+// The SSRF guard now resolves source-image hostnames over DoH (1.1.1.1/dns-query)
+// before fetching them. Tests that stub global fetch and route a source image
+// through a pipeline must answer that lookup with a public IP, or the guard fails
+// closed. Returns null for non-DoH URLs so the caller handles them as before.
+function dohAnswer(url: string): Response | null {
+  if (!url.startsWith('https://1.1.1.1/dns-query')) return null;
+  const type = new URL(url).searchParams.get('type');
+  return new Response(
+    JSON.stringify({ Status: 0, Answer: type === 'A' ? [{ type: 1, data: '203.0.113.10' }] : [] }),
+    { status: 200, headers: { 'content-type': 'application/dns-json' } },
+  );
+}
+
 async function connectedPair(
   tools: readonly Tool[],
   ctx: ToolContext,
@@ -254,8 +267,10 @@ describe('limner_upscale', () => {
     const onePixelPng =
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABh6FO1AAAAABJRU5ErkJggg==';
     const realFetch = globalThis.fetch;
-    globalThis.fetch = vi.fn(async (url: unknown) =>
-      String(url).includes('/images/crispUpscale')
+    globalThis.fetch = vi.fn(async (url: unknown) => {
+      const doh = dohAnswer(String(url));
+      if (doh) return doh;
+      return String(url).includes('/images/crispUpscale')
         ? new Response(JSON.stringify({ image: { b64_json: onePixelPng } }), {
             status: 200,
             headers: { 'content-type': 'application/json' },
@@ -263,8 +278,8 @@ describe('limner_upscale', () => {
         : new Response(Uint8Array.from(atob(onePixelPng), (c) => c.charCodeAt(0)), {
             status: 200,
             headers: { 'content-type': 'image/png' },
-          }),
-    ) as unknown as typeof fetch;
+          });
+    }) as unknown as typeof fetch;
     const put = vi.fn().mockResolvedValue({ key: 'x' });
     const ctx: ToolContext = {
       bindings: localBindings,
@@ -312,8 +327,10 @@ describe('limner_vectorize', () => {
   test('re-hosts the SVG to a capability URL with an .svg key', async () => {
     const svgB64 = btoa('<svg xmlns="http://www.w3.org/2000/svg"/>');
     const realFetch = globalThis.fetch;
-    globalThis.fetch = vi.fn(async (url: unknown) =>
-      String(url).includes('/images/vectorize')
+    globalThis.fetch = vi.fn(async (url: unknown) => {
+      const doh = dohAnswer(String(url));
+      if (doh) return doh;
+      return String(url).includes('/images/vectorize')
         ? new Response(JSON.stringify({ image: { b64_json: svgB64 } }), {
             status: 200,
             headers: { 'content-type': 'application/json' },
@@ -321,8 +338,8 @@ describe('limner_vectorize', () => {
         : new Response(new Uint8Array([1, 2, 3]), {
             status: 200,
             headers: { 'content-type': 'image/png' },
-          }),
-    ) as unknown as typeof fetch;
+          });
+    }) as unknown as typeof fetch;
     const put = vi.fn().mockResolvedValue({ key: 'x' });
     const ctx: ToolContext = {
       bindings: localBindings,
