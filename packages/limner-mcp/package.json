@@ -57,11 +57,11 @@
     "@anthropic-ai/mcpb": "^2.1.2",
     "@cloudflare/workers-oauth-provider": "^0.7.0",
     "@cloudflare/workers-types": "^4.20250101.0",
-    "agents": "^0.14.1",
     "@modelcontextprotocol/inspector": "^0.21.2",
     "@types/node": "^22.0.0",
+    "agents": "^0.14.1",
     "typescript": "^5.6.0",
-    "vitest": "^4.1.8",
-    "wrangler": "^4.0.0"
+    "vitest": "^4.1.9",
+    "wrangler": "^4.103.0"
   }
 }
