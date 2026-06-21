@@ -8,15 +8,22 @@
 //   - blocks private, loopback, link-local, CGNAT, and IPv4-mapped-private
 //     hosts — including integer/hex-encoded forms, which the WHATWG URL parser
 //     normalizes to dotted-decimal for us before we ever inspect the host,
+//   - resolves hostnames over DoH (DNS-over-HTTPS) and re-checks every resolved
+//     A/AAAA address against the same blocklist, so a public-looking hostname
+//     that resolves to a private IP is rejected before the fetch,
 //   - re-validates the target after every redirect hop (manual redirects), so
 //     a public URL cannot 302 to an internal one,
 //   - caps redirect depth and (via the caller) request time.
 //
-// Residual gap (documented, not closed here): the Workers runtime doesn't
-// expose DNS resolution, so a public hostname that *resolves* to a private IP
-// (DNS rebinding) isn't caught without a DoH lookup. Literal-IP blocking plus
-// per-hop redirect re-validation closes the common cases; a resolver check is
-// a possible follow-up.
+// Residual (documented, runtime-bounded): an *active* DNS-rebinding attacker can
+// still flip the answer between our DoH check and the Workers runtime's own
+// resolution at fetch() time (a TOCTOU window). We cannot fully close this on
+// Workers because the connect IP can't be pinned for arbitrary external hosts:
+// `fetch(url, { cf: { resolveOverride } })` only takes effect when both hosts are
+// within your own Cloudflare zone and is ignored for off-zone hosts, so we don't
+// use it — a no-op pin would be false assurance. DoH A/AAAA validation closes the
+// common *static* hostname→private-IP case; the narrow active-rebinding window
+// remains.
 
 import { PipelineError } from './errors.js';
 
@@ -24,12 +31,27 @@ const ALLOWED_SCHEMES = new Set(['http:', 'https:']);
 
 export const DEFAULT_FETCH_TIMEOUT_MS = 15_000;
 export const DEFAULT_MAX_REDIRECTS = 3;
+export const DEFAULT_DOH_ENDPOINT = 'https://1.1.1.1/dns-query';
+export const DEFAULT_DOH_TIMEOUT_MS = 5_000;
+
+/** Resolve a hostname to its A/AAAA addresses (IP strings). Injectable for tests. */
+export type HostResolver = (host: string, signal?: AbortSignal) => Promise<string[]>;
 
 export interface SafeFetchOptions {
   /** Per-request timeout in milliseconds. Default 15s. */
   timeoutMs?: number;
   /** Max redirect hops to follow; each hop is re-validated. Default 3. */
   maxRedirects?: number;
+  /**
+   * Resolve a hostname to its IP addresses for SSRF re-validation. Defaults to a
+   * DoH (DNS-over-HTTPS) lookup via `fetchImpl`. Inject a stub in tests to avoid
+   * real network I/O.
+   */
+  resolveHost?: HostResolver;
+  /** DoH JSON endpoint used by the default resolver. Default 1.1.1.1. */
+  dohEndpoint?: string;
+  /** Per-query timeout for the default DoH resolver, in ms. Default 5s. */
+  dohTimeoutMs?: number;
 }
 
 function invalidUrl(pipelineId: string, message: string): PipelineError {
@@ -130,6 +152,28 @@ function isBlockedIpv6(b: Uint8Array): boolean {
   return false;
 }
 
+// url.hostname brackets IPv6 literals; strip them before inspection. A trailing
+// dot (FQDN form, e.g. `localhost.`) resolves the same as without, so drop it
+// too — otherwise it slips past the hostname/IP checks.
+function normalizeHost(hostname: string): string {
+  return hostname
+    .toLowerCase()
+    .replace(/^\[/, '')
+    .replace(/\]$/, '')
+    .replace(/\.$/, '');
+}
+
+// Classify a single IP string against the private/loopback/metadata blocklist.
+// 'unparseable' (a DoH answer our parsers don't recognize) is treated as unsafe
+// by callers — fail closed rather than fetch an address we couldn't vet.
+function classifyIp(ip: string): 'blocked' | 'allowed' | 'unparseable' {
+  const v4 = parseIpv4(ip);
+  if (v4) return isPrivateIpv4(v4) ? 'blocked' : 'allowed';
+  const v6 = parseIpv6(ip);
+  if (v6) return isBlockedIpv6(v6) ? 'blocked' : 'allowed';
+  return 'unparseable';
+}
+
 /**
  * Validate a caller-supplied URL for server-side fetching. Throws a
  * PipelineError('invalid_input') for an unsupported scheme or a host that
@@ -146,14 +190,7 @@ export function assertSafeImageUrl(pipelineId: string, raw: string): URL {
   if (!ALLOWED_SCHEMES.has(url.protocol)) {
     throw invalidUrl(pipelineId, `unsupported URL scheme '${url.protocol}' (only http/https allowed)`);
   }
-  // url.hostname brackets IPv6 literals; strip them before inspection. A
-  // trailing dot (FQDN form, e.g. `localhost.`) resolves the same as without,
-  // so drop it too — otherwise it slips past the hostname/IP checks.
-  const host = url.hostname
-    .toLowerCase()
-    .replace(/^\[/, '')
-    .replace(/\]$/, '')
-    .replace(/\.$/, '');
+  const host = normalizeHost(url.hostname);
   if (!host) throw invalidUrl(pipelineId, 'URL has no host');
   if (isBlockedHostname(host)) {
     throw invalidUrl(pipelineId, `refusing to fetch internal host '${url.hostname}'`);
@@ -194,6 +231,96 @@ function withTimeout(
   };
 }
 
+// Resolve a hostname's A/AAAA records over DoH (DNS-over-HTTPS, JSON). Issues the
+// A and AAAA queries in parallel through the worker's own `fetchImpl`, each with
+// its own timeout. Returns the union of resolved IP strings. Throws
+// PipelineError('upstream_unavailable') only when *both* queries fail at the
+// network level (can't verify → fail closed); a query that succeeds with no
+// records returns an empty list, which the caller treats as "no allowed address".
+async function dohResolve(
+  pipelineId: string,
+  host: string,
+  fetchImpl: typeof fetch,
+  endpoint: string,
+  timeoutMs: number,
+  signal: AbortSignal | undefined,
+): Promise<string[]> {
+  const query = async (type: 'A' | 'AAAA'): Promise<string[]> => {
+    const { signal: combined, cleanup } = withTimeout(timeoutMs, signal);
+    try {
+      const u = `${endpoint}?name=${encodeURIComponent(host)}&type=${type}`;
+      const res = await fetchImpl(u, { headers: { accept: 'application/dns-json' }, signal: combined });
+      if (!res.ok) return [];
+      const body = (await res.json()) as {
+        Status?: number;
+        Answer?: Array<{ type?: number; data?: string }>;
+      };
+      // RR types: 1 = A, 28 = AAAA. Other answers (CNAME, …) are ignored — the
+      // resolver chases CNAMEs and returns the final address records for us.
+      if (body.Status !== 0 || !Array.isArray(body.Answer)) return [];
+      return body.Answer
+        .filter((a) => a.type === 1 || a.type === 28)
+        .map((a) => a.data)
+        .filter((d): d is string => typeof d === 'string');
+    } finally {
+      cleanup();
+    }
+  };
+
+  const settled = await Promise.allSettled([query('A'), query('AAAA')]);
+  const ok = settled.filter((r): r is PromiseFulfilledResult<string[]> => r.status === 'fulfilled');
+  if (ok.length === 0) {
+    throw new PipelineError(
+      pipelineId,
+      'upstream_unavailable',
+      `${pipelineId}: could not resolve '${host}' (DoH lookup failed)`,
+    );
+  }
+  return ok.flatMap((r) => r.value);
+}
+
+// Re-validate a host about to be fetched by resolving it and checking every
+// resolved address. Literal-IP hosts are skipped — `fetch` connects straight to
+// that already-vetted IP, so there's no DNS step to rebind. Fails closed: a host
+// that resolves to no allowed address (empty, or any private / unparseable
+// answer) is rejected before the fetch.
+async function assertResolvedHostSafe(
+  pipelineId: string,
+  url: URL,
+  resolve: HostResolver,
+  signal: AbortSignal | undefined,
+): Promise<void> {
+  const host = normalizeHost(url.hostname);
+  if (parseIpv4(host) || parseIpv6(host)) return;
+
+  let ips: string[];
+  try {
+    ips = await resolve(host, signal);
+  } catch (err) {
+    // Fail closed: any resolver failure means we couldn't vet the host. The
+    // default DoH resolver already raises a classified PipelineError; wrap
+    // anything else (e.g. an injected resolver) as upstream_unavailable.
+    if (err instanceof PipelineError) throw err;
+    throw new PipelineError(
+      pipelineId,
+      'upstream_unavailable',
+      `${pipelineId}: could not resolve '${host}' (${stringifyError(err)})`,
+      err,
+    );
+  }
+  if (ips.length === 0) {
+    throw invalidUrl(pipelineId, `host '${host}' did not resolve to any address`);
+  }
+  for (const ip of ips) {
+    if (classifyIp(ip) !== 'allowed') {
+      throw invalidUrl(
+        pipelineId,
+        `refusing to fetch '${host}' — it resolves to a private/loopback address`,
+      );
+    }
+  }
+}
+
 /**
  * Fetch a caller-supplied URL with SSRF protection: validates the initial
  * URL and every redirect target, follows redirects manually (so each hop is
@@ -212,6 +339,10 @@ export async function safeFetchImage(
 ): Promise<Response> {
   const maxRedirects = opts.maxRedirects ?? DEFAULT_MAX_REDIRECTS;
   const timeoutMs = opts.timeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
+  const dohEndpoint = opts.dohEndpoint ?? DEFAULT_DOH_ENDPOINT;
+  const dohTimeoutMs = opts.dohTimeoutMs ?? DEFAULT_DOH_TIMEOUT_MS;
+  const resolveHost: HostResolver =
+    opts.resolveHost ?? ((host, sig) => dohResolve(pipelineId, host, fetchImpl, dohEndpoint, dohTimeoutMs, sig));
 
   let current = assertSafeImageUrl(pipelineId, rawUrl);
   // First hop uses the original string so the call shape is byte-identical to
@@ -219,6 +350,21 @@ export async function safeFetchImage(
   let target = rawUrl;
 
   for (let hop = 0; ; hop++) {
+    // Resolve + re-check the host before each fetch (initial URL and every
+    // redirect target): closes the static hostname→private-IP rebinding case.
+    try {
+      await assertResolvedHostSafe(pipelineId, current, resolveHost, signal);
+    } catch (err) {
+      if (signal?.aborted) {
+        throw new PipelineError(pipelineId, 'aborted', `${pipelineId}: input image fetch aborted`, err);
+      }
+      throw err;
+    }
+    // The DoH check above awaits; if the caller aborted in the meantime, don't
+    // issue a fetch we already know is doomed.
+    if (signal?.aborted) {
+      throw new PipelineError(pipelineId, 'aborted', `${pipelineId}: input image fetch aborted`);
+    }
     const { signal: combined, cleanup } = withTimeout(timeoutMs, signal);
     let res: Response;
     try {
