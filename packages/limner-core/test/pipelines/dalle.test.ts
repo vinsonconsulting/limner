@@ -14,6 +14,22 @@ function mockFetch(response: Response): typeof fetch {
   return vi.fn().mockResolvedValue(response) as unknown as typeof fetch;
 }
 
+// The SSRF guard now resolves source-image hostnames over DoH (1.1.1.1/dns-query)
+// before fetching them. Wrap a pipeline's fetch so those lookups are answered with
+// a public IP here; every other call delegates to `inner` (the inspected mock).
+function dohAware(inner: typeof fetch): typeof fetch {
+  return (async (url: unknown, init?: RequestInit) => {
+    if (String(url).startsWith('https://1.1.1.1/dns-query')) {
+      const type = new URL(String(url)).searchParams.get('type');
+      return new Response(
+        JSON.stringify({ Status: 0, Answer: type === 'A' ? [{ type: 1, data: '203.0.113.10' }] : [] }),
+        { status: 200, headers: { 'content-type': 'application/dns-json' } },
+      );
+    }
+    return (inner as (u: unknown, i?: RequestInit) => Promise<Response>)(url, init);
+  }) as unknown as typeof fetch;
+}
+
 function mockFetchThrowing(err: unknown): typeof fetch {
   return vi.fn().mockRejectedValue(err) as unknown as typeof fetch;
 }
@@ -229,7 +245,7 @@ describe('DallePipeline — image-input (#15)', () => {
       });
     }) as unknown as typeof fetch;
 
-    const p = new DallePipeline(fetchMock);
+    const p = new DallePipeline(dohAware(fetchMock));
     const out = (await p.generate(
       { prompt: 'restyle as line art', options: { image: 'https://assets.example/src.png', size: '1024x1024' } },
       ctx,
@@ -260,7 +276,7 @@ describe('DallePipeline — image-input (#15)', () => {
         ? new Response('{}', { status: 200 })
         : new Response('nope', { status: 404 }),
     ) as unknown as typeof fetch;
-    const p = new DallePipeline(fetchMock);
+    const p = new DallePipeline(dohAware(fetchMock));
     await expect(
       p.generate({ prompt: 'x', options: { image: 'https://assets.example/missing.png' } }, ctx),
     ).rejects.toMatchObject({ code: 'invalid_input' });

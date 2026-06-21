@@ -6,6 +6,23 @@ function mockFetch(response: Response): typeof fetch {
   return vi.fn().mockResolvedValue(response) as unknown as typeof fetch;
 }
 
+// The SSRF guard now resolves source-image hostnames over DoH (1.1.1.1/dns-query)
+// before fetching them. Wrap a transport's fetch so those lookups are answered
+// with a public IP here, and every other call is delegated to `inner` — the mock
+// the test inspects, which therefore still sees only the image + API calls.
+function dohAware(inner: typeof fetch): typeof fetch {
+  return (async (url: unknown, init?: RequestInit) => {
+    if (String(url).startsWith('https://1.1.1.1/dns-query')) {
+      const type = new URL(String(url)).searchParams.get('type');
+      return new Response(
+        JSON.stringify({ Status: 0, Answer: type === 'A' ? [{ type: 1, data: '203.0.113.10' }] : [] }),
+        { status: 200, headers: { 'content-type': 'application/dns-json' } },
+      );
+    }
+    return (inner as (u: unknown, i?: RequestInit) => Promise<Response>)(url, init);
+  }) as unknown as typeof fetch;
+}
+
 const ARGS: RecraftGenerateArgs = {
   prompt: 'a fox logo',
   size: '1024x1024',
@@ -49,7 +66,7 @@ describe('RestRecraftTransport — request shaping', () => {
     const fetchMock = mockFetch(
       new Response(JSON.stringify({ data: [{ url: 'https://x' }] }), { status: 200 }),
     );
-    const t = new RestRecraftTransport('rk', fetchMock);
+    const t = new RestRecraftTransport('rk', dohAware(fetchMock));
     await t.generateImage({ prompt: 'cat', size: '1024x1024', style: 'realistic_image' });
     const body = JSON.parse(
       ((fetchMock as unknown as ReturnType<typeof vi.fn>).mock.calls[0]![1] as RequestInit).body as string,
@@ -66,7 +83,7 @@ describe('RestRecraftTransport — response parsing', () => {
     const fetchMock = mockFetch(
       new Response(JSON.stringify({ data: [{ b64_json: onePixelPng }] }), { status: 200 }),
     );
-    const t = new RestRecraftTransport('rk', fetchMock);
+    const t = new RestRecraftTransport('rk', dohAware(fetchMock));
     const out = await t.generateImage(ARGS);
     expect(out.url).toBeUndefined();
     expect(out.data).toBeInstanceOf(Uint8Array);
@@ -79,7 +96,7 @@ describe('RestRecraftTransport — response parsing', () => {
 
   test('missing both url and b64_json throws upstream_error', async () => {
     const fetchMock = mockFetch(new Response(JSON.stringify({ data: [{}] }), { status: 200 }));
-    const t = new RestRecraftTransport('rk', fetchMock);
+    const t = new RestRecraftTransport('rk', dohAware(fetchMock));
     await expect(t.generateImage(ARGS)).rejects.toMatchObject({ code: 'upstream_error' });
   });
 });
@@ -118,7 +135,7 @@ describe('RestRecraftTransport — image-to-image (#15)', () => {
       });
     }) as unknown as typeof fetch;
 
-    const t = new RestRecraftTransport('rk', fetchMock);
+    const t = new RestRecraftTransport('rk', dohAware(fetchMock));
     const out = await t.generateImage({
       prompt: 'restyle',
       size: '1024x1024',
@@ -149,7 +166,7 @@ describe('RestRecraftTransport — image-to-image (#15)', () => {
         ? new Response(JSON.stringify({ data: [{ url: 'https://x' }] }), { status: 200 })
         : new Response(new Uint8Array([1]), { status: 200, headers: { 'content-type': 'image/png' } }),
     ) as unknown as typeof fetch;
-    const t = new RestRecraftTransport('rk', fetchMock);
+    const t = new RestRecraftTransport('rk', dohAware(fetchMock));
     await t.generateImage({ prompt: 'x', size: '1024x1024', style: 'realistic_image', image: 'https://s/x.png' });
     const call = (fetchMock as unknown as ReturnType<typeof vi.fn>).mock.calls.find((c) =>
       String(c[0]).includes('imageToImage'),
@@ -172,7 +189,7 @@ describe('RestRecraftTransport — crisp upscale (D-RA-14)', () => {
       });
     }) as unknown as typeof fetch;
 
-    const t = new RestRecraftTransport('rk-up', fetchMock);
+    const t = new RestRecraftTransport('rk-up', dohAware(fetchMock));
     const out = await t.upscaleImage({ image: 'https://src.example/small.png' });
 
     const calls = (fetchMock as unknown as ReturnType<typeof vi.fn>).mock.calls;
@@ -199,7 +216,7 @@ describe('RestRecraftTransport — crisp upscale (D-RA-14)', () => {
         : new Response(new Uint8Array([1]), { status: 200, headers: { 'content-type': 'image/png' } }),
     ) as unknown as typeof fetch;
 
-    const t = new RestRecraftTransport('rk', fetchMock);
+    const t = new RestRecraftTransport('rk', dohAware(fetchMock));
     const out = await t.upscaleImage({ image: 'https://s/x.png', responseFormat: 'b64_json' });
     const call = (fetchMock as unknown as ReturnType<typeof vi.fn>).mock.calls.find((c) =>
       String(c[0]).includes('crispUpscale'),
@@ -228,7 +245,7 @@ describe('RestRecraftTransport — crisp upscale (D-RA-14)', () => {
         : new Response(new Uint8Array([1]), { status: 200, headers: { 'content-type': 'image/png' } }),
     ) as unknown as typeof fetch;
 
-    const t = new RestRecraftTransport('rk', fetchMock);
+    const t = new RestRecraftTransport('rk', dohAware(fetchMock));
     const out = await t.upscaleImage({ image: 'https://s/x.png', responseFormat: 'b64_json' });
     expect(out.mimeType).toBe('image/webp');
     expect(out.data!.slice(0, 4)).toEqual(new Uint8Array([0x52, 0x49, 0x46, 0x46]));
@@ -240,7 +257,7 @@ describe('RestRecraftTransport — crisp upscale (D-RA-14)', () => {
         ? new Response('nope', { status: 401 })
         : new Response(new Uint8Array([1]), { status: 200, headers: { 'content-type': 'image/png' } }),
     ) as unknown as typeof fetch;
-    const t = new RestRecraftTransport('rk', fetchMock);
+    const t = new RestRecraftTransport('rk', dohAware(fetchMock));
     await expect(t.upscaleImage({ image: 'https://s/x.png' })).rejects.toMatchObject({
       code: 'unauthorized',
     });
@@ -257,7 +274,7 @@ describe('RestRecraftTransport — vectorize (D-RA-14)', () => {
         : new Response(new Uint8Array([1, 2, 3]), { status: 200, headers: { 'content-type': 'image/png' } }),
     ) as unknown as typeof fetch;
 
-    const t = new RestRecraftTransport('rk-vec', fetchMock);
+    const t = new RestRecraftTransport('rk-vec', dohAware(fetchMock));
     const out = await t.vectorizeImage({
       image: 'https://src.example/logo.png',
       responseFormat: 'b64_json',
@@ -281,7 +298,7 @@ describe('RestRecraftTransport — vectorize (D-RA-14)', () => {
           })
         : new Response(new Uint8Array([1]), { status: 200, headers: { 'content-type': 'image/png' } }),
     ) as unknown as typeof fetch;
-    const t = new RestRecraftTransport('rk', fetchMock);
+    const t = new RestRecraftTransport('rk', dohAware(fetchMock));
     const out = await t.vectorizeImage({ image: 'https://s/x.png' });
     expect(out.url).toBe('https://img.recraft.ai/out.svg');
   });
