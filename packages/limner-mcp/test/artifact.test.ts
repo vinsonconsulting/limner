@@ -67,6 +67,22 @@ describe('serveArtifact', () => {
     expect(get).not.toHaveBeenCalled();
   });
 
+  test('neutralizes an encoded ../ path-traversal attempt (no bucket read)', async () => {
+    // Scrub A3, verified non-issue: WHATWG URL normalization recognizes BOTH raw
+    // `..` and percent-encoded `%2e%2e` as double-dot segments and collapses them
+    // (here /artifact/generated/%2e%2e/secrets/x -> pathname /artifact/secrets/x),
+    // so no literal `..` ever reaches the decoded key. The collapsed key then
+    // falls out of the generated/ prefix and is rejected before any bucket read.
+    const get = vi.fn();
+    const env = { GENERATED_BUCKET: { get } } as unknown as Env;
+    const res = await serveArtifact(
+      new Request('https://mcp.limner.us/artifact/generated/%2e%2e/secrets/x'),
+      env,
+    );
+    expect(res.status).toBe(404);
+    expect(get).not.toHaveBeenCalled();
+  });
+
   test('404 when the object is missing', async () => {
     const env = envWith(async () => null);
     const res = await serveArtifact(new Request(urlFor(KEY)), env);
