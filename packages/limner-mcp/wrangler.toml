@@ -217,7 +217,7 @@ crons = ["0 3 * * *"]
 # ===========================================================================
 # Dev environment — a REAL deployed dev target for the testing phases.
 # `wrangler deploy --env dev` deploys the Worker as `limner-mcp-dev` at
-# https://dev.mcp.limner.us (custom-domain parity with prod). The TOP-LEVEL
+# https://mcp-dev.limner.us (custom-domain parity with prod). The TOP-LEVEL
 # config above stays the `wrangler dev --local` surface; this section is the
 # deployed dev twin of [env.production], with dev-scoped resources.
 #
@@ -276,10 +276,14 @@ bucket_name = "limner-rasa-artifacts-dev"
 binding = "GENERATED_BUCKET"
 bucket_name = "limner-rasa-generated-dev"
 
-# dev.mcp.limner.us is a public product subdomain (A4-safe). A real https origin,
-# so it exercises the signed-artifact fail-closed path exactly like prod.
+# mcp-dev.limner.us is a public product subdomain (A4-safe). A real https origin,
+# so it exercises the signed-artifact fail-closed path exactly like prod. NOTE it
+# is a FIRST-LEVEL subdomain on purpose: Cloudflare Universal SSL covers limner.us
+# + `*.limner.us` (one wildcard level), so `mcp-dev.limner.us` gets a cert but a
+# two-level name like `dev.mcp.limner.us` would NOT (it needs `*.mcp.limner.us` /
+# Advanced Certificate Manager) and its TLS handshake would fail.
 [env.dev.vars]
-ARTIFACT_BASE_URL = "https://dev.mcp.limner.us"
+ARTIFACT_BASE_URL = "https://mcp-dev.limner.us"
 # Dev does not serve the live agent, so no first-party allowlist is needed here.
 OAUTH_TRUSTED_CLIENT_IDS = ""
 OAUTH_TRUSTED_REDIRECT_URIS = ""
@@ -289,5 +293,5 @@ crons = ["0 3 * * *"]
 
 # Custom-domain route — attaches once the mcp-dev AAAA record exists (see above).
 [[env.dev.routes]]
-pattern = "dev.mcp.limner.us/*"
+pattern = "mcp-dev.limner.us/*"
 zone_name = "limner.us"
