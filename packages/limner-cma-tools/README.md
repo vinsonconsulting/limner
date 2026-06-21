@@ -107,13 +107,17 @@ paid-plan limit, over the free-tier 3 MB cap.
 
 ## Tool surface
 
-15 tools, mirroring `@limner/mcp` exactly (D-RA-12 lockstep):
+17 tools, mirroring `@limner/mcp` exactly (D-RA-12 lockstep). Exposed under their BARE
+names (no `limner_` prefix) to the CMA agent; `@limner/mcp` registers the same tools with
+the `limner_` prefix:
 
 | Tool | Description | Required bindings | Returns |
 |---|---|---|---|
 | `limner_generate_dalle` | OpenAI Images API | BUCKET, OPENAI_API_KEY | image envelope |
 | `limner_generate_midjourney` | Midjourney prompt composition (HITL) | (none) | text envelope |
 | `limner_generate_recraft` | Recraft REST API (D-RA-25) | BUCKET, RECRAFT_API_KEY | image envelope |
+| `limner_upscale` | Recraft crisp raster upscale (image input) | BUCKET, RECRAFT_API_KEY | image envelope |
+| `limner_vectorize` | Recraft raster→SVG vectorization (image input) | BUCKET, RECRAFT_API_KEY | image envelope |
 | `limner_compose` | Hybrid V8 stack — 16 ops behind discriminated-union | BUCKET (+ IMAGES for cf-*) | image envelope or JSON |
 | `limner_recall` / `limner_record` / `limner_forget` / `limner_list_categories` | Memory ops | DB | structured JSON |
 | `limner_list_projects` / `limner_get_project_context` / `limner_record_project_note` | Project ops | DB | structured JSON |
@@ -147,7 +151,7 @@ The agent fetches `url` via web_fetch / sandbox file APIs. If `LIMNER_BUCKET_PUB
                         ▼
    ┌──────────────────────────────────────────────┐
    │  @limner/cma-tools (this package)            │
-   │  - LIMNER_TOOLS (15 tools)                   │
+   │  - LIMNER_TOOLS (17 tools)                   │
    │  - inputSchema re-exported from @limner/mcp  │
    │  - run handlers convert to CMA's `string`    │
    │    return: image -> upload R2 + envelope     │
@@ -172,7 +176,7 @@ pnpm --filter @limner/cma-tools test
 
 - `runtime.test.ts` — `defineTool` identity + `requires` predicate
 - `r2-upload.test.ts` — R2 key shape, mime-to-extension, envelope JSON
-- `index.test.ts` — `LIMNER_TOOLS` surface (15 tools, unique names, gating)
+- `index.test.ts` — `LIMNER_TOOLS` surface (17 tools, unique names, gating)
 - `tools/state-tools.test.ts` — memory + project + meta ops against miniflare-emulated D1
 
 Image-returning pipeline tools (DALL-E, Recraft) aren't unit-tested end-to-end here because they need fetch + R2 + pipeline mocking together; the per-piece behaviors are covered (the @limner/mcp tests cover the pipeline runners, the r2-upload tests cover the R2 path, the envelope shape is tested). Full E2E lands in Phase 7's deploy smoke.
