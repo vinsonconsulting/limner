@@ -10,6 +10,7 @@ import type { AuthRequest, ClientInfo } from '@cloudflare/workers-oauth-provider
 import {
   handleAuthorize,
   handleAuthorizePost,
+  isTrustedRedirectUri,
   signConsentToken,
   type OAuthEnv,
 } from '../src/auth/consent.js';
@@ -23,6 +24,7 @@ type CompleteAuthArgs = { request: AuthRequest; userId: string; scope: string[] 
 interface EnvOpts {
   signingKey?: string | undefined;
   trustedClientIds?: string;
+  trustedRedirectUris?: string;
   client?: ClientInfo | null; // undefined => default registered client
 }
 
@@ -67,6 +69,7 @@ function makeEnv(opts: EnvOpts = {}): {
     OAUTH_PROVIDER: provider,
     OAUTH_CONSENT_SIGNING_KEY: 'signingKey' in opts ? opts.signingKey : SECRET,
     OAUTH_TRUSTED_CLIENT_IDS: opts.trustedClientIds,
+    OAUTH_TRUSTED_REDIRECT_URIS: opts.trustedRedirectUris,
   } as unknown as OAuthEnv;
   return { env, completeArgs: () => completeArgs, lookups: () => lookups };
 }
@@ -102,6 +105,84 @@ function cookieFrom(res: Response): string | null {
 describe('escapeHtml', () => {
   test('escapes the HTML metacharacters', () => {
     expect(escapeHtml(`<a href="x">&'`)).toBe('&lt;a href=&quot;x&quot;&gt;&amp;&#39;');
+  });
+});
+
+// The live agent's first-party "Claude" client rotates its client_id but keeps
+// a stable redirect_uri, so agent-compat trusts the redirect_uri.
+const CLAUDE_REDIRECT = 'https://claude.ai/api/mcp/auth_callback';
+
+describe('isTrustedRedirectUri — first-party allowlist by redirect_uri', () => {
+  function envWith(trustedRedirectUris: string | undefined): OAuthEnv {
+    return { OAUTH_TRUSTED_REDIRECT_URIS: trustedRedirectUris } as unknown as OAuthEnv;
+  }
+
+  test('returns false when the allowlist var is unset', () => {
+    expect(isTrustedRedirectUri(CLAUDE_REDIRECT, envWith(undefined))).toBe(false);
+  });
+
+  test('returns false when the allowlist var is empty', () => {
+    expect(isTrustedRedirectUri(CLAUDE_REDIRECT, envWith(''))).toBe(false);
+  });
+
+  test('matches an exact redirect_uri in a comma-separated list', () => {
+    expect(
+      isTrustedRedirectUri(CLAUDE_REDIRECT, envWith(`https://other.example/cb,${CLAUDE_REDIRECT}`)),
+    ).toBe(true);
+  });
+
+  test('trims surrounding whitespace around each entry', () => {
+    expect(isTrustedRedirectUri(CLAUDE_REDIRECT, envWith(`  ${CLAUDE_REDIRECT}  `))).toBe(true);
+  });
+
+  test('requires an exact match (no prefix/substring bypass)', () => {
+    expect(isTrustedRedirectUri('https://claude.ai/api/mcp/auth_callback.evil.com', envWith(CLAUDE_REDIRECT))).toBe(false);
+    expect(isTrustedRedirectUri('https://claude.ai/api', envWith(CLAUDE_REDIRECT))).toBe(false);
+  });
+
+  test('never trusts an empty/undefined redirect_uri', () => {
+    expect(isTrustedRedirectUri('', envWith(CLAUDE_REDIRECT))).toBe(false);
+    expect(isTrustedRedirectUri(undefined, envWith(CLAUDE_REDIRECT))).toBe(false);
+  });
+});
+
+describe('GET /authorize — trusted redirect_uri auto-approve (agent-compat)', () => {
+  test('auto-approves a client with a trusted redirect_uri even though its client_id is not allowlisted', async () => {
+    const { env, completeArgs } = makeEnv({ trustedRedirectUris: CLAUDE_REDIRECT });
+    const res = await handleAuthorize(
+      getReq(
+        `response_type=code&client_id=rotating-claude-id&scope=admin&redirect_uri=${encodeURIComponent(CLAUDE_REDIRECT)}`,
+      ),
+      env,
+    );
+    expect(res.status).toBe(302); // no consent screen
+    expect(completeArgs()?.scope).toEqual(['mcp']);
+    expect(completeArgs()?.userId).toBe('limner-dogfood');
+    expect(cookieFrom(res)).toBeNull(); // no CSRF cookie on the trusted path
+  });
+
+  test('still renders consent when neither client_id nor redirect_uri is trusted', async () => {
+    const { env, completeArgs } = makeEnv({ trustedRedirectUris: CLAUDE_REDIRECT });
+    const res = await handleAuthorize(
+      getReq('response_type=code&client_id=client-x&scope=admin&redirect_uri=' + encodeURIComponent(REDIRECT)),
+      env,
+    );
+    expect(res.status).toBe(200);
+    expect((await res.text())).toContain('name="csrf_token"');
+    expect(completeArgs()).toBeUndefined();
+  });
+
+  test('trusted redirect_uri auto-approves without needing the consent signing key', async () => {
+    const { env, completeArgs } = makeEnv({
+      trustedRedirectUris: CLAUDE_REDIRECT,
+      signingKey: undefined,
+    });
+    const res = await handleAuthorize(
+      getReq(`response_type=code&client_id=x&redirect_uri=${encodeURIComponent(CLAUDE_REDIRECT)}`),
+      env,
+    );
+    expect(res.status).toBe(302);
+    expect(completeArgs()?.scope).toEqual(['mcp']);
   });
 });
 

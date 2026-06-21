@@ -88,6 +88,11 @@ ARTIFACT_BASE_URL = "http://localhost:8787"
 # dev surface; the operator pins the live agent's DCR client_id in
 # [env.production.vars] at deploy time. A client_id is public (A4-safe to commit).
 OAUTH_TRUSTED_CLIENT_IDS = ""
+# D-RA-22 — durable agent-compat: comma-separated redirect_uris that skip consent
+# and auto-approve. The live agent's first-party client keeps a STABLE
+# redirect_uri while its client_id rotates, so this (not the id allowlist) is what
+# keeps it working. Empty for local dev; pinned in [env.production.vars].
+OAUTH_TRUSTED_REDIRECT_URIS = ""
 
 # RT-2 (D-RA-20) — daily cron driving the 30-day R2 retention sweep
 # (src/retention.ts, invoked from the scheduled() handler in src/worker.ts).
@@ -176,6 +181,12 @@ ARTIFACT_BASE_URL = "https://mcp.limner.us"
 # wrangler kv read of OAUTH_KV) so its fresh re-auth auto-approves and never
 # hits the consent screen. A client_id is public — safe to commit.
 OAUTH_TRUSTED_CLIENT_IDS = ""
+# D-RA-22 — the live agent's first-party "Claude" client registers with this
+# stable redirect_uri (its client_id rotates, so this is the durable trust
+# signal). Auto-approving it is safe: the auth code is only ever delivered to
+# claude.ai (Anthropic). This also auto-approves Claude.ai connector users; only
+# genuinely third-party clients see the consent screen. A redirect_uri is public.
+OAUTH_TRUSTED_REDIRECT_URIS = "https://claude.ai/api/mcp/auth_callback"
 
 [env.production.triggers]
 crons = ["0 3 * * *"]

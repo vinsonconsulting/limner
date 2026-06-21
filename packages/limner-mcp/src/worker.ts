@@ -87,11 +87,18 @@ export interface Env {
   // time-limited; when absent, the unguessable UUID key is the capability.
   ARTIFACT_SIGNING_KEY?: string;
   // D-RA-22 — comma-separated allowlist of first-party OAuth client_ids that
-  // bypass the consent screen and auto-approve. The live CMA agent's
-  // DCR-issued client_id lives here so a fresh re-authorization never has to
-  // clear a human consent step. Plain var (a client_id is public, A4-safe);
-  // absent/empty trusts no client. Consumed by isTrustedClient (auth/oauth.ts).
+  // bypass the consent screen and auto-approve. Plain var (a client_id is
+  // public, A4-safe); absent/empty trusts no client. The live agent's client_id
+  // ROTATES, so OAUTH_TRUSTED_REDIRECT_URIS is the durable signal for it; this
+  // stays for pinning fixed ids. Consumed by isTrustedClient (auth/consent.ts).
   OAUTH_TRUSTED_CLIENT_IDS?: string;
+  // D-RA-22 — comma-separated allowlist of first-party redirect_uris that bypass
+  // the consent screen and auto-approve. The durable agent-compat signal: the
+  // live agent's first-party client keeps a stable redirect_uri
+  // (https://claude.ai/api/mcp/auth_callback) while its client_id rotates.
+  // Plain var (a redirect_uri is public, A4-safe). Consumed by
+  // isTrustedRedirectUri (auth/consent.ts).
+  OAUTH_TRUSTED_REDIRECT_URIS?: string;
   // D-RA-22 — HMAC-SHA256 secret for the consent CSRF token. A Cloudflare
   // Secret (`wrangler secret put`), never committed. Absent → the consent flow
   // fails closed for non-trusted clients (trusted clients still auto-approve).
