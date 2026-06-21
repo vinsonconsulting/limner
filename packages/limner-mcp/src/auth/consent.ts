@@ -28,11 +28,19 @@ export interface OAuthEnv {
   OAUTH_PROVIDER: OAuthHelpers;
   OAUTH_KV: KVNamespace;
   // Comma-separated allowlist of first-party OAuth client_ids that bypass the
-  // consent UI and auto-approve (agent-compat). The live CMA agent's
-  // DCR-issued client_id goes here so a fresh re-authorization never has to
-  // clear a human consent screen. Plain var (a client_id is public, A4-safe to
-  // commit); absent/empty means no client is trusted.
+  // consent UI and auto-approve (agent-compat). Plain var (a client_id is
+  // public, A4-safe to commit); absent/empty means no client is trusted.
+  // NOTE: the live agent's "Claude" client ROTATES its client_id, so prefer
+  // OAUTH_TRUSTED_REDIRECT_URIS for it; this var stays for pinning fixed ids.
   OAUTH_TRUSTED_CLIENT_IDS?: string;
+  // Comma-separated allowlist of first-party redirect_uris that bypass the
+  // consent UI and auto-approve. This is the durable agent-compat signal: the
+  // live agent's first-party client registers with a STABLE redirect_uri
+  // (https://claude.ai/api/mcp/auth_callback) but a rotating client_id. Trusting
+  // the redirect_uri is safe because the authorization code is only ever
+  // delivered to that URI (Anthropic), so a spoofed client_name can't intercept
+  // it. Plain var (a redirect_uri is public, A4-safe); absent/empty trusts none.
+  OAUTH_TRUSTED_REDIRECT_URIS?: string;
   // HMAC-SHA256 secret for the consent CSRF token. A SECRET (set via
   // `wrangler secret put`), never committed. When absent the consent flow fails
   // closed for non-trusted clients (a public deploy without it is a
@@ -60,14 +68,30 @@ const CONSENT_CSP =
  * never trusted (blank list entries are filtered, so `""` can't match).
  */
 export function isTrustedClient(clientId: string | undefined, env: OAuthEnv): boolean {
-  if (!clientId) return false;
-  const raw = env.OAUTH_TRUSTED_CLIENT_IDS;
-  if (!raw) return false;
-  return raw
+  return matchesAllowlist(clientId, env.OAUTH_TRUSTED_CLIENT_IDS);
+}
+
+/**
+ * Returns true when `redirectUri` exactly matches an entry in the
+ * OAUTH_TRUSTED_REDIRECT_URIS allowlist (comma-separated, surrounding
+ * whitespace ignored). This is the durable agent-compat signal — the live
+ * agent's first-party client rotates its client_id but keeps a stable
+ * redirect_uri. Exact match only; an empty/absent allowlist or redirect_uri
+ * is never trusted. Safe because the auth code is only delivered to the
+ * redirect_uri, so a spoofed client_name cannot intercept it.
+ */
+export function isTrustedRedirectUri(redirectUri: string | undefined, env: OAuthEnv): boolean {
+  return matchesAllowlist(redirectUri, env.OAUTH_TRUSTED_REDIRECT_URIS);
+}
+
+/** Exact-match membership against a comma-separated, whitespace-trimmed allowlist. */
+function matchesAllowlist(value: string | undefined, rawAllowlist: string | undefined): boolean {
+  if (!value || !rawAllowlist) return false;
+  return rawAllowlist
     .split(',')
-    .map((id) => id.trim())
-    .filter((id) => id.length > 0)
-    .includes(clientId);
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0)
+    .includes(value);
 }
 
 /**
@@ -164,7 +188,14 @@ export async function verifyConsentToken(
 export async function handleAuthorize(req: Request, env: OAuthEnv): Promise<Response> {
   const oauthReq = await env.OAUTH_PROVIDER.parseAuthRequest(req);
 
-  if (isTrustedClient(oauthReq.clientId, env)) {
+  // First-party clients auto-approve with no UI (agent-compat). Trust by the
+  // STABLE redirect_uri (the agent's primary signal — its client_id rotates) or
+  // by a pinned client_id. parseAuthRequest has already validated that
+  // redirect_uri belongs to the client, so the code can only reach that URI.
+  if (
+    isTrustedClient(oauthReq.clientId, env) ||
+    isTrustedRedirectUri(oauthReq.redirectUri, env)
+  ) {
     return autoApprove(env, oauthReq);
   }
 
