@@ -213,3 +213,81 @@ crons = ["0 3 * * *"]
 # (D-RA-22) OAUTH_CONSENT_SIGNING_KEY signs the consent CSRF token. Required on
 # a public deploy: without it the consent flow fails closed for non-trusted
 # clients (503). Generate 32+ random bytes; pipe over stdin, never echo.
+
+# ===========================================================================
+# Dev environment — a REAL deployed dev target for the testing phases.
+# `wrangler deploy --env dev` deploys the Worker as `limner-mcp-dev` at
+# https://dev.mcp.limner.us (custom-domain parity with prod). The TOP-LEVEL
+# config above stays the `wrangler dev --local` surface; this section is the
+# deployed dev twin of [env.production], with dev-scoped resources.
+#
+# Resource ids below are intentionally omitted (A4) — pinned at deploy:
+#   D1  limner-rasa-dev          (exists)        -> pin its database_id
+#   KV  OAUTH_KV (dev namespace) (create once)   -> `wrangler kv namespace create OAUTH_KV --env dev`
+#   R2  limner-rasa-artifacts-dev / limner-rasa-generated-dev (exist)
+# Dev secrets (operator runs once, dev-specific values, over stdin):
+#   wrangler secret put OPENAI_API_KEY           --env dev
+#   wrangler secret put RECRAFT_API_KEY          --env dev
+#   wrangler secret put ARTIFACT_SIGNING_KEY     --env dev
+#   wrangler secret put OAUTH_CONSENT_SIGNING_KEY --env dev
+# DNS (manual, once): in the limner.us zone add a PROXIED (orange-cloud) AAAA
+# record  mcp-dev -> 100::  so the route below attaches on deploy.
+# ===========================================================================
+
+# Keep the *.workers.dev URL enabled for dev too (parity with prod).
+[env.dev]
+workers_dev = true
+
+[[env.dev.d1_databases]]
+binding = "DB"
+database_name = "limner-rasa-dev"
+migrations_dir = "../../migrations"
+
+[[env.dev.kv_namespaces]]
+# Binding name MUST stay OAUTH_KV. Use a DEV-scoped namespace (create once),
+# isolated from prod's OAUTH_KV — never share the prod OAuth store with dev.
+binding = "OAUTH_KV"
+
+[env.dev.images]
+binding = "IMAGES"
+
+# Durable Object — dev scope (redeclared; wrangler doesn't inherit across envs).
+# Migration tag "v1" is per-namespace and safely shared with the other scopes.
+[[env.dev.durable_objects.bindings]]
+name = "LIMNER_MCP"
+class_name = "LimnerMCP"
+
+[[env.dev.migrations]]
+tag = "v1"
+new_sqlite_classes = ["LimnerMCP"]
+
+# RT-1 — dev rate limiter; distinct namespace_id (1003) so dev counters stay
+# isolated from local (1001) and prod (1002).
+[[env.dev.ratelimits]]
+name = "RATE_LIMITER"
+namespace_id = "1003"
+simple = { limit = 100, period = 60 }
+
+[[env.dev.r2_buckets]]
+binding = "BUCKET"
+bucket_name = "limner-rasa-artifacts-dev"
+
+[[env.dev.r2_buckets]]
+binding = "GENERATED_BUCKET"
+bucket_name = "limner-rasa-generated-dev"
+
+# dev.mcp.limner.us is a public product subdomain (A4-safe). A real https origin,
+# so it exercises the signed-artifact fail-closed path exactly like prod.
+[env.dev.vars]
+ARTIFACT_BASE_URL = "https://dev.mcp.limner.us"
+# Dev does not serve the live agent, so no first-party allowlist is needed here.
+OAUTH_TRUSTED_CLIENT_IDS = ""
+OAUTH_TRUSTED_REDIRECT_URIS = ""
+
+[env.dev.triggers]
+crons = ["0 3 * * *"]
+
+# Custom-domain route — attaches once the mcp-dev AAAA record exists (see above).
+[[env.dev.routes]]
+pattern = "dev.mcp.limner.us/*"
+zone_name = "limner.us"
