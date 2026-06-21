@@ -1,6 +1,6 @@
 # @limner/mcp
 
-Limner's MCP server. One TypeScript surface, three transports (Workers Streamable HTTP + stdio + `.mcpb` bundle), 15 tools wrapping `@limner/core`.
+Limner's MCP server. One TypeScript surface, three transports (Workers Streamable HTTP + stdio + `.mcpb` bundle), 17 tools wrapping `@limner/core`.
 
 Built on the brain/hands split from D-RA-01: this is the *durable product surface* (the brain's hands for any MCP client, including Claude Desktop, LobeHub, the CMA agent itself per D-RA-12). Pipeline credentials live in Cloudflare Secrets; never travel to the client.
 
@@ -8,13 +8,20 @@ Built on the brain/hands split from D-RA-01: this is the *durable product surfac
 
 Phase 4 of the rebuild. Code lands by phase per [`docs/Limner_Cloudflare_CMA_Architecture.md`](../../docs/Limner_Cloudflare_CMA_Architecture.md); Phase 4 ships the server + OAuth + MCPB packaging. Phase 5 (`limner-cma-tools`) and Phase 7 (deploy) follow.
 
-## Tool surface (15)
+## Tool surface (17)
+
+Path B (this MCP server) registers the tools with the `limner_` prefix. Path A
+(`@limner/cma-tools`, the CMA custom-tool surface) exposes the **same** tools under their
+bare names (no `limner_` prefix); the agent harness reconciles the two via
+`normalizeToolName()`. Both surfaces stay in D-RA-12 lockstep.
 
 | Tool | Description | Output |
 |---|---|---|
 | `limner_generate_dalle` | OpenAI Images (gpt-image-1 default; gpt-image family) | image |
 | `limner_generate_midjourney` | Compose a Midjourney prompt string (HITL; no API call) | text |
 | `limner_generate_recraft` | Recraft REST API (`external.api.recraft.ai`) per D-RA-25 | image |
+| `limner_upscale` | Recraft crisp raster upscale toward print scale (image input; paid) | image |
+| `limner_vectorize` | Recraft raster→SVG vectorization (image input; paid) | image |
 | `limner_compose` | Hybrid V8 stack (D-RA-16) — single tool, discriminated-union op over 16 primitives | image / text |
 | `limner_recall` | Memory query by q / category / since / until / limit | structured |
 | `limner_record` | Persist a new memory entry (idempotent via `sourceId`) | structured |
@@ -154,7 +161,7 @@ pnpm smoke:mcpb limner-mcp.mcpb
        │  └────────────┬─────────────┘    │
        │               │                  │
        │  ┌────────────▼─────────────┐    │
-       │  │ 15 tools (this README ↑) │    │
+       │  │ 17 tools (this README ↑) │    │
        │  └────────────┬─────────────┘    │
        └───────────────┼──────────────────┘
                        │
