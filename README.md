@@ -210,13 +210,13 @@ repo) and adds opinions for a specific creative niche.
 | Repo | Status | Focus |
 |---|---|---|
 | `vinsonconsulting/limner` (this repo) | rasa, foundation | General-purpose; OSS |
-| `vinsonconsulting/limner-pixel` | OSS | Pixel art, sprite work, retro game asset pipelines |
-| `vinsonconsulting/limner-ascii` | private | ASCII art workflows |
+| `vinsonconsulting/limner-pixel` | in development, not yet public | Pixel art, sprite work, retro game asset pipelines |
+| `vinsonconsulting/limner-ascii` | planned, not yet public | ASCII art workflows |
 
 Specialty pipelines (pixel-art generators like Pixellab and RetroDiffusion)
-live in `limner-pixel`, not here; rasa stays general-purpose. The legacy
-proprietary work that preceded the OSS pivot is preserved at
-`vinsonconsulting/limner-pixel-legacy` for historical reference.
+are being built in `limner-pixel` (not yet public); rasa stays
+general-purpose. The legacy proprietary work that preceded the OSS pivot is
+kept private at `vinsonconsulting/limner-pixel-legacy`.
 
 ## Contributing
 
@@ -235,4 +235,4 @@ Limner is built on [Anthropic's Claude Managed Agents](https://claude.com/blog/c
 ---
 
 <p align="center"><img src="docs/assets/hero-pixel.webp" alt="The hero scene translated to 16-bit pixel art" width="720"></p>
-<p align="center"><sub>The hero above, translated to pixel art by PixelLab, the pipeline that lives in <code>limner-pixel</code>. The family renders its parent.</sub></p>
+<p align="center"><sub>The hero above, translated to pixel art by PixelLab, the pipeline being built as <code>limner-pixel</code>. The family renders its parent.</sub></p>
