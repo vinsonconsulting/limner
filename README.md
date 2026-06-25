@@ -2,7 +2,7 @@
 
 <p align="center"><img src="docs/assets/hero.webp" alt="The limner's empty studio: a finished portrait of an armored knight on the easel, daylight and open sky entering through a balcony arch" width="100%"></p>
 
-> A harnessed image-generation agent: Claude reasons, Cloudflare executes, D1 remembers.
+> A harnessed image-generation agent: Claude reasons, Cloudflare executes, D1 remembers, OAuth is the only way in.
 
 [![Model Context Protocol](https://img.shields.io/badge/MCP-server-1f2937)](https://modelcontextprotocol.io)
 [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-F38020?logo=cloudflare&logoColor=white)](https://developers.cloudflare.com/workers/)
@@ -43,6 +43,28 @@ Workers endpoint, a local stdio server, and a `.mcpb` one-click bundle for
 Claude Desktop. The stdio server identifies itself as `limner-mcp (preview)`:
 stdio is the preview transport at v1, pending a refresh against the next MCP
 spec revision. The Workers and `.mcpb` surfaces carry no preview tag.
+
+## Decisions and dead-ends
+
+The design did not arrive fully formed. The full record lives in
+[docs/Limner_Cloudflare_CMA_Architecture.md](docs/Limner_Cloudflare_CMA_Architecture.md):
+22 dated decision records, a cost model, and five named off-ramp triggers that
+say in advance what would make us walk away from the approach.
+
+Several of those records are reversals. The FastAPI shim that fronted the first
+design was killed. The Sharp/libvips composition path was abandoned for a hybrid
+WASM stack that runs inside the isolate. Recraft began as a composed first-party
+MCP and was later amended to a direct REST call, with the transport seam kept as
+a reusable adapter. One record is a correction: a request timed out at 30s during
+integration testing and was first blamed on an upstream API, until the API's own
+docs turned up an async mode and the fault turned out to be ours.
+
+The "Deploy to Cloudflare" button is the cleanest dead-end. We ran the spike on
+2026-06-12. The button's monorepo mode extracts a single package into a standalone
+repo, which severs the `@limner/core` workspace dependency and breaks the build.
+Provisioning and secrets worked; the repo shape did not. The full note, and the
+script that does the same job plus migrations and a smoke test, is under
+[Where is the Deploy to Cloudflare button?](#where-is-the-deploy-to-cloudflare-button).
 
 ## Architecture
 
