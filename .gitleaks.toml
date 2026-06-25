@@ -1,0 +1,13 @@
+# gitleaks configuration for limner.
+#
+# Extends the bundled default ruleset and allowlists one known false positive: a
+# dummy HMAC signing key used only in the consent OAuth unit test. It is a literal
+# test fixture (its value spells out "test-consent-signing-key"), never a real
+# credential. Without this, `gitleaks` reports it as a generic-api-key leak.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Dummy consent-token signing key in the unit test (not a real secret)"
+regexes = ['''test-consent-signing-key-0123456789''']
+paths = ['''packages/limner-mcp/test/consent\.test\.ts''']
