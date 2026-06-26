@@ -1,4 +1,4 @@
-# limner
+# limner : A Harnessed Image-generation Agent
 
 <p align="center"><img src="docs/assets/hero.webp" alt="The limner's empty studio: a finished portrait of an armored knight on the easel, daylight and open sky entering through a balcony arch" width="100%"></p>
 
@@ -12,16 +12,14 @@
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![DCO](https://img.shields.io/badge/DCO-required-orange)](https://developercertificate.org/)
 
-Limner is a Model Context Protocol (MCP) server for orchestrating image
+Limner is an Agent Harness and  Model Context Protocol (MCP) server for orchestrating image
 generation across multiple pipelines, with durable memory for project
 context. This repository is **rasa**, the foundation variant of the Limner
-family. You deploy your own instance; nothing here phones home to anyone
-else's.
+family. You deploy limner: rasa as your own instance; free-as-in-beer and no strings/data-pipelines attached.
 
-## The harnessed agent
+## The Harnessed Agent
 
-Most agent demos hand a model an API key and hope. Limner is built the other
-way around, as a worked example of a harness with clean seams:
+Limner is explicitly built as a compstable harness structure with clean seams:
 
 - **The reasoning loop runs on Anthropic's Claude Managed Agents platform.**
   The model does the planning and the tool choice. It never holds provider
@@ -49,7 +47,7 @@ spec revision. The Workers and `.mcpb` surfaces carry no preview tag.
 The design did not arrive fully formed. The full record lives in
 [docs/Limner_Cloudflare_CMA_Architecture.md](docs/Limner_Cloudflare_CMA_Architecture.md):
 22 dated decision records, a cost model, and five named off-ramp triggers that
-say in advance what would make us walk away from the approach.
+state in advance what would make us walk away from the approach.
 
 Several of those records are reversals. The FastAPI shim that fronted the first
 design was killed. The Sharp/libvips composition path was abandoned for a hybrid
@@ -59,7 +57,7 @@ a reusable adapter. One record is a correction: a request timed out at 30s durin
 integration testing and was first blamed on an upstream API, until the API's own
 docs turned up an async mode and the fault turned out to be ours.
 
-The "Deploy to Cloudflare" button is the cleanest dead-end. We ran the spike on
+The "Deploy to Cloudflare" button is the cleanest dead-end (currently). We ran the spike on
 2026-06-12. The button's monorepo mode extracts a single package into a standalone
 repo, which severs the `@limner/core` workspace dependency and breaks the build.
 Provisioning and secrets worked; the repo shape did not. The full note, and the
@@ -80,10 +78,10 @@ script that does the same job plus migrations and a smoke test, is under
   Cloudflare Images for the network-side ops
 - MCP over Streamable HTTP and stdio
 
-The architecture document with full decision records lives at
+The architecture document with decision records lives at
 [docs/Limner_Cloudflare_CMA_Architecture.md](docs/Limner_Cloudflare_CMA_Architecture.md).
 
-## Tool surface
+## Tool Surface
 
 All tools are namespaced `limner_*`. Full schemas in
 [packages/limner-mcp/README.md](packages/limner-mcp/README.md).
@@ -149,7 +147,7 @@ anything.
 
 ### Where is the Deploy to Cloudflare button?
 
-We tried, in a live spike (2026-06-12). The button's monorepo mode
+Sigh... we tried, in a live spike (2026-06-12). The button's monorepo mode
 extracts `packages/limner-mcp` into a standalone repository, which severs
 the `@limner/core` workspace dependency, so the build cannot succeed
 regardless of build settings. Its provisioning and secrets flow worked
@@ -226,14 +224,14 @@ Findings are public issues: use the
 
 ## The Limner family
 
-Limner is a branded variant family. Each variant builds on **rasa** (this
+Limner is a family of model harnesses. Each variant builds on **rasa** (this
 repo) and adds opinions for a specific creative niche.
 
 | Repo | Status | Focus |
 |---|---|---|
 | `vinsonconsulting/limner` (this repo) | rasa, foundation | General-purpose; OSS |
 | `vinsonconsulting/limner-pixel` | in development, not yet public | Pixel art, sprite work, retro game asset pipelines |
-| `vinsonconsulting/limner-ascii` | planned, not yet public | ASCII art workflows |
+| `vinsonconsulting/limner-ascii` | pre-development skill building, not yet public | ASCII art workflows |
 
 Specialty pipelines (pixel-art generators like Pixellab and RetroDiffusion)
 are being built in `limner-pixel` (not yet public); rasa stays
