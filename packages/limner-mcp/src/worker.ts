@@ -48,6 +48,7 @@ import { defaultHandler } from './auth/oauth.js';
 import { withRateLimit, type FetchHandler } from './rate-limit.js';
 import { sweepExpiredArtifacts } from './retention.js';
 import { isArtifactPath, serveArtifact } from './artifact.js';
+import { serveFavicon } from './favicon.js';
 
 export interface Env {
   // D1 — durable state (memory + projects + sessions per D-RA-04).
@@ -221,10 +222,16 @@ const oauthProvider = new OAuthProvider<Env>({
 // slow sweep never blocks the scheduled invocation from returning.
 export default {
   fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    const pathname = new URL(request.url).pathname;
+    // Public brand favicon — served before OAuth so the auth/consent pages get a
+    // real icon instead of a 404. No auth, no state, just the embedded mark.
+    if (pathname === '/favicon.ico' || pathname === '/favicon.svg') {
+      return Promise.resolve(serveFavicon());
+    }
     // PR D: the public /artifact/<key> proxy is served before OAuth — the
     // unguessable capability URL (optionally HMAC-signed) is the access grant,
     // so MCP clients / the CMA agent fetch generated assets without a token.
-    if (isArtifactPath(new URL(request.url).pathname)) {
+    if (isArtifactPath(pathname)) {
       return serveArtifact(request, env);
     }
     return oauthProvider.fetch(request, env, ctx);
