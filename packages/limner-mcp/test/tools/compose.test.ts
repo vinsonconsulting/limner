@@ -207,7 +207,10 @@ describe('compose tool — cf-images ops (stdio: unsupported)', () => {
 
 describe('compose tool — cf-images ops (workers: with mock binding)', () => {
   test('cfBlur forwards opts to the binding', async () => {
-    const output = vi.fn().mockResolvedValue(new Response(new Uint8Array([1, 2, 3, 4]), { status: 200 }));
+    // Real Images binding contract: .output() resolves to an
+    // ImageTransformationResult whose .response() yields the Response (F6).
+    const response = new Response(new Uint8Array([1, 2, 3, 4]), { status: 200 });
+    const output = vi.fn().mockResolvedValue({ response: () => response });
     const transform = vi.fn().mockReturnValue({ output });
     const inputFn = vi.fn().mockReturnValue({ transform });
     const mockBinding = { input: inputFn } as unknown as CFImagesBinding;
@@ -230,6 +233,35 @@ describe('compose tool — cf-images ops (workers: with mock binding)', () => {
       expect(result.isError).toBeFalsy();
       // The mock binding chain was called with opts.blur=25.
       expect(transform).toHaveBeenCalledWith({ blur: 25 });
+    } finally {
+      await close();
+    }
+  });
+
+  // F6: a binding that returns the wrong result shape (no .response()) — e.g.
+  // Images Transformations not enabled on the account — must surface a clean,
+  // actionable tool error, never "HTTP undefined undefined".
+  test('a malformed binding result yields a clean tool error, not "HTTP undefined undefined"', async () => {
+    const output = vi.fn().mockResolvedValue({ notAResponse: true });
+    const transform = vi.fn().mockReturnValue({ output });
+    const inputFn = vi.fn().mockReturnValue({ transform });
+    const mockBinding = { input: inputFn } as unknown as CFImagesBinding;
+
+    const workersCtx: ToolContext = {
+      bindings: { kind: 'workers' } as unknown as Bindings,
+      images: mockBinding,
+      secrets: {},
+    };
+    const { client, close } = await connectedPair(workersCtx);
+    try {
+      const result = await client.callTool({
+        name: 'limner_compose',
+        arguments: { op: 'cfBlur', input: b64encode(new Uint8Array([99])), radius: 5 },
+      });
+      expect(result.isError).toBe(true);
+      const text = JSON.stringify(result.content);
+      expect(text).toMatch(/Images Transformations may not be enabled|unexpected result/i);
+      expect(text).not.toMatch(/undefined undefined/);
     } finally {
       await close();
     }
