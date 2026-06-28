@@ -28,7 +28,18 @@ export interface CFImagesInputHandle {
 }
 
 export interface CFImagesTransformHandle {
-  output(opts?: { format?: CFImagesOutputFormat }): Promise<Response>;
+  output(opts?: { format?: CFImagesOutputFormat }): Promise<CFImagesTransformResult>;
+}
+
+// `.output()` resolves to an ImageTransformationResult, NOT a bare Response.
+// `.response()` yields the Response (the live binding also exposes `.image()`
+// and `.contentType()`, which we don't consume). The earlier stub modeled this
+// as `Promise<Response>` and the production code read `.ok`/`.status` straight
+// off the result — undefined on the result object — which is what produced
+// "cf-images transform failed: HTTP undefined undefined" on every call (F6).
+// https://developers.cloudflare.com/images/optimization/binding/
+export interface CFImagesTransformResult {
+  response(): Response;
 }
 
 export type CFImagesOutputFormat = 'image/png' | 'image/jpeg' | 'image/webp' | 'image/avif';
@@ -75,13 +86,31 @@ export async function transform(
   opts: CFImagesTransformOptions,
   outputFormat: CFImagesOutputFormat = 'image/png',
 ): Promise<Uint8Array> {
-  const response = await binding.input(input).transform(opts).output({ format: outputFormat });
+  const result = await binding.input(input).transform(opts).output({ format: outputFormat });
+  const response = toResponse(result);
   if (!response.ok) {
     throw new Error(
       `cf-images transform failed: HTTP ${response.status} ${response.statusText}`,
     );
   }
   return new Uint8Array(await response.arrayBuffer());
+}
+
+// Extract the Response from the binding's transform result. The Images binding
+// returns an ImageTransformationResult whose `.response()` yields the Response.
+// If the runtime hands back something else (e.g. Images Transformations is not
+// enabled on the account and the binding returns a stub), surface a clean,
+// actionable error rather than reading `.ok`/`.status` off the wrong object —
+// the source of the old "HTTP undefined undefined" (F6).
+function toResponse(result: unknown): Response {
+  if (result && typeof (result as CFImagesTransformResult).response === 'function') {
+    const response = (result as CFImagesTransformResult).response();
+    if (response instanceof Response) return response;
+  }
+  throw new Error(
+    'cf-images transform failed: the Images binding returned an unexpected result ' +
+      '(no .response()). Cloudflare Images Transformations may not be enabled on this account.',
+  );
 }
 
 // ---------------- Convenience wrappers ----------------
