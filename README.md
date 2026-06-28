@@ -1,5 +1,3 @@
-<p align="center"><img src="docs/assets/logo/limner-hero.png" alt="Limner — an illuminated initial 'L' in gold Celtic interlace on deep teal" width="150"></p>
-
 # limner : A Harnessed Image-generation Agent
 
 <p align="center"><img src="docs/assets/hero.webp" alt="The limner's empty studio: a finished portrait of an armored knight on the easel, daylight and open sky entering through a balcony arch" width="100%"></p>
