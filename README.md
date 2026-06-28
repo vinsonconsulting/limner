@@ -91,7 +91,7 @@ All tools are namespaced `limner_*`. Full schemas in
 | Tool | What it does | Needs |
 | --- | --- | --- |
 | `limner_generate_dalle` | OpenAI Images API (gpt-image-1 default) | `OPENAI_API_KEY`, your OpenAI credit |
-| `limner_generate_recraft` | Recraft, via their first-party MCP server | `RECRAFT_API_KEY`, your Recraft credit |
+| `limner_generate_recraft` | Recraft, via their REST API (`external.api.recraft.ai`) | `RECRAFT_API_KEY`, your Recraft credit |
 | `limner_generate_midjourney` | Composes a Midjourney prompt string; a human carries it the rest of the way | Nothing |
 | `limner_compose` | 16 image ops behind one discriminated union: resize, crop, brightness, contrast, blur, sharpen, watermark, encode, decode, convert, renderText run in-isolate; cfTransform, cfOverlay, cfBlur, cfSmartCrop, cfBackgroundFill use Cloudflare Images | Images binding for the five cf* ops only |
 | `limner_record` / `limner_recall` / `limner_forget` / `limner_list_categories` | Durable memory with categories and idempotent upserts | D1 (or local SQLite) |
