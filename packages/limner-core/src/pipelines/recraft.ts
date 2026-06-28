@@ -25,6 +25,10 @@ export type RecraftOptions = {
   image?: string;
   // Image-to-image strength 0-1 (lower = closer to the source). Default 0.5.
   strength?: number;
+  // F4: internal delivery hint (not user-facing — set by the MCP tool layer).
+  // 'b64_json' makes Recraft return inline bytes so the result re-hosts to a
+  // signed capability URL instead of leaking Recraft's ephemeral CDN url.
+  responseFormat?: 'url' | 'b64_json';
 };
 
 // Arguments passed through to the Recraft transport. `image`/`strength` select
@@ -37,6 +41,8 @@ export type RecraftGenerateArgs = {
   model?: string;
   image?: string;
   strength?: number;
+  // F4: 'b64_json' requests inline bytes (for re-hosting); default 'url'.
+  responseFormat?: 'url' | 'b64_json';
 };
 
 // Result returned by a RecraftTransport. Mirrors PipelineImageOutput's
@@ -96,6 +102,7 @@ export class RecraftPipeline implements PipelineRunner {
       ...(opts.model ? { model: opts.model } : {}),
       ...(opts.image ? { image: opts.image } : {}),
       ...(opts.strength !== undefined ? { strength: opts.strength } : {}),
+      ...(opts.responseFormat ? { responseFormat: opts.responseFormat } : {}),
     };
 
     let result: RecraftGenerateResult;
