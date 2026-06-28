@@ -55,8 +55,26 @@ const CONSENT_TOKEN_TTL_SECONDS = 600;
  * Path=/ + host-only, so a subdomain or non-HTTPS origin cannot plant it. */
 const CSRF_COOKIE = '__Host-limner_csrf';
 
-const CONSENT_CSP =
-  "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'";
+/**
+ * Build the consent-page CSP. The page POSTs to /authorize, which 302-redirects
+ * to the client's redirect_uri; Chromium enforces `form-action` across that
+ * redirect, so the redirect_uri's origin MUST be an allowed form-action source —
+ * otherwise the browser aborts the submission and the consent flow can never
+ * complete for a real browser client (B1). The redirect_uri has already been
+ * validated against the client's registration by parseAuthRequest, so trusting
+ * its origin here is safe; everything else stays locked down. Falls back to a
+ * bare `'self'` when the redirect_uri is unparseable.
+ */
+export function consentCsp(redirectUri: string): string {
+  let formAction = "'self'";
+  try {
+    const origin = new URL(redirectUri).origin;
+    if (origin && origin !== 'null') formAction = `'self' ${origin}`;
+  } catch {
+    // Unparseable redirect_uri — keep the strict default.
+  }
+  return `default-src 'none'; style-src 'unsafe-inline'; form-action ${formAction}; base-uri 'none'`;
+}
 
 /**
  * Returns true when `clientId` appears in the OAUTH_TRUSTED_CLIENT_IDS
@@ -225,7 +243,7 @@ export async function handleAuthorize(req: Request, env: OAuthEnv): Promise<Resp
       'cache-control': 'no-store',
       'x-content-type-options': 'nosniff',
       'referrer-policy': 'no-referrer',
-      'content-security-policy': CONSENT_CSP,
+      'content-security-policy': consentCsp(oauthReq.redirectUri),
     },
   });
 }

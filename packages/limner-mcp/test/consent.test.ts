@@ -269,6 +269,47 @@ describe('GET /authorize — consent rendering', () => {
   });
 });
 
+describe('GET /authorize — consent CSP allows the post-approve redirect (B1 regression)', () => {
+  // B1: a static `form-action 'self'` blocks the post-approve 302 to the
+  // client's external redirect_uri (Chromium aborts the form submission), so the
+  // consent screen can never complete for a real browser client. The emitted CSP
+  // must allow the client's redirect_uri origin as a form-action source.
+  test("form-action includes the client's redirect_uri origin so the browser doesn't block the 302", async () => {
+    const { env } = makeEnv();
+    const redirect = 'http://localhost:6274/oauth/callback';
+    const res = await handleAuthorize(
+      getReq('response_type=code&client_id=client-x&redirect_uri=' + encodeURIComponent(redirect)),
+      env,
+    );
+    const csp = res.headers.get('content-security-policy') ?? '';
+    expect(csp).toContain("form-action 'self' http://localhost:6274");
+  });
+
+  test('keeps the existing strict directives alongside the redirect-origin form-action', async () => {
+    const { env } = makeEnv();
+    const redirect = 'https://app.example.com/oauth/callback';
+    const res = await handleAuthorize(
+      getReq('response_type=code&client_id=client-x&redirect_uri=' + encodeURIComponent(redirect)),
+      env,
+    );
+    const csp = res.headers.get('content-security-policy') ?? '';
+    expect(csp).toContain("default-src 'none'");
+    expect(csp).toContain("base-uri 'none'");
+    expect(csp).toContain("form-action 'self' https://app.example.com");
+  });
+
+  test('falls back to form-action self only when the redirect_uri is unparseable', async () => {
+    const { env } = makeEnv();
+    const res = await handleAuthorize(
+      getReq('response_type=code&client_id=client-x&redirect_uri=not-a-url'),
+      env,
+    );
+    const csp = res.headers.get('content-security-policy') ?? '';
+    expect(csp).toContain("form-action 'self'");
+    expect(csp).not.toContain('not-a-url');
+  });
+});
+
 describe('POST /authorize — approve', () => {
   test('issues a grant with the scope pinned to ["mcp"]', async () => {
     const { env, completeArgs } = makeEnv();
