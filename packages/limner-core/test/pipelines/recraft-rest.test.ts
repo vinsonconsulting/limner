@@ -101,6 +101,74 @@ describe('RestRecraftTransport — response parsing', () => {
   });
 });
 
+describe('RestRecraftTransport — b64_json re-host (F4)', () => {
+  test('forwards response_format in the generations JSON body when requested', async () => {
+    const onePixelPng =
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABh6FO1AAAAABJRU5ErkJggg==';
+    const fetchMock = mockFetch(
+      new Response(JSON.stringify({ data: [{ b64_json: onePixelPng }] }), { status: 200 }),
+    );
+    const t = new RestRecraftTransport('rk', dohAware(fetchMock));
+    const out = await t.generateImage({ ...ARGS, responseFormat: 'b64_json' });
+    const body = JSON.parse(
+      ((fetchMock as unknown as ReturnType<typeof vi.fn>).mock.calls[0]![1] as RequestInit).body as string,
+    );
+    expect(body.response_format).toBe('b64_json');
+    expect(out.url).toBeUndefined();
+    expect(out.data).toBeInstanceOf(Uint8Array);
+  });
+
+  test('forwards response_format in the imageToImage form when requested', async () => {
+    const onePixelPng =
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABh6FO1AAAAABJRU5ErkJggg==';
+    const fetchMock = vi.fn(async (url: unknown) =>
+      String(url).includes('/imageToImage')
+        ? new Response(JSON.stringify({ data: [{ b64_json: onePixelPng }] }), { status: 200 })
+        : new Response(new Uint8Array([1]), { status: 200, headers: { 'content-type': 'image/png' } }),
+    ) as unknown as typeof fetch;
+    const t = new RestRecraftTransport('rk', dohAware(fetchMock));
+    await t.generateImage({ ...ARGS, image: 'https://s/x.png', responseFormat: 'b64_json' });
+    const call = (fetchMock as unknown as ReturnType<typeof vi.fn>).mock.calls.find((c) =>
+      String(c[0]).includes('/imageToImage'),
+    )!;
+    expect(((call[1] as RequestInit).body as FormData).get('response_format')).toBe('b64_json');
+  });
+
+  test('sniffs SVG mime for a b64_json generation result (vector style)', async () => {
+    const svgB64 = btoa('<svg xmlns="http://www.w3.org/2000/svg"/>');
+    const fetchMock = mockFetch(
+      new Response(JSON.stringify({ data: [{ b64_json: svgB64 }] }), { status: 200 }),
+    );
+    const t = new RestRecraftTransport('rk', dohAware(fetchMock));
+    const out = await t.generateImage({ ...ARGS, responseFormat: 'b64_json' });
+    expect(out.mimeType).toBe('image/svg+xml');
+    expect(new TextDecoder().decode(out.data!)).toContain('<svg');
+  });
+
+  test('fetches a url-only result through the guard when b64_json was requested', async () => {
+    const onePixelPng =
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABh6FO1AAAAABJRU5ErkJggg==';
+    const fetchMock = vi.fn(async (url: unknown) => {
+      if (String(url).includes('/images/generations')) {
+        return new Response(JSON.stringify({ data: [{ url: 'https://img.recraft.ai/abc.png' }] }), {
+          status: 200,
+        });
+      }
+      return new Response(Uint8Array.from(atob(onePixelPng), (c) => c.charCodeAt(0)), {
+        status: 200,
+        headers: { 'content-type': 'image/png' },
+      });
+    }) as unknown as typeof fetch;
+    const t = new RestRecraftTransport('rk', dohAware(fetchMock));
+    const out = await t.generateImage({ ...ARGS, responseFormat: 'b64_json' });
+    // The hosted url was fetched and turned into bytes — no url leaks upward.
+    expect(out.url).toBeUndefined();
+    expect(out.data).toBeInstanceOf(Uint8Array);
+    const calls = (fetchMock as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls.some((c) => String(c[0]) === 'https://img.recraft.ai/abc.png')).toBe(true);
+  });
+});
+
 describe('RestRecraftTransport — error mapping', () => {
   test('401 maps to unauthorized', async () => {
     const t = new RestRecraftTransport('rk', mockFetch(new Response('nope', { status: 401 })));

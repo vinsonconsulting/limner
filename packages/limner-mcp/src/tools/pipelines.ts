@@ -119,7 +119,15 @@ const generateRecraft: Tool<z.infer<typeof recraftInputSchema>> = {
     // missing_credential tool error rather than an auth failure downstream.
     const transport = new RestRecraftTransport(ctx.secrets['RECRAFT_API_KEY'] ?? '');
     const pipeline = new RecraftPipeline(transport);
-    return runImagePipeline(pipeline, { prompt: input.prompt, options: input }, ctx, 'recraft');
+    // F4: request inline bytes (b64_json) so the result re-hosts to a signed
+    // capability URL via maybeDeliver — mirrors upscale/vectorize — instead of
+    // returning Recraft's ephemeral (~24h) CDN url.
+    return runImagePipeline(
+      pipeline,
+      { prompt: input.prompt, options: { ...input, responseFormat: 'b64_json' } },
+      ctx,
+      'recraft',
+    );
   },
 };
 

@@ -54,7 +54,16 @@ export class RestRecraftTransport implements RecraftTransport {
     if (!response.ok) {
       throw await httpResponseToError('recraft', response);
     }
-    return parseRecraftResponse(await response.json());
+    const result = parseRecraftResponse(await response.json());
+    // F4 robustness: we asked for inline bytes so the MCP layer can re-host to a
+    // signed capability URL. If a style ignored response_format and Recraft
+    // returned a hosted url anyway, fetch those bytes through the SSRF guard so
+    // the transient CDN url never reaches the client.
+    if (args.responseFormat === 'b64_json' && result.url && !result.data) {
+      const { bytes, contentType } = await fetchInputImage('recraft', result.url, this.fetchImpl);
+      return { data: bytes, mimeType: sniffImageMime(bytes, contentType) };
+    }
+    return result;
   }
 
   private async requestGeneration(args: RecraftGenerateArgs): Promise<Response> {
@@ -65,6 +74,7 @@ export class RestRecraftTransport implements RecraftTransport {
       n: 1,
       ...(args.substyle ? { substyle: args.substyle } : {}),
       ...(args.model ? { model: args.model } : {}),
+      ...(args.responseFormat ? { response_format: args.responseFormat } : {}),
     };
     try {
       return await this.fetchImpl(GENERATIONS_ENDPOINT, {
@@ -132,6 +142,7 @@ export class RestRecraftTransport implements RecraftTransport {
     form.append('n', '1');
     if (args.substyle) form.append('substyle', args.substyle);
     if (args.model) form.append('model', args.model);
+    if (args.responseFormat) form.append('response_format', args.responseFormat);
     form.append('image', new Blob([bytes], { type: contentType }), imageFilename(contentType));
     try {
       return await this.fetchImpl(IMAGE_TO_IMAGE_ENDPOINT, {
@@ -171,7 +182,11 @@ function parseRecraftResponse(json: unknown): RecraftGenerateResult {
   }
   const b64 = first['b64_json'];
   if (typeof b64 === 'string') {
-    return { data: base64ToBytes(b64), mimeType: 'image/png' };
+    // Sniff the decoded bytes so a vector_illustration style (SVG) is stamped
+    // image/svg+xml rather than the raster default — the delivered artifact's
+    // extension/content-type must match the actual bytes.
+    const data = base64ToBytes(b64);
+    return { data, mimeType: sniffImageMime(data, 'image/png') };
   }
   throw new PipelineError(
     'recraft',
@@ -238,7 +253,20 @@ function sniffImageMime(bytes: Uint8Array, fallback: string): string {
   ) {
     return 'image/webp';
   }
+  // SVG is text, not a magic-numbered binary: detect the leading `<?xml`/`<svg`
+  // (allowing whitespace/BOM) so vector output is stamped image/svg+xml.
+  if (looksLikeSvg(bytes)) {
+    return 'image/svg+xml';
+  }
   return fallback;
+}
+
+// True when the leading bytes look like an SVG document. Decodes only a short
+// prefix as UTF-8 (TextDecoder strips a leading BOM), trims whitespace, and
+// checks for an XML declaration or an <svg root tag.
+function looksLikeSvg(bytes: Uint8Array): boolean {
+  const head = new TextDecoder().decode(bytes.subarray(0, 256)).trimStart().toLowerCase();
+  return head.startsWith('<?xml') || head.startsWith('<svg');
 }
 
 function stringifyError(err: unknown): string {
