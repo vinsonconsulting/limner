@@ -1,8 +1,8 @@
-# limner : A Harnessed Image-generation Agent
+# Limner : A Harnessed Image-generation Agent
 
 <p align="center"><img src="docs/assets/hero.webp" alt="The limner's empty studio: a finished portrait of an armored knight on the easel, daylight and open sky entering through a balcony arch" width="100%"></p>
 
-> A harnessed image-generation agent: Claude reasons, Cloudflare executes, D1 remembers, OAuth is the only way in.
+> A Harnessed Image-generation Agent: Claude reasons, Cloudflare executes, D1 remembers, OAuth is the only way in.
 
 [![Model Context Protocol](https://img.shields.io/badge/MCP-server-1f2937)](https://modelcontextprotocol.io)
 [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-F38020?logo=cloudflare&logoColor=white)](https://developers.cloudflare.com/workers/)
