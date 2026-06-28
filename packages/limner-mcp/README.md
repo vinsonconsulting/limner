@@ -1,6 +1,6 @@
 # @limner/mcp
 
-Limner's MCP server. One TypeScript surface, three transports (Workers Streamable HTTP + stdio + `.mcpb` bundle), 17 tools wrapping `@limner/core`.
+Limner's MCP server. One TypeScript surface, three transports (Workers Streamable HTTP + stdio + `.mcpb` bundle), 18 tools wrapping `@limner/core`.
 
 Built on the brain/hands split from D-RA-01: this is the *durable product surface* (the brain's hands for any MCP client, including Claude Desktop, LobeHub, the CMA agent itself per D-RA-12). Pipeline credentials live in Cloudflare Secrets; never travel to the client.
 
@@ -27,6 +27,7 @@ bare names (no `limner_` prefix); the agent harness reconciles the two via
 | `limner_record` | Persist a new memory entry (idempotent via `sourceId`) | structured |
 | `limner_forget` | Delete a memory entry by id | structured |
 | `limner_list_categories` | Memory categories with counts | structured |
+| `limner_create_project` | Create a project (unique name) so notes/context can attach | structured |
 | `limner_list_projects` | Project list by q / limit / offset | structured |
 | `limner_get_project_context` | Project + recent notes (identify by id or name) | structured |
 | `limner_record_project_note` | Append a note to a project | structured |
@@ -161,7 +162,7 @@ pnpm smoke:mcpb limner-mcp.mcpb
        │  └────────────┬─────────────┘    │
        │               │                  │
        │  ┌────────────▼─────────────┐    │
-       │  │ 17 tools (this README ↑) │    │
+       │  │ 18 tools (this README ↑) │    │
        │  └────────────┬─────────────┘    │
        └───────────────┼──────────────────┘
                        │

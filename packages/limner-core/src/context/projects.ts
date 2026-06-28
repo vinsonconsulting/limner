@@ -62,6 +62,12 @@ function noteFromRow(row: NoteRow): ProjectNote {
   };
 }
 
+// A clean, actionable error for a note targeting an unknown project — replaces
+// the raw D1_ERROR foreign-key violation the INSERT would otherwise throw (F5).
+function projectNotFound(projectId: string): Error {
+  return new Error(`project not found: ${projectId} — create it first with limner_create_project`);
+}
+
 // ---------------- D1 backend ----------------
 
 export class D1ProjectStore implements ProjectStore {
@@ -134,6 +140,10 @@ export class D1ProjectStore implements ProjectStore {
   }
 
   async addNote(input: ProjectNoteInput): Promise<ProjectNote> {
+    // Guard the FK before inserting: an unknown project_id would otherwise
+    // surface the raw D1_ERROR foreign-key violation to the caller. A clean,
+    // actionable message is returned instead (F5).
+    if (!(await this.get(input.projectId))) throw projectNotFound(input.projectId);
     const id = ulid();
     const now = Date.now();
     await this.db.prepare(
@@ -230,6 +240,8 @@ export class LocalProjectStore implements ProjectStore {
   }
 
   async addNote(input: ProjectNoteInput): Promise<ProjectNote> {
+    // Guard the FK before inserting (F5) — same contract as the D1 backend.
+    if (!(await this.get(input.projectId))) throw projectNotFound(input.projectId);
     const id = ulid();
     const now = Date.now();
     this.db.prepare(

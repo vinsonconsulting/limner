@@ -8,7 +8,7 @@ This validates the **live surface**, so it runs against a deployed Worker, not s
 
 ## Surface under test
 
-A v1 deployment exposes **17 tools, 12 prompts, 3 resources**. Inspector talks to the
+A v1 deployment exposes **18 tools, 12 prompts, 3 resources**. Inspector talks to the
 server directly, so it lists tools under their **`limner_`-prefixed** registered names.
 
 > Note: the Claude Managed Agent (Test 4) surfaces these same tools under **bare** names
@@ -86,7 +86,7 @@ artifact URL.
 
 ## Pass criteria
 
-- [ ] 17 tools / 12 prompts / 3 resources list, with the prefixed tool names above.
+- [ ] 18 tools / 12 prompts / 3 resources list, with the prefixed tool names above.
 - [ ] Each tool shows an input schema; each resource reads.
 - [ ] The OAuth **consent screen** appears; **Approve** connects; **Deny** is refused.
 - [ ] A representative tool executes and returns a result; an artifact-producing call returns

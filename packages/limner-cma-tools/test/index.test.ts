@@ -3,8 +3,8 @@ import { describe, expect, test } from 'vitest';
 import { LIMNER_TOOLS } from '../src/index.js';
 
 describe('LIMNER_TOOLS registry', () => {
-  test('exposes 17 tools total', () => {
-    expect(LIMNER_TOOLS).toHaveLength(17);
+  test('exposes 18 tools total', () => {
+    expect(LIMNER_TOOLS).toHaveLength(18);
   });
 
   test('all tool names are unique', () => {
@@ -17,6 +17,7 @@ describe('LIMNER_TOOLS registry', () => {
     expect(names).toEqual(
       [
         'limner_compose',
+        'limner_create_project',
         'limner_forget',
         'limner_generate_dalle',
         'limner_generate_midjourney',

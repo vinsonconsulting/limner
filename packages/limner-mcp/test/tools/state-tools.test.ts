@@ -262,6 +262,77 @@ describe('project tools', () => {
       await close();
     }
   });
+
+  // F5: the full lifecycle is reachable through MCP tools alone — no direct
+  // store access. create_project gives projects a creation path so the other
+  // three project tools are functional end-to-end.
+  test('create_project -> record_project_note -> list -> get_context end-to-end via tools', async () => {
+    const { client, close } = await connectedPair(projectTools);
+    try {
+      const created = parseStructured(
+        await client.callTool({
+          name: 'limner_create_project',
+          arguments: { name: 'aurora', description: 'a new world' },
+        }),
+      )['project'] as { id: string; name: string; description?: string };
+      expect(created.id).toBeTruthy();
+      expect(created.name).toBe('aurora');
+      expect(created.description).toBe('a new world');
+
+      const noted = parseStructured(
+        await client.callTool({
+          name: 'limner_record_project_note',
+          arguments: { projectId: created.id, content: 'kickoff' },
+        }),
+      )['note'] as { content: string };
+      expect(noted.content).toBe('kickoff');
+
+      const listed = parseStructured(await client.callTool({ name: 'limner_list_projects', arguments: {} }));
+      expect((listed['projects'] as Array<{ name: string }>).map((p) => p.name)).toContain('aurora');
+
+      const ctx = parseStructured(
+        await client.callTool({ name: 'limner_get_project_context', arguments: { name: 'aurora' } }),
+      );
+      expect((ctx['project'] as { id: string }).id).toBe(created.id);
+      expect((ctx['notes'] as Array<{ content: string }>)[0]!.content).toBe('kickoff');
+    } finally {
+      await close();
+    }
+  });
+
+  // F5: a note against a non-existent project must surface a clean, informative
+  // error — never the raw D1_ERROR a foreign-key violation would otherwise emit.
+  test('record_project_note on a missing project returns a clean error (no raw D1_ERROR)', async () => {
+    const { client, close } = await connectedPair(projectTools);
+    try {
+      const result = await client.callTool({
+        name: 'limner_record_project_note',
+        arguments: { projectId: 'does-not-exist', content: 'orphan' },
+      });
+      expect(result.isError).toBe(true);
+      const text = JSON.stringify(result.content);
+      expect(text).toMatch(/project not found/i);
+      expect(text).not.toMatch(/D1_ERROR|FOREIGN KEY|constraint/i);
+    } finally {
+      await close();
+    }
+  });
+
+  // F5: a unique-name collision is reported cleanly rather than dumping the
+  // underlying UNIQUE-constraint failure.
+  test('create_project rejects a duplicate name with a clean error', async () => {
+    const { client, close } = await connectedPair(projectTools);
+    try {
+      await client.callTool({ name: 'limner_create_project', arguments: { name: 'dup' } });
+      const again = await client.callTool({ name: 'limner_create_project', arguments: { name: 'dup' } });
+      expect(again.isError).toBe(true);
+      const text = JSON.stringify(again.content);
+      expect(text).toMatch(/already exists/i);
+      expect(text).not.toMatch(/UNIQUE|constraint|D1_ERROR/i);
+    } finally {
+      await close();
+    }
+  });
 });
 
 // ---------------- Meta ----------------

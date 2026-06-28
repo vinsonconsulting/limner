@@ -1,7 +1,8 @@
-// Project context tools: limner_list_projects, limner_get_project_context,
-// limner_record_project_note. Wrap @limner/core's ProjectStore.
+// Project context tools: limner_create_project, limner_list_projects,
+// limner_get_project_context, limner_record_project_note. Wrap @limner/core's
+// ProjectStore.
 //
-// Refs: D-RA-04, D-RA-15
+// Refs: D-RA-04, D-RA-15, F5
 
 import { z } from 'zod';
 import { createProjectStore } from '@limner/core';
@@ -15,6 +16,35 @@ function structured(payload: unknown): CallToolResult {
     structuredContent: payload as Record<string, unknown>,
   };
 }
+
+const createInputSchema = z.object({
+  name: z.string().min(1).describe('Unique project name (the human-facing key).'),
+  description: z.string().optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
+
+const createProject: Tool<z.infer<typeof createInputSchema>> = {
+  name: 'limner_create_project',
+  description:
+    'Create a project so notes and context can be attached to it. Returns the new project (id + timestamps). Names are unique.',
+  inputSchema: createInputSchema,
+  // Inserts a new row — non-idempotent (a duplicate name is rejected), non-destructive.
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  handler: async (input, ctx) => {
+    const store = createProjectStore(ctx.bindings);
+    // Report a unique-name collision cleanly instead of letting the UNIQUE
+    // constraint surface as a raw D1_ERROR (mirrors get_project_context's
+    // tool-layer error shaping).
+    if (await store.getByName(input.name)) {
+      return {
+        content: [{ type: 'text', text: `project already exists: ${input.name}` }],
+        isError: true,
+      };
+    }
+    const project = await store.create(input);
+    return structured({ project });
+  },
+};
 
 const listInputSchema = z.object({
   q: z.string().optional().describe('Substring match against project.name.'),
@@ -88,6 +118,7 @@ const recordProjectNote: Tool<z.infer<typeof recordNoteInputSchema>> = {
 };
 
 export const projectTools: readonly Tool[] = [
+  createProject,
   listProjects,
   getProjectContext,
   recordProjectNote,
