@@ -49,6 +49,7 @@ function b64(bytes: Uint8Array | Buffer): string {
 // transports assert the same single-source registry.
 const EXPECTED_TOOLS = [
   'limner_compose',
+  'limner_create_project',
   'limner_forget',
   'limner_generate_dalle',
   'limner_generate_midjourney',
@@ -117,7 +118,7 @@ async function post(body: unknown, sessionId?: string): Promise<Response> {
 
 describe('worker MCP: DO-backed Streamable HTTP handshake (Phase 6c regression guard)', () => {
   test(
-    'initialize -> tools/list returns the full 17-tool registry; tools/call routes; prompts/resources advertise',
+    'initialize -> tools/list returns the full 18-tool registry; tools/call routes; prompts/resources advertise',
     { timeout: 60_000 },
     async () => {
       // 1. initialize — opens the session; the server returns an Mcp-Session-Id.

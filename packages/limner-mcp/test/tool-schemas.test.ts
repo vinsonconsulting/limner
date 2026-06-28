@@ -28,8 +28,8 @@ const ALL_TOOLS = [
 ];
 
 describe('tool input_schemas are valid for the Anthropic tool API', () => {
-  test('all 17 tools are present', () => {
-    expect(ALL_TOOLS).toHaveLength(17);
+  test('all 18 tools are present', () => {
+    expect(ALL_TOOLS).toHaveLength(18);
   });
 
   test.each(ALL_TOOLS.map((t) => [t.name, t] as const))(
@@ -135,6 +135,7 @@ describe('tool annotations (A5) — behavioral hints', () => {
       .map((t) => t.name)
       .sort();
     expect(nonIdempotent).toEqual([
+      'limner_create_project',
       'limner_generate_dalle',
       'limner_generate_recraft',
       'limner_record',

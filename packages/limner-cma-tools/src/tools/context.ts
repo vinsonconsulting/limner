@@ -1,7 +1,8 @@
-// Project context tools: limner_list_projects, limner_get_project_context,
-// limner_record_project_note. Wrap @limner/core's ProjectStore. D1-gated.
+// Project context tools: limner_create_project, limner_list_projects,
+// limner_get_project_context, limner_record_project_note. Wrap @limner/core's
+// ProjectStore. D1-gated.
 //
-// Refs: D-RA-04, D-RA-12
+// Refs: D-RA-04, D-RA-12, F5
 
 import type { D1Database } from '@cloudflare/workers-types';
 import { createProjectStore } from '@limner/core';
@@ -19,6 +20,24 @@ function schemaFor(name: string): z.ZodType<unknown, z.ZodTypeDef, unknown> {
 function bindings(env: Record<string, unknown>) {
   return { kind: 'workers' as const, DB: env['DB'] as D1Database };
 }
+
+const createProject: CustomTool = defineTool({
+  name: 'limner_create_project',
+  description:
+    'Create a project so notes and context can be attached to it. Returns the new project. Names are unique.',
+  inputSchema: schemaFor('limner_create_project'),
+  requires: (env) => Boolean(env['DB']),
+  run: async (input, { env }) => {
+    const store = createProjectStore(bindings(env));
+    const i = input as { name: string; description?: string; metadata?: Record<string, unknown> };
+    // Report a unique-name collision cleanly (mirrors the MCP tool).
+    if (await store.getByName(i.name)) {
+      return JSON.stringify({ error: `project already exists: ${i.name}` });
+    }
+    const project = await store.create(i);
+    return JSON.stringify({ project });
+  },
+});
 
 const listProjects: CustomTool = defineTool({
   name: 'limner_list_projects',
@@ -61,6 +80,7 @@ const recordProjectNote: CustomTool = defineTool({
 });
 
 export const projectTools: readonly CustomTool[] = [
+  createProject,
   listProjects,
   getProjectContext,
   recordProjectNote,
