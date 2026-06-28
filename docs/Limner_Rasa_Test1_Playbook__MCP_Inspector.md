@@ -94,10 +94,12 @@ artifact URL.
 
 ## Troubleshooting
 
-- **Consent loop stalls in the GUI.** This is a known Inspector client-side quirk (its loopback
-  callback / consent-cycle handling), not a server issue — the server completes DCR → consent →
-  code → token cleanly for a localhost-redirect client. Retry the connect, or use the prod GUI,
-  or snapshot schemas via the CLI leg with a token.
+- **Consent Approve doesn't connect / hangs.** Until #109 this was a *server* bug: the consent
+  page's CSP (`form-action 'self'`) blocked the post-approve redirect to the client's redirect_uri
+  in Chromium (the POST aborted with `net::ERR_ABORTED`), so the code never reached the client. The
+  fix — the CSP now allows the validated redirect origin — is deployed dev + prod, so Approve
+  completes normally. If you still see a hang on an up-to-date deployment, snapshot schemas via the
+  CLI leg with a bearer token while you investigate the client.
 - **401 on `/mcp` with no token.** Expected — the endpoint is OAuth-gated. Complete the flow.
 - **Token-but-no-tools.** Confirm the `Mcp-Session-Id` from `initialize` is carried on subsequent
   calls; the server is one Durable Object per session.
