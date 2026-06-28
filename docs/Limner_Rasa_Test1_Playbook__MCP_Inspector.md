@@ -76,11 +76,13 @@ dalle-builder, recraft-builder, illuminated-manuscript.
 Run a tool end-to-end. A free, deterministic choice is `limner_health` (returns bindings
 flavor, `hasImages`, and the version) or `limner_version`.
 
-To confirm **signed artifact delivery**, run a tool that produces an artifact on a deployed
-Worker — e.g. `limner_compose` with a `resize` op on a small PNG, or a paid generator. The
-returned URL should be under `/artifact/generated/...` and, on a public https target, carry
-`?exp=<epoch>&sig=<...>` (a signed, expiring capability URL). Fetch it once and confirm it
-returns the bytes, not a 404 or 403.
+To confirm **signed artifact delivery**, call a tool that re-hosts to R2 — a paid generator
+(`limner_generate_dalle`) or a transform (`limner_upscale` / `limner_vectorize` on an image URL).
+The returned URL is under `/artifact/generated/...` and, on a public https target, carries
+`?exp=<epoch>&sig=<...>` (a signed, expiring capability URL); fetch it once to confirm it returns
+the bytes, not a 404 or 403. Note: `limner_compose` returns image bytes **inline** (not a URL),
+and `limner_generate_recraft` returns Recraft's **provider** URL — neither yields a Limner signed
+artifact URL.
 
 ## Pass criteria
 
@@ -92,10 +94,12 @@ returns the bytes, not a 404 or 403.
 
 ## Troubleshooting
 
-- **Consent loop stalls in the GUI.** This is a known Inspector client-side quirk (its loopback
-  callback / consent-cycle handling), not a server issue — the server completes DCR → consent →
-  code → token cleanly for a localhost-redirect client. Retry the connect, or use the prod GUI,
-  or snapshot schemas via the CLI leg with a token.
+- **Consent Approve doesn't connect / hangs.** Until #109 this was a *server* bug: the consent
+  page's CSP (`form-action 'self'`) blocked the post-approve redirect to the client's redirect_uri
+  in Chromium (the POST aborted with `net::ERR_ABORTED`), so the code never reached the client. The
+  fix — the CSP now allows the validated redirect origin — is deployed dev + prod, so Approve
+  completes normally. If you still see a hang on an up-to-date deployment, snapshot schemas via the
+  CLI leg with a bearer token while you investigate the client.
 - **401 on `/mcp` with no token.** Expected — the endpoint is OAuth-gated. Complete the flow.
 - **Token-but-no-tools.** Confirm the `Mcp-Session-Id` from `initialize` is carried on subsequent
   calls; the server is one Durable Object per session.
