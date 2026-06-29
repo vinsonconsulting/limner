@@ -210,6 +210,27 @@ export async function handleAuthorize(req: Request, env: OAuthEnv): Promise<Resp
   // STABLE redirect_uri (the agent's primary signal — its client_id rotates) or
   // by a pinned client_id. parseAuthRequest has already validated that
   // redirect_uri belongs to the client, so the code can only reach that URI.
+  //
+  // TRUST MODEL (release-review J1). Because RFC 7591 dynamic registration is
+  // open, any client can self-register with redirect_uris that include the
+  // allowlisted callback and thereby satisfy isTrustedRedirectUri — skipping the
+  // consent UI. This is a deliberately accepted, NON-exploitable residual, not a
+  // token-theft hole, because:
+  //   1. matchesAllowlist is EXACT-match and autoApprove 302s the code to the
+  //      request's redirect_uri — which equals the allowlisted URI — so the code
+  //      is delivered only to the real first party (e.g. claude.ai), never to an
+  //      attacker-controlled host.
+  //   2. The OAuth provider binds the code to the initiating client at
+  //      /oauth/token, so a leaked code can't be redeemed by a different client.
+  //   3. The grant carries the single-tenant 'limner-dogfood' identity with an
+  //      empty props and the pinned ['mcp'] scope (see autoApprove) — there is
+  //      no per-user account or sensitive data to compromise.
+  // Requiring a trusted client_id here (the obvious "fix") is intentionally NOT
+  // done: the live agent's client_id ROTATES, so an AND with isTrustedClient
+  // would break agent auto-approve. If a real per-user identity ever replaces
+  // 'limner-dogfood', revisit this — at that point gate the redirect_uri path on
+  // an additional first-party signal (a pinned client_id for non-rotating
+  // clients, or registration-time restriction of the allowlisted callback).
   if (
     isTrustedClient(oauthReq.clientId, env) ||
     isTrustedRedirectUri(oauthReq.redirectUri, env)
