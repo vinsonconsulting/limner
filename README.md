@@ -1,4 +1,4 @@
-# Limner : A Harnessed Image-generation Agent
+# Limner: A Harnessed Image-generation Agent
 
 <p align="center"><img src="docs/assets/hero.webp" alt="The limner's empty studio: a finished portrait of an armored knight on the easel, daylight and open sky entering through a balcony arch" width="100%"></p>
 
@@ -12,14 +12,32 @@
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![DCO](https://img.shields.io/badge/DCO-required-orange)](https://developercertificate.org/)
 
-Limner is an Agent Harness and  Model Context Protocol (MCP) server for orchestrating image
+Limner is an Agent Harness and Model Context Protocol (MCP) server for orchestrating image
 generation across multiple pipelines, with durable memory for project
 context. This repository is **rasa**, the foundation variant of the Limner
-family. You deploy limner: rasa as your own instance; free-as-in-beer and no strings/data-pipelines attached.
+family. You deploy rasa as your own instance: free as in beer, no strings or data pipelines attached.
+
+## Contents
+
+- [The Harnessed Agent](#the-harnessed-agent)
+- [Decisions and dead-ends](#decisions-and-dead-ends)
+- [Architecture](#architecture)
+- [Stack](#stack)
+- [Tool Surface](#tool-surface)
+- [Memory](#memory)
+- [Security](#security)
+- [Prerequisites](#prerequisites)
+- [Quickstart](#quickstart)
+- [Testing and feedback](#testing-and-feedback)
+- [Roadmap](#roadmap)
+- [The Limner family](#the-limner-family)
+- [Contributing](#contributing)
+- [License](#license)
+- [Acknowledgments](#acknowledgments)
 
 ## The Harnessed Agent
 
-Limner is explicitly built as a compstable harness structure with clean seams:
+Limner is explicitly built as a composable harness with clean seams:
 
 - **The reasoning loop runs on Anthropic's Claude Managed Agents platform.**
   The model does the planning and the tool choice. It never holds provider
@@ -91,10 +109,56 @@ All tools are namespaced `limner_*`. Full schemas in
 | `limner_generate_dalle` | OpenAI Images API (gpt-image-1 default) | `OPENAI_API_KEY`, your OpenAI credit |
 | `limner_generate_recraft` | Recraft, via their REST API (`external.api.recraft.ai`) | `RECRAFT_API_KEY`, your Recraft credit |
 | `limner_generate_midjourney` | Composes a Midjourney prompt string; a human carries it the rest of the way | Nothing |
+| `limner_upscale` / `limner_vectorize` | Recraft crisp upscale, and raster-to-SVG vectorize | `RECRAFT_API_KEY`, your Recraft credit |
 | `limner_compose` | 16 image ops behind one discriminated union: resize, crop, brightness, contrast, blur, sharpen, watermark, encode, decode, convert, renderText run in-isolate; cfTransform, cfOverlay, cfBlur, cfSmartCrop, cfBackgroundFill use Cloudflare Images | Images binding for the five cf* ops only |
 | `limner_record` / `limner_recall` / `limner_forget` / `limner_list_categories` | Durable memory with categories and idempotent upserts | D1 (or local SQLite) |
-| `limner_list_projects` / `limner_get_project_context` / `limner_record_project_note` | Project briefs and running notes | D1 (or local SQLite) |
+| `limner_create_project` / `limner_list_projects` / `limner_get_project_context` / `limner_record_project_note` | Project briefs and running notes | D1 (or local SQLite) |
 | `limner_health` / `limner_version` / `limner_list_pipelines` / `limner_pipeline_capabilities` | Discovery and diagnostics | Nothing |
+
+## Memory
+
+Most image tools start every session from zero. Limner records what a project
+is and what you decided, then reads it back on the next run. Two stores back
+this, both in D1 (or local SQLite for the stdio and `.mcpb` flavors):
+
+- **Categorized memory.** `limner_record` writes a fact under a category with
+  an idempotent upsert, so re-recording the same key updates in place instead
+  of piling up duplicates. `limner_recall` reads a category back,
+  `limner_forget` removes an entry, and `limner_list_categories` enumerates
+  what exists. Use it for durable preferences: a house palette, a default
+  aspect ratio, a model that works for a given look.
+- **Project context.** `limner_create_project` opens a project,
+  `limner_record_project_note` appends running notes (briefs, style decisions,
+  progress), `limner_get_project_context` returns the brief and notes for a
+  project, and `limner_list_projects` lists them. This is the "what were we
+  doing last week" layer.
+
+Nothing here is a vector database or an embedding model. It is plain structured
+state with explicit keys, which is the point: the agent recalls what it
+actually recorded, not the nearest fuzzy match.
+
+## Security
+
+A few properties hold by construction, worth stating for anyone running their
+own instance:
+
+- **One way in.** The Workers endpoint is OAuth 2.1 with dynamic client
+  registration and PKCE. First authorization shows a consent screen with a
+  double-submit CSRF token (a `__Host-` cookie plus a signed hidden field);
+  the issued scope is pinned, and deny paths validate the redirect URI against
+  registration before redirecting.
+- **Artifacts are signed and expiring.** Generated images are served from R2
+  behind HMAC-signed capability URLs with a short TTL, verified in constant
+  time. On a public origin, delivery fails closed if the signing key is unset.
+  SVG is served with content-type pinning and a sandbox policy; raster is
+  served inline.
+- **Outbound fetches are guarded.** Every fetch the server makes on your behalf
+  (reference images, provider calls) runs through an SSRF guard that blocks
+  loopback, link-local, unique-local, and metadata ranges, and re-resolves
+  hostnames to catch rebinding.
+- **The common path leaks nothing.** In-isolate composition needs no network
+  and no credentials; only the generation tools and the five `cf*` ops reach
+  outside the isolate, and only with the provider key you supplied.
 
 ## Prerequisites
 
@@ -221,6 +285,22 @@ free-first and paid-last, with the cost of every step stated up front.
 Findings are public issues: use the
 [test finding](.github/ISSUE_TEMPLATE/test_finding.yml) or
 [bug report](.github/ISSUE_TEMPLATE/bug_report.yml) template.
+
+## Roadmap
+
+Near-term, in rough order:
+
+- **MCP spec refresh (`2026-07-28`).** Move the transports to the stateless
+  model the new revision defines and drop the per-session id. This is what
+  promotes stdio out of `preview`; the Workers and `.mcpb` surfaces are already
+  current.
+- **Token-footprint instrumentation.** Measure real per-turn token cost and
+  round-trip counts in live traffic before pulling any schema-reduction lever,
+  so the decision is driven by numbers rather than guesses.
+- **More MCP clients.** Keep validating rasa against additional MCP hosts and
+  conformance harnesses, and fold the findings back into the tool contract.
+- **The family.** `limner-pixel` (pixel art) and `limner-ascii` (ASCII
+  workflows) build on rasa; see [The Limner family](#the-limner-family).
 
 ## The Limner family
 
