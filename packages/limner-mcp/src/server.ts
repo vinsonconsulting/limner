@@ -208,8 +208,9 @@ export function registerTools(
       // Surface errors as MCP error responses rather than propagating
       // to the transport layer. Caller can still distinguish via isError.
       // This message reaches clients verbatim: handlers must never throw
-      // errors carrying credentials or foreign paths (PipelineError
-      // messages are sanitized upstream).
+      // errors carrying credentials or foreign paths. PipelineError messages
+      // are status-coded only — httpResponseToError logs the raw upstream body
+      // server-side rather than embedding it here (L3).
       const message = err instanceof Error ? err.message : String(err);
       return {
         content: [{ type: 'text', text: `${req.params.name} failed: ${message}` }],

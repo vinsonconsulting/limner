@@ -14,25 +14,29 @@ export function mapHttpStatus(status: number): PipelineErrorCode {
   return 'unknown';
 }
 
-// Convert a non-OK Response into a PipelineError, attempting to surface the
-// upstream body in the message (truncated) for diagnostics. Caller decides
-// whether to log the full body.
+// Convert a non-OK Response into a PipelineError. The upstream (OpenAI/Recraft)
+// response body is logged server-side for diagnostics but NOT placed in the
+// PipelineError message: that message reaches the MCP client verbatim, and a
+// third-party body can echo request fragments/ids and provider internals (L3).
+// The client gets a clean, status-coded message instead.
 export async function httpResponseToError(
   pipelineId: string,
   response: Response,
 ): Promise<PipelineError> {
   const code = mapHttpStatus(response.status);
-  // Assigned in both branches below; no dead initializer.
   let body: string;
   try {
     body = (await response.text()).slice(0, 500);
   } catch {
     body = '<unreadable>';
   }
+  if (body) {
+    console.warn(`[${pipelineId}] upstream returned HTTP ${response.status}: ${body}`);
+  }
   return new PipelineError(
     pipelineId,
     code,
-    `${pipelineId}: upstream returned HTTP ${response.status}${body ? `: ${body}` : ''}`,
+    `${pipelineId}: upstream returned HTTP ${response.status}`,
   );
 }
 

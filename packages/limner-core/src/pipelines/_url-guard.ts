@@ -146,9 +146,20 @@ function isBlockedIpv6(b: Uint8Array): boolean {
   if (b.every((x) => x === 0)) return true; // :: unspecified
   if ((b[0]! & 0xfe) === 0xfc) return true; // fc00::/7 unique-local
   if (b[0] === 0xfe && (b[1]! & 0xc0) === 0x80) return true; // fe80::/10 link-local
-  // IPv4-mapped (::ffff:a.b.c.d): block when the embedded v4 is private.
+  // Block a private/loopback IPv4 embedded in the low 32 bits across all three
+  // embedding forms (L5), not just IPv4-mapped: this closes ::a.b.c.d (deprecated
+  // IPv4-compatible) and 64:ff9b::a.b.c.d (NAT64) in addition to ::ffff:a.b.c.d.
+  const highZero = b.slice(0, 12).every((x) => x === 0); // ::ffff: handled below; this is ::a.b.c.d
   const mapped = b.slice(0, 10).every((x) => x === 0) && b[10] === 0xff && b[11] === 0xff;
-  if (mapped && isPrivateIpv4([b[12]!, b[13]!, b[14]!, b[15]!])) return true;
+  const nat64 =
+    b[0] === 0x00 && b[1] === 0x64 && b[2] === 0xff && b[3] === 0x9b &&
+    b.slice(4, 12).every((x) => x === 0);
+  // For the all-high-zero (IPv4-compatible) form, exclude ::/::1 which are
+  // handled above and are not "an embedded IPv4" in the meaningful sense.
+  const compatible = highZero && !(b[12] === 0 && b[13] === 0 && b[14] === 0);
+  if ((mapped || nat64 || compatible) && isPrivateIpv4([b[12]!, b[13]!, b[14]!, b[15]!])) {
+    return true;
+  }
   return false;
 }
 
