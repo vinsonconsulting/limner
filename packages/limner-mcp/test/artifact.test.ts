@@ -132,6 +132,52 @@ describe('serveArtifact', () => {
     expect(res.status).toBe(403);
   });
 
+  // L4: a malformed percent-escape in the key must 404 like any other bad key,
+  // not throw URIError -> 500 (the route is pre-OAuth and unguarded).
+  test('404 on a malformed percent-encoded key (no URIError/500)', async () => {
+    const get = vi.fn();
+    const env = { GENERATED_BUCKET: { get } } as unknown as Env;
+    const res = await serveArtifact(new Request('https://mcp.limner.us/artifact/%zz'), env);
+    expect(res.status).toBe(404);
+    expect(get).not.toHaveBeenCalled();
+  });
+
+  // H1: every artifact response gets X-Content-Type-Options: nosniff; raster
+  // images stay inline.
+  test('raster artifact is served inline with nosniff', async () => {
+    const env = envWith(async () => r2Object(new Uint8Array([1, 2, 3]), 'image/png'));
+    const res = await serveArtifact(new Request(urlFor(KEY)), env);
+    expect(res.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(res.headers.get('content-disposition')).toBeNull();
+    expect(res.headers.get('content-security-policy')).toBeNull();
+  });
+
+  // H1: active content (SVG) is neutralized — forced download + sandbox CSP +
+  // nosniff — so it can't execute script against the same-origin OAuth surface.
+  test('svg artifact is hardened (attachment + sandbox CSP + nosniff)', async () => {
+    const svgKey = 'generated/recraft/logo.svg';
+    const env = envWith(async () => r2Object(new Uint8Array([60, 115, 118, 103]), 'image/svg+xml'));
+    const res = await serveArtifact(new Request(urlFor(svgKey)), env);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(res.headers.get('content-disposition')).toBe('attachment');
+    expect(res.headers.get('content-security-policy')).toBe("default-src 'none'; sandbox");
+  });
+
+  // L6: a signed response caps its browser cache lifetime at the remaining
+  // signature lifetime, not a flat 24h that outlives the capability.
+  test('signed artifact cache-control tracks the signature TTL (not a flat 24h)', async () => {
+    const signed = await signedUrl('sek', 600);
+    const env = envWith(async () => r2Object(new Uint8Array([1, 2, 3]), 'image/png'), 'sek');
+    const res = await serveArtifact(new Request(signed), env);
+    expect(res.status).toBe(200);
+    const cc = res.headers.get('cache-control') ?? '';
+    const maxAge = Number(/max-age=(\d+)/.exec(cc)?.[1]);
+    expect(cc).toContain('private');
+    expect(maxAge).toBeGreaterThan(0);
+    expect(maxAge).toBeLessThanOrEqual(600);
+  });
+
   describe('rate limiting (PR 3)', () => {
     const limiter = (success: boolean) => ({ limit: vi.fn(async () => ({ success })) });
 

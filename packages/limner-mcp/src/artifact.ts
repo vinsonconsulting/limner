@@ -46,7 +46,15 @@ export async function serveArtifact(request: Request, env: Env): Promise<Respons
   if (!env.GENERATED_BUCKET) return new Response('not found', { status: 404 });
 
   const url = new URL(request.url);
-  const key = decodeURIComponent(url.pathname.slice(ARTIFACT_PATH_PREFIX.length));
+  // A malformed percent-escape (e.g. /artifact/%zz) makes decodeURIComponent
+  // throw URIError; this route runs pre-OAuth and outside any catch, so treat a
+  // bad key as not-found rather than letting it surface as a 500 (L4).
+  let key: string;
+  try {
+    key = decodeURIComponent(url.pathname.slice(ARTIFACT_PATH_PREFIX.length));
+  } catch {
+    return new Response('not found', { status: 404 });
+  }
   // Only serve keys this worker writes. R2 keys are opaque (no filesystem, so
   // no `..` traversal), but bounding the prefix is cheap defense in depth.
   if (!key || !key.startsWith(`${ARTIFACT_KEY_PREFIX}/`)) {
@@ -69,6 +77,44 @@ export async function serveArtifact(request: Request, env: Env): Promise<Respons
   const headers = new Headers();
   obj.writeHttpMetadata(headers);
   headers.set('etag', obj.httpEtag);
-  headers.set('cache-control', 'private, max-age=86400');
+  // L6: cap the browser cache lifetime at the remaining signature lifetime so
+  // a private-cached copy can't outlive the capability it's gating. Unsigned
+  // (dev/local) keeps the 24h default.
+  headers.set('cache-control', `private, max-age=${signedMaxAge(url.searchParams)}`);
+  // H1: never let the browser MIME-sniff, and neutralize active content. SVG
+  // (and any non-raster type) is served as a forced download under a no-script
+  // sandbox CSP so it can't execute script in the same origin as the OAuth flow.
+  headers.set('x-content-type-options', 'nosniff');
+  if (!isInlineSafe(headers.get('content-type'))) {
+    headers.set('content-disposition', 'attachment');
+    headers.set('content-security-policy', "default-src 'none'; sandbox");
+  }
   return new Response(request.method === 'HEAD' ? null : obj.body, { headers });
+}
+
+// Raster image types that are safe to render inline (browsers never execute
+// script in these). Everything else — notably image/svg+xml — is treated as
+// active content and hardened.
+const INLINE_SAFE_TYPES = new Set([
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'image/avif',
+  'image/gif',
+]);
+
+function isInlineSafe(contentType: string | null): boolean {
+  if (!contentType) return false;
+  return INLINE_SAFE_TYPES.has(contentType.split(';')[0]!.trim().toLowerCase());
+}
+
+// Seconds of cache lifetime: the remaining signature lifetime when an `exp`
+// (unix seconds) is present and valid, clamped to [0, 24h]. Falls back to 24h
+// for unsigned capability URLs (no exp).
+const DEFAULT_MAX_AGE = 86400;
+function signedMaxAge(params: URLSearchParams): number {
+  const exp = Number(params.get('exp'));
+  if (!Number.isFinite(exp) || exp <= 0) return DEFAULT_MAX_AGE;
+  const remaining = Math.floor(exp - Date.now() / 1000);
+  return Math.max(0, Math.min(DEFAULT_MAX_AGE, remaining));
 }
