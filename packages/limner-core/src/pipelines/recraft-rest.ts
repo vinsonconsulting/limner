@@ -55,13 +55,22 @@ export class RestRecraftTransport implements RecraftTransport {
       throw await httpResponseToError('recraft', response);
     }
     const result = parseRecraftResponse(await response.json());
-    // F4 robustness: we asked for inline bytes so the MCP layer can re-host to a
-    // signed capability URL. If a style ignored response_format and Recraft
-    // returned a hosted url anyway, fetch those bytes through the SSRF guard so
-    // the transient CDN url never reaches the client.
-    if (args.responseFormat === 'b64_json' && result.url && !result.data) {
-      const { bytes, contentType } = await fetchInputImage('recraft', result.url, this.fetchImpl);
-      return { data: bytes, mimeType: sniffImageMime(bytes, contentType) };
+    return this.rehostIfUrlOnly(result, args.responseFormat, 'image/png');
+  }
+
+  // F4 robustness: we ask Recraft for inline bytes (b64_json) so the MCP layer
+  // can re-host to a signed capability URL. If a style/endpoint ignored
+  // response_format and returned a hosted url anyway, fetch those bytes through
+  // the SSRF guard so the transient CDN url never reaches the client. Applies to
+  // both the generate path and the upscale/vectorize transforms (M1).
+  private async rehostIfUrlOnly(
+    result: RecraftGenerateResult,
+    responseFormat: 'url' | 'b64_json' | undefined,
+    fallbackMime: string,
+  ): Promise<RecraftGenerateResult> {
+    if (responseFormat === 'b64_json' && result.url && !result.data) {
+      const { bytes } = await fetchInputImage('recraft', result.url, this.fetchImpl);
+      return { data: bytes, mimeType: sniffImageMime(bytes, fallbackMime) };
     }
     return result;
   }
@@ -128,7 +137,11 @@ export class RestRecraftTransport implements RecraftTransport {
     if (!response.ok) {
       throw await httpResponseToError('recraft', response);
     }
-    return parseRecraftImageResponse(await response.json(), b64MimeType);
+    const result = parseRecraftImageResponse(await response.json(), b64MimeType);
+    // M1: same anti-CDN-leak fallback as the generate path. The transform's
+    // b64MimeType (png for upscale, image/svg+xml for vectorize) is the sniff
+    // fallback so a re-fetched SVG stays correctly stamped.
+    return this.rehostIfUrlOnly(result, args.responseFormat, b64MimeType);
   }
 
   // Fetch the source URL, then POST /images/imageToImage (multipart). Do NOT
@@ -261,12 +274,13 @@ function sniffImageMime(bytes: Uint8Array, fallback: string): string {
   return fallback;
 }
 
-// True when the leading bytes look like an SVG document. Decodes only a short
-// prefix as UTF-8 (TextDecoder strips a leading BOM), trims whitespace, and
-// checks for an XML declaration or an <svg root tag.
+// True when the leading bytes look like an SVG document. Decodes a short prefix
+// as UTF-8 (TextDecoder strips a leading BOM) and looks for an `<svg` root tag
+// anywhere within it — so an SVG that opens with an XML declaration, a comment,
+// or a DOCTYPE before the root is still recognized (L7), not just one that
+// starts with `<?xml`/`<svg`.
 function looksLikeSvg(bytes: Uint8Array): boolean {
-  const head = new TextDecoder().decode(bytes.subarray(0, 256)).trimStart().toLowerCase();
-  return head.startsWith('<?xml') || head.startsWith('<svg');
+  return new TextDecoder().decode(bytes.subarray(0, 512)).toLowerCase().includes('<svg');
 }
 
 function stringifyError(err: unknown): string {
