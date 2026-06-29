@@ -24,6 +24,17 @@ function base64ToBytes(b64: string): Uint8Array {
   return out;
 }
 
+// M3 parity with @limner/mcp: cap the in-isolate output pixel count so a caller
+// can't request a multi-GB RGBA allocation and OOM the 128 MB V8 isolate.
+const MAX_COMPOSE_PIXELS = 10_000_000;
+function assertPixelCap(width: number, height: number, op: string): void {
+  if (width * height > MAX_COMPOSE_PIXELS) {
+    throw new Error(
+      `compose.${op}: ${width}x${height} exceeds the ${MAX_COMPOSE_PIXELS}-pixel in-isolate limit. Use cfTransform/cfSmartCrop (Cloudflare Images) for larger output.`,
+    );
+  }
+}
+
 function bytesToBase64(bytes: Uint8Array): string {
   let bin = '';
   for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]!);
@@ -70,11 +81,13 @@ export const composeMcpTool: CustomTool = defineTool({
     switch (op) {
       case 'resize': {
         const i = input as { input: string; width: number; height: number; fit?: FitMode };
+        assertPixelCap(i.width, i.height, 'resize');
         const bytes = compose.resize(base64ToBytes(i.input), i.width, i.height, i.fit ?? 'cover');
         return emitImage(env, bytes, 'image/png', 'resize');
       }
       case 'crop': {
         const i = input as { input: string; x: number; y: number; width: number; height: number };
+        assertPixelCap(i.width, i.height, 'crop');
         const bytes = compose.crop(base64ToBytes(i.input), i.x, i.y, i.width, i.height);
         return emitImage(env, bytes, 'image/png', 'crop');
       }
@@ -110,8 +123,16 @@ export const composeMcpTool: CustomTool = defineTool({
           format: 'jpeg' | 'png' | 'webp' | 'avif';
           quality?: number;
         };
+        assertPixelCap(i.raw.width, i.raw.height, 'encode');
+        const rawBytes = base64ToBytes(i.raw.data);
+        const expected = i.raw.width * i.raw.height * 4;
+        if (rawBytes.length !== expected) {
+          throw new Error(
+            `compose.encode: raw.data is ${rawBytes.length} bytes but ${i.raw.width}x${i.raw.height} RGBA requires ${expected}.`,
+          );
+        }
         const raw = {
-          data: new Uint8ClampedArray(base64ToBytes(i.raw.data).buffer),
+          data: new Uint8ClampedArray(rawBytes.buffer, rawBytes.byteOffset, rawBytes.byteLength),
           width: i.raw.width,
           height: i.raw.height,
         };
@@ -155,6 +176,7 @@ export const composeMcpTool: CustomTool = defineTool({
           height: number;
           fonts?: Array<{ fontId: string; name?: string; weight?: number; style?: 'normal' | 'italic' }>;
         };
+        assertPixelCap(i.width, i.height, 'renderText');
         // Fonts resolve to server-side bytes by id (no inline base64; large
         // fonts truncate on the wire). Omitted fonts -> the default built-in.
         const specs =

@@ -55,12 +55,19 @@ export function resize(
   height: number,
   _fit: FitMode = 'cover',
 ): Uint8Array {
-  const img = PhotonImage.new_from_byteslice(input);
-  const out = photonResize(img, width, height, SamplingFilter.Lanczos3);
-  const bytes = out.get_bytes();
-  img.free();
-  out.free();
-  return bytes;
+  // try/finally so the decoded WASM image is freed even when an op throws
+  // (undecodable bytes, out-of-bounds args); otherwise the allocation leaks and
+  // accumulates toward the 128 MB isolate cap across requests (M2).
+  let img: PhotonImage | undefined;
+  let out: PhotonImage | undefined;
+  try {
+    img = PhotonImage.new_from_byteslice(input);
+    out = photonResize(img, width, height, SamplingFilter.Lanczos3);
+    return out.get_bytes();
+  } finally {
+    img?.free();
+    out?.free();
+  }
 }
 
 /**
@@ -79,12 +86,16 @@ export function crop(
   width: number,
   height: number,
 ): Uint8Array {
-  const img = PhotonImage.new_from_byteslice(input);
-  const out = photonCrop(img, x, y, x + width, y + height);
-  const bytes = out.get_bytes();
-  img.free();
-  out.free();
-  return bytes;
+  let img: PhotonImage | undefined;
+  let out: PhotonImage | undefined;
+  try {
+    img = PhotonImage.new_from_byteslice(input);
+    out = photonCrop(img, x, y, x + width, y + height);
+    return out.get_bytes();
+  } finally {
+    img?.free();
+    out?.free();
+  }
 }
 
 /**
@@ -92,11 +103,14 @@ export function crop(
  * positive brightens, negative darkens. Typical range: -50..+50.
  */
 export function brightness(input: Uint8Array, delta: number): Uint8Array {
-  const img = PhotonImage.new_from_byteslice(input);
-  adjust_brightness(img, delta);
-  const bytes = img.get_bytes();
-  img.free();
-  return bytes;
+  let img: PhotonImage | undefined;
+  try {
+    img = PhotonImage.new_from_byteslice(input);
+    adjust_brightness(img, delta);
+    return img.get_bytes();
+  } finally {
+    img?.free();
+  }
 }
 
 /**
@@ -104,22 +118,28 @@ export function brightness(input: Uint8Array, delta: number): Uint8Array {
  * >1 increases contrast, 0..1 decreases. Typical range: 0.5..2.0.
  */
 export function contrast(input: Uint8Array, factor: number): Uint8Array {
-  const img = PhotonImage.new_from_byteslice(input);
-  adjust_contrast(img, factor);
-  const bytes = img.get_bytes();
-  img.free();
-  return bytes;
+  let img: PhotonImage | undefined;
+  try {
+    img = PhotonImage.new_from_byteslice(input);
+    adjust_contrast(img, factor);
+    return img.get_bytes();
+  } finally {
+    img?.free();
+  }
 }
 
 /**
  * Gaussian blur with a given pixel radius. Typical range: 1..20.
  */
 export function blur(input: Uint8Array, radius: number): Uint8Array {
-  const img = PhotonImage.new_from_byteslice(input);
-  gaussian_blur(img, radius);
-  const bytes = img.get_bytes();
-  img.free();
-  return bytes;
+  let img: PhotonImage | undefined;
+  try {
+    img = PhotonImage.new_from_byteslice(input);
+    gaussian_blur(img, radius);
+    return img.get_bytes();
+  } finally {
+    img?.free();
+  }
 }
 
 /**
@@ -127,11 +147,14 @@ export function blur(input: Uint8Array, radius: number): Uint8Array {
  * for finer control, multiple passes can be chained.
  */
 export function sharpen(input: Uint8Array): Uint8Array {
-  const img = PhotonImage.new_from_byteslice(input);
-  photonSharpen(img);
-  const bytes = img.get_bytes();
-  img.free();
-  return bytes;
+  let img: PhotonImage | undefined;
+  try {
+    img = PhotonImage.new_from_byteslice(input);
+    photonSharpen(img);
+    return img.get_bytes();
+  } finally {
+    img?.free();
+  }
 }
 
 /**
@@ -148,12 +171,16 @@ export function watermark(
   x: number,
   y: number,
 ): Uint8Array {
-  const baseImg = PhotonImage.new_from_byteslice(base);
-  const overlayImg = PhotonImage.new_from_byteslice(overlay);
-  // Photon's watermark takes BigInt for x,y (Rust u32 -> wasm i64 binding).
-  photonWatermark(baseImg, overlayImg, BigInt(x), BigInt(y));
-  const bytes = baseImg.get_bytes();
-  baseImg.free();
-  overlayImg.free();
-  return bytes;
+  let baseImg: PhotonImage | undefined;
+  let overlayImg: PhotonImage | undefined;
+  try {
+    baseImg = PhotonImage.new_from_byteslice(base);
+    overlayImg = PhotonImage.new_from_byteslice(overlay);
+    // Photon's watermark takes BigInt for x,y (Rust u32 -> wasm i64 binding).
+    photonWatermark(baseImg, overlayImg, BigInt(x), BigInt(y));
+    return baseImg.get_bytes();
+  } finally {
+    baseImg?.free();
+    overlayImg?.free();
+  }
 }

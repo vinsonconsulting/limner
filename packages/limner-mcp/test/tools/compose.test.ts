@@ -268,6 +268,46 @@ describe('compose tool — cf-images ops (workers: with mock binding)', () => {
   });
 });
 
+// M3 (release review): in-isolate ops must reject an oversize pixel count and a
+// raw buffer whose length doesn't match its declared dimensions, before the
+// codec attempts a multi-GB allocation inside the 128 MB isolate.
+describe('compose tool — resource guards (M3)', () => {
+  test('resize rejects an oversize pixel count with a clean error', async () => {
+    const { client, close } = await connectedPair(localCtx);
+    try {
+      const result = await client.callTool({
+        name: 'limner_compose',
+        arguments: { op: 'resize', input: b64encode(corefix('checker-64.png')), width: 20000, height: 20000 },
+      });
+      expect(result.isError).toBe(true);
+      const text = JSON.stringify(result.content);
+      expect(text).toMatch(/exceeds|pixel/i);
+      expect(text).not.toMatch(/undefined/);
+    } finally {
+      await close();
+    }
+  });
+
+  test('encode rejects a raw buffer whose length != width*height*4', async () => {
+    const { client, close } = await connectedPair(localCtx);
+    try {
+      const result = await client.callTool({
+        name: 'limner_compose',
+        arguments: {
+          op: 'encode',
+          // 2x2 RGBA needs 16 bytes; supply only 4.
+          raw: { data: b64encode(new Uint8Array([1, 2, 3, 4])), width: 2, height: 2 },
+          format: 'png',
+        },
+      });
+      expect(result.isError).toBe(true);
+      expect(JSON.stringify(result.content)).toMatch(/raw\.data|bytes|RGBA/i);
+    } finally {
+      await close();
+    }
+  });
+});
+
 describe('compose tool — schema validation', () => {
   test('unknown op -> isError', async () => {
     const { client, close } = await connectedPair(localCtx);
