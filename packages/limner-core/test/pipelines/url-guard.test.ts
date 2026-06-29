@@ -104,6 +104,9 @@ describe('assertSafeImageUrl — blocks private / loopback / link-local / metada
     'http://[fd12:3456:789a::1]/x',
     'http://[fe80::1]/x',
     'http://[::ffff:127.0.0.1]/x', // IPv4-mapped loopback
+    'http://[::127.0.0.1]/x', // IPv4-compatible loopback (deprecated form) — L5
+    'http://[64:ff9b::7f00:1]/x', // NAT64 embedding 127.0.0.1 — L5
+    'http://[64:ff9b::a9fe:a9fe]/x', // NAT64 embedding 169.254.169.254 metadata — L5
     'http://localhost/x',
     'http://foo.localhost/x',
     'http://metadata.google.internal/x',

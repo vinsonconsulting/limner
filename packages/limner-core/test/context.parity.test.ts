@@ -37,6 +37,15 @@ function runProjectSuite(name: string, makeFixture: FixtureFactory): void {
       expect(await store.getByName('nonexistent')).toBeNull();
     });
 
+    // L1: a duplicate-name INSERT (the race backstop behind the handler's
+    // getByName pre-check) maps the UNIQUE violation to a clean message, never
+    // the raw D1_ERROR.
+    test('create maps a duplicate-name UNIQUE violation to a clean error', async () => {
+      await store.create({ name: 'dup' });
+      await expect(store.create({ name: 'dup' })).rejects.toThrow(/project already exists: dup/);
+      await expect(store.create({ name: 'dup' })).rejects.not.toThrow(/UNIQUE|D1_ERROR/i);
+    });
+
     test('list orders by updated_at DESC', async () => {
       const a = await store.create({ name: 'a' });
       await new Promise((r) => setTimeout(r, 5));

@@ -68,6 +68,21 @@ function projectNotFound(projectId: string): Error {
   return new Error(`project not found: ${projectId} — create it first with limner_create_project`);
 }
 
+function projectExists(name: string): Error {
+  return new Error(`project already exists: ${name}`);
+}
+
+// The pre-checks in create()/addNote narrow but cannot eliminate the race
+// against a concurrent create/delete (no transaction spans check + INSERT). When
+// the constraint fires under that race, map it to the same clean message the
+// pre-check would have produced rather than leaking the raw D1_ERROR (L1/L2).
+function isUniqueViolation(err: unknown): boolean {
+  return err instanceof Error && /UNIQUE constraint failed/i.test(err.message);
+}
+function isForeignKeyViolation(err: unknown): boolean {
+  return err instanceof Error && /FOREIGN KEY constraint failed/i.test(err.message);
+}
+
 // ---------------- D1 backend ----------------
 
 export class D1ProjectStore implements ProjectStore {
@@ -76,16 +91,21 @@ export class D1ProjectStore implements ProjectStore {
   async create(input: ProjectCreateInput): Promise<Project> {
     const id = ulid();
     const now = Date.now();
-    await this.db.prepare(
-      'INSERT INTO projects (id, name, description, created_at, updated_at, metadata) VALUES (?, ?, ?, ?, ?, ?)',
-    ).bind(
-      id,
-      input.name,
-      input.description ?? null,
-      now,
-      now,
-      input.metadata ? JSON.stringify(input.metadata) : null,
-    ).run();
+    try {
+      await this.db.prepare(
+        'INSERT INTO projects (id, name, description, created_at, updated_at, metadata) VALUES (?, ?, ?, ?, ?, ?)',
+      ).bind(
+        id,
+        input.name,
+        input.description ?? null,
+        now,
+        now,
+        input.metadata ? JSON.stringify(input.metadata) : null,
+      ).run();
+    } catch (err) {
+      if (isUniqueViolation(err)) throw projectExists(input.name);
+      throw err;
+    }
     const row = await this.db.prepare('SELECT * FROM projects WHERE id = ?').bind(id).first<ProjectRow>();
     if (!row) throw new Error('create: failed to read back inserted project');
     return projectFromRow(row);
@@ -146,15 +166,20 @@ export class D1ProjectStore implements ProjectStore {
     if (!(await this.get(input.projectId))) throw projectNotFound(input.projectId);
     const id = ulid();
     const now = Date.now();
-    await this.db.prepare(
-      'INSERT INTO project_notes (id, project_id, content, created_at, metadata) VALUES (?, ?, ?, ?, ?)',
-    ).bind(
-      id,
-      input.projectId,
-      input.content,
-      now,
-      input.metadata ? JSON.stringify(input.metadata) : null,
-    ).run();
+    try {
+      await this.db.prepare(
+        'INSERT INTO project_notes (id, project_id, content, created_at, metadata) VALUES (?, ?, ?, ?, ?)',
+      ).bind(
+        id,
+        input.projectId,
+        input.content,
+        now,
+        input.metadata ? JSON.stringify(input.metadata) : null,
+      ).run();
+    } catch (err) {
+      if (isForeignKeyViolation(err)) throw projectNotFound(input.projectId);
+      throw err;
+    }
     const row = await this.db.prepare('SELECT * FROM project_notes WHERE id = ?').bind(id).first<NoteRow>();
     if (!row) throw new Error('addNote: failed to read back inserted note');
     return noteFromRow(row);
@@ -177,16 +202,21 @@ export class LocalProjectStore implements ProjectStore {
   async create(input: ProjectCreateInput): Promise<Project> {
     const id = ulid();
     const now = Date.now();
-    this.db.prepare(
-      'INSERT INTO projects (id, name, description, created_at, updated_at, metadata) VALUES (?, ?, ?, ?, ?, ?)',
-    ).run(
-      id,
-      input.name,
-      input.description ?? null,
-      now,
-      now,
-      input.metadata ? JSON.stringify(input.metadata) : null,
-    );
+    try {
+      this.db.prepare(
+        'INSERT INTO projects (id, name, description, created_at, updated_at, metadata) VALUES (?, ?, ?, ?, ?, ?)',
+      ).run(
+        id,
+        input.name,
+        input.description ?? null,
+        now,
+        now,
+        input.metadata ? JSON.stringify(input.metadata) : null,
+      );
+    } catch (err) {
+      if (isUniqueViolation(err)) throw projectExists(input.name);
+      throw err;
+    }
     const row = this.db.prepare('SELECT * FROM projects WHERE id = ?').get(id) as ProjectRow | undefined;
     if (!row) throw new Error('create: failed to read back inserted project');
     return projectFromRow(row);
@@ -244,15 +274,20 @@ export class LocalProjectStore implements ProjectStore {
     if (!(await this.get(input.projectId))) throw projectNotFound(input.projectId);
     const id = ulid();
     const now = Date.now();
-    this.db.prepare(
-      'INSERT INTO project_notes (id, project_id, content, created_at, metadata) VALUES (?, ?, ?, ?, ?)',
-    ).run(
-      id,
-      input.projectId,
-      input.content,
-      now,
-      input.metadata ? JSON.stringify(input.metadata) : null,
-    );
+    try {
+      this.db.prepare(
+        'INSERT INTO project_notes (id, project_id, content, created_at, metadata) VALUES (?, ?, ?, ?, ?)',
+      ).run(
+        id,
+        input.projectId,
+        input.content,
+        now,
+        input.metadata ? JSON.stringify(input.metadata) : null,
+      );
+    } catch (err) {
+      if (isForeignKeyViolation(err)) throw projectNotFound(input.projectId);
+      throw err;
+    }
     const row = this.db.prepare('SELECT * FROM project_notes WHERE id = ?').get(id) as NoteRow | undefined;
     if (!row) throw new Error('addNote: failed to read back inserted note');
     return noteFromRow(row);
