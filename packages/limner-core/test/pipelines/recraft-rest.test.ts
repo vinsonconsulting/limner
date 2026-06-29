@@ -167,6 +167,61 @@ describe('RestRecraftTransport — b64_json re-host (F4)', () => {
     const calls = (fetchMock as unknown as ReturnType<typeof vi.fn>).mock.calls;
     expect(calls.some((c) => String(c[0]) === 'https://img.recraft.ai/abc.png')).toBe(true);
   });
+
+  // M1: the transform endpoints (upscale/vectorize) must apply the SAME
+  // url-only fallback as the generate path, or they leak Recraft's CDN url.
+  test('upscaleImage re-fetches a url-only result through the guard', async () => {
+    const onePixelPng =
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABh6FO1AAAAABJRU5ErkJggg==';
+    const fetchMock = vi.fn(async (url: unknown) => {
+      if (String(url).includes('/images/crispUpscale')) {
+        return new Response(JSON.stringify({ image: { url: 'https://img.recraft.ai/up.png' } }), { status: 200 });
+      }
+      return new Response(Uint8Array.from(atob(onePixelPng), (c) => c.charCodeAt(0)), {
+        status: 200,
+        headers: { 'content-type': 'image/png' },
+      });
+    }) as unknown as typeof fetch;
+    const t = new RestRecraftTransport('rk', dohAware(fetchMock));
+    const out = await t.upscaleImage({ image: 'https://s/x.png', responseFormat: 'b64_json' });
+    expect(out.url).toBeUndefined();
+    expect(out.data).toBeInstanceOf(Uint8Array);
+    const calls = (fetchMock as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls.some((c) => String(c[0]) === 'https://img.recraft.ai/up.png')).toBe(true);
+  });
+
+  test('vectorizeImage re-fetches a url-only result and keeps svg mime', async () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg"/>';
+    const fetchMock = vi.fn(async (url: unknown) => {
+      if (String(url).includes('/images/vectorize')) {
+        return new Response(JSON.stringify({ image: { url: 'https://img.recraft.ai/out.svg' } }), { status: 200 });
+      }
+      if (String(url) === 'https://img.recraft.ai/out.svg') {
+        return new Response(new TextEncoder().encode(svg), {
+          status: 200,
+          headers: { 'content-type': 'image/svg+xml' },
+        });
+      }
+      return new Response(new Uint8Array([1]), { status: 200, headers: { 'content-type': 'image/png' } });
+    }) as unknown as typeof fetch;
+    const t = new RestRecraftTransport('rk', dohAware(fetchMock));
+    const out = await t.vectorizeImage({ image: 'https://s/x.png', responseFormat: 'b64_json' });
+    expect(out.url).toBeUndefined();
+    expect(out.mimeType).toBe('image/svg+xml');
+    expect(new TextDecoder().decode(out.data!)).toContain('<svg');
+  });
+
+  // L7: an SVG that opens with a comment or DOCTYPE before the root must still
+  // be sniffed as image/svg+xml (generate-path b64, fallback would be png).
+  test('sniffs SVG mime when the b64 result opens with a comment/DOCTYPE', async () => {
+    const svgB64 = btoa('<!-- generated -->\n<!DOCTYPE svg>\n<svg xmlns="http://www.w3.org/2000/svg"/>');
+    const fetchMock = mockFetch(
+      new Response(JSON.stringify({ data: [{ b64_json: svgB64 }] }), { status: 200 }),
+    );
+    const t = new RestRecraftTransport('rk', dohAware(fetchMock));
+    const out = await t.generateImage({ ...ARGS, responseFormat: 'b64_json' });
+    expect(out.mimeType).toBe('image/svg+xml');
+  });
 });
 
 describe('RestRecraftTransport — error mapping', () => {
