@@ -59,6 +59,30 @@ describe('cma compose dispatch — photon op (resize)', () => {
   });
 });
 
+describe('cma compose dispatch — resource guards (M3 parity)', () => {
+  test('resize rejects an oversize pixel count', async () => {
+    const { bucket, put } = mockBucket();
+    await expect(
+      composeTool.run(
+        { op: 'resize', input: b64encode(fixture), width: 20000, height: 20000 },
+        { env: { BUCKET: bucket } },
+      ),
+    ).rejects.toThrow(/exceeds|pixel/i);
+    expect(put).not.toHaveBeenCalled();
+  });
+
+  test('encode rejects a raw buffer whose length != width*height*4', async () => {
+    const { bucket, put } = mockBucket();
+    await expect(
+      composeTool.run(
+        { op: 'encode', raw: { data: b64encode(new Uint8Array([1, 2, 3, 4])), width: 2, height: 2 }, format: 'png' },
+        { env: { BUCKET: bucket } },
+      ),
+    ).rejects.toThrow(/raw\.data|RGBA/i);
+    expect(put).not.toHaveBeenCalled();
+  });
+});
+
 describe('cma compose dispatch — codec op (convert)', () => {
   test('routes through jsquash and uploads image/jpeg under compose-convert/', async () => {
     const { bucket, put } = mockBucket();

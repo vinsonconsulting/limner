@@ -238,6 +238,21 @@ function errorResult(message: string): CallToolResult {
   return { content: [{ type: 'text', text: message }], isError: true };
 }
 
+// M3: in-isolate ops decode/allocate raw RGBA in the 128 MB V8 isolate; photon
+// documents a ~10 MP practical ceiling. Cap the output pixel count so a caller
+// can't request a multi-GB allocation (e.g. 100000x100000) and OOM the isolate.
+// Oversize work should route through the cf-images (network) ops.
+const MAX_COMPOSE_PIXELS = 10_000_000;
+
+function pixelCapError(width: number, height: number, op: string): CallToolResult | null {
+  if (width * height > MAX_COMPOSE_PIXELS) {
+    return errorResult(
+      `compose.${op}: ${width}x${height} exceeds the ${MAX_COMPOSE_PIXELS}-pixel in-isolate limit. Use cfTransform/cfSmartCrop (Cloudflare Images) for larger output.`,
+    );
+  }
+  return null;
+}
+
 // ---------------- handler ----------------
 
 async function handle(raw: ComposeAdvertisedInput, ctx: ToolContext): Promise<CallToolResult> {
@@ -252,9 +267,11 @@ async function handle(raw: ComposeAdvertisedInput, ctx: ToolContext): Promise<Ca
   const input: ComposeInput = parsed.data;
   switch (input.op) {
     case 'resize':
-      return imageResult(compose.resize(base64ToBytes(input.input), input.width, input.height, input.fit), 'image/png', { op: 'resize' });
+      return pixelCapError(input.width, input.height, 'resize')
+        ?? imageResult(compose.resize(base64ToBytes(input.input), input.width, input.height, input.fit), 'image/png', { op: 'resize' });
     case 'crop':
-      return imageResult(compose.crop(base64ToBytes(input.input), input.x, input.y, input.width, input.height), 'image/png', { op: 'crop' });
+      return pixelCapError(input.width, input.height, 'crop')
+        ?? imageResult(compose.crop(base64ToBytes(input.input), input.x, input.y, input.width, input.height), 'image/png', { op: 'crop' });
     case 'brightness':
       return imageResult(compose.brightness(base64ToBytes(input.input), input.delta), 'image/png', { op: 'brightness' });
     case 'contrast':
@@ -267,8 +284,20 @@ async function handle(raw: ComposeAdvertisedInput, ctx: ToolContext): Promise<Ca
       return imageResult(compose.watermark(base64ToBytes(input.base), base64ToBytes(input.overlay), input.x, input.y), 'image/png', { op: 'watermark' });
 
     case 'encode': {
+      const cap = pixelCapError(input.raw.width, input.raw.height, 'encode');
+      if (cap) return cap;
+      // The encoder reads width*height*4 bytes from the raw buffer; reject a
+      // mismatched length up front so it can't read past the supplied data
+      // (corrupt output) or pair a tiny buffer with huge declared dimensions.
+      const rawBytes = base64ToBytes(input.raw.data);
+      const expected = input.raw.width * input.raw.height * 4;
+      if (rawBytes.length !== expected) {
+        return errorResult(
+          `compose.encode: raw.data is ${rawBytes.length} bytes but ${input.raw.width}x${input.raw.height} RGBA requires ${expected}.`,
+        );
+      }
       const raw = {
-        data: new Uint8ClampedArray(base64ToBytes(input.raw.data).buffer),
+        data: new Uint8ClampedArray(rawBytes.buffer, rawBytes.byteOffset, rawBytes.byteLength),
         width: input.raw.width,
         height: input.raw.height,
       };
@@ -295,6 +324,8 @@ async function handle(raw: ComposeAdvertisedInput, ctx: ToolContext): Promise<Ca
     }
 
     case 'renderText': {
+      const cap = pixelCapError(input.width, input.height, 'renderText');
+      if (cap) return cap;
       // Fonts resolve to server-side bytes by id; the tool never transits font
       // bytes inline (a large base64 font truncates on the MCP wire and
       // corrupts the WASM DataView). Omitted fonts -> the default built-in.
