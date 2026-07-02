@@ -326,7 +326,7 @@ sign-off via `git commit -s`; the DCO check gates merge.
 
 ## License
 
-Apache 2.0. See [LICENSE](LICENSE).
+[Apache-2.0](LICENSE) © Jim Vinson · [jimvinson.com](https://jimvinson.com)
 
 ## Acknowledgments
 
