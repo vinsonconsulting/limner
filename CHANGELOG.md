@@ -6,6 +6,23 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-07-07
+
+Distribution and documentation release. Generation, composition, memory, and
+transport behavior are unchanged from 1.0.0; the `.mcpb` bundle and Workers
+surface are functionally identical.
+
+### Added
+- Privacy Policy section in the README and a `privacy_policies` entry in the
+  `.mcpb` manifest, covering bring-your-own-key handling, provider calls,
+  durable memory, and artifact storage (a Claude Connectors Directory
+  prerequisite).
+- The official MCP Registry entry now advertises the downloadable `.mcpb`
+  package alongside the hosted remote: `server.json` gains an `mcpb` package
+  pinned to the release asset by SHA-256.
+- CI re-publishes the registry entry on each `mcpb-v*` tag, so registry metadata
+  tracks releases instead of drifting.
+
 ## [1.0.0] - 2026-06-29
 
 v1.0.0 is the first public release — the foundation (`rasa`) variant of the
@@ -97,5 +114,6 @@ state (D-RA-04, D-RA-15), and the CMA→D1 memory migration.
   outside the test suite (Workers: modules now statically imported and attached
   to the bundle; stdio: loaded via `createRequire` at boot). (r1)
 
-[Unreleased]: https://github.com/vinsonconsulting/limner/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/vinsonconsulting/limner/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/vinsonconsulting/limner/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/vinsonconsulting/limner/releases/tag/v1.0.0

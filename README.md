@@ -26,6 +26,7 @@ family. You deploy rasa as your own instance: free as in beer, no strings or dat
 - [Tool Surface](#tool-surface)
 - [Memory](#memory)
 - [Security](#security)
+- [Privacy Policy](#privacy-policy)
 - [Prerequisites](#prerequisites)
 - [Quickstart](#quickstart)
 - [Testing and feedback](#testing-and-feedback)
@@ -159,6 +160,34 @@ own instance:
 - **The common path leaks nothing.** In-isolate composition needs no network
   and no credentials; only the generation tools and the five `cf*` ops reach
   outside the isolate, and only with the provider key you supplied.
+
+## Privacy Policy
+
+Limner is bring-your-own-key software. It collects no analytics and sends no
+telemetry to the author. Anything that leaves your machine leaves only because
+a tool you called needs it:
+
+- **Provider calls.** When you run a generation tool, the prompt text and any
+  reference images you pass are sent to the provider that backs it: OpenAI for
+  `limner_generate_dalle`, Recraft for `limner_generate_recraft` and the
+  `limner_upscale` / `limner_vectorize` tools. Those providers process that data
+  under their own privacy terms. `limner_generate_midjourney` builds a prompt
+  string locally and calls nothing. In-isolate composition (`limner_compose`,
+  apart from the five `cf*` ops that use Cloudflare Images) needs no network and
+  no credentials.
+- **Your keys.** OpenAI and Recraft API keys are read from your local
+  configuration (environment variables or the client's `user_config`) and used
+  only to authenticate those provider calls. They are never written to logs or
+  sent anywhere else.
+- **Durable memory and projects.** Facts, decisions, and notes you save persist
+  in Cloudflare D1 on the Workers transport, or in a local SQLite file (default
+  `~/.limner/limner.db`) on the stdio and `.mcpb` builds. This data stays until
+  you remove it with `limner_forget` or delete the database.
+- **Generated artifacts.** On the hosted Workers transport, images are stored in
+  Cloudflare R2 and served behind HMAC-signed capability URLs with a short TTL.
+  On local transports, artifacts stay on your machine.
+
+Questions or requests about data handling go to jim@vinson.org.
 
 ## Prerequisites
 

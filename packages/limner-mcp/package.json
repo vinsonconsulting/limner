@@ -1,6 +1,6 @@
 {
   "name": "@limner/mcp",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Limner MCP server: Workers Streamable HTTP + stdio + .mcpb bundle.",
   "license": "Apache-2.0",
   "private": true,

@@ -72,3 +72,91 @@ jobs:
           files: limner-mcp.mcpb
           name: ${{ github.ref_name }}
           generate_release_notes: true
+
+  # Re-publish the official MCP Registry entry so it advertises this release's
+  # .mcpb package. Registry versions are immutable, so each release must carry a
+  # new version string (server.json / package.json bump); a re-run of an already
+  # published version is tolerated rather than failed. us.limner is a DNS-verified
+  # namespace, so this authenticates with the ECDSA-P384 DNS key (NOT github-oidc,
+  # which only covers io.github.* namespaces).
+  #
+  # Prereq (one-time, manual): store the DNS private key as a repo secret —
+  #   gh secret set MCP_REGISTRY_DNS_KEY < ~/.secrets/limner/mcp-registry-dns.pem
+  # Until that secret exists this job runs green and no-ops.
+  #
+  # NB: confirm the `mcp-publisher` install asset name and `login dns` flag names
+  # against the installed CLI version during the first manual publish; adjust if
+  # the CLI surface has changed.
+  publish-registry:
+    name: Publish to MCP Registry
+    needs: pack
+    if: startsWith(github.ref, 'refs/tags/mcpb-v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Download packed bundle
+        uses: actions/download-artifact@v7
+        with:
+          name: limner-mcp.mcpb
+
+      - name: Gate on DNS key secret
+        id: gate
+        env:
+          MCP_REGISTRY_DNS_KEY: ${{ secrets.MCP_REGISTRY_DNS_KEY }}
+        run: |
+          if [ -n "$MCP_REGISTRY_DNS_KEY" ]; then
+            echo "has_key=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_key=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::MCP_REGISTRY_DNS_KEY not set; skipping registry publish."
+          fi
+
+      - name: Install mcp-publisher
+        if: steps.gate.outputs.has_key == 'true'
+        run: |
+          set -euo pipefail
+          curl -fsSL -o mcp-publisher.tar.gz \
+            "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz"
+          tar -xzf mcp-publisher.tar.gz mcp-publisher
+          sudo install -m 0755 mcp-publisher /usr/local/bin/mcp-publisher
+
+      - name: Pin server.json to this release asset
+        if: steps.gate.outputs.has_key == 'true'
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#mcpb-v}"
+          SHA="$(shasum -a 256 limner-mcp.mcpb | cut -d' ' -f1)"
+          URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/limner-mcp.mcpb"
+          tmp="$(mktemp)"
+          jq --arg v "$VERSION" --arg url "$URL" --arg sha "$SHA" '
+            .version = $v
+            | .packages = [ ((.packages[0] // {}) + {
+                registry_type: "mcpb",
+                identifier: $url,
+                file_sha256: $sha
+              }) ]
+          ' server.json > "$tmp" && mv "$tmp" server.json
+          echo "Prepared server.json for ${VERSION}:"
+          cat server.json
+
+      - name: Authenticate (DNS)
+        if: steps.gate.outputs.has_key == 'true'
+        env:
+          MCP_REGISTRY_DNS_KEY: ${{ secrets.MCP_REGISTRY_DNS_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          printf '%s' "$MCP_REGISTRY_DNS_KEY" > mcp-dns.pem
+          mcp-publisher login dns --domain limner.us --private-key mcp-dns.pem --algorithm ecdsap384
+
+      - name: Publish (tolerate already-published version)
+        if: steps.gate.outputs.has_key == 'true'
+        run: |
+          mcp-publisher publish || echo "::warning::mcp-publisher publish returned non-zero (version may already be published); continuing."
+
+      - name: Scrub key
+        if: always()
+        run: rm -f mcp-dns.pem
