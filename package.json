@@ -1,6 +1,6 @@
 {
   "name": "limner",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "MCP image generation agent. Foundation of the Limner family.",
   "license": "Apache-2.0",
   "private": true,

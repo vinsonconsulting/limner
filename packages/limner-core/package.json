@@ -1,6 +1,6 @@
 {
   "name": "@limner/core",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Shared TypeScript foundation for Limner: types, bindings, memory and project stores (D1 + local SQLite).",
   "license": "Apache-2.0",
   "private": true,
