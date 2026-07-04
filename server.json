@@ -2,11 +2,18 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "us.limner/limner",
   "description": "AI visual generation agent: multi-pipeline rendering, prompt crafting, and image composition.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "repository": {
     "url": "https://github.com/vinsonconsulting/limner",
     "source": "github"
   },
+  "packages": [
+    {
+      "registry_type": "mcpb",
+      "identifier": "https://github.com/vinsonconsulting/limner/releases/download/mcpb-v1.0.1/limner-mcp.mcpb",
+      "file_sha256": "PLACEHOLDER_FILL_TUESDAY"
+    }
+  ],
   "remotes": [
     {
       "type": "streamable-http",
