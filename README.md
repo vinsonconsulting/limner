@@ -25,6 +25,8 @@ family. You deploy rasa as your own instance: free as in beer, no strings or dat
 - [Stack](#stack)
 - [Tool Surface](#tool-surface)
 - [Memory](#memory)
+- [Managed Agent Setup](#managed-agent-setup)
+- [Skills and Capability Surfaces](#skills-and-capability-surfaces)
 - [Security](#security)
 - [Privacy Policy](#privacy-policy)
 - [Prerequisites](#prerequisites)
@@ -137,6 +139,83 @@ this, both in D1 (or local SQLite for the stdio and `.mcpb` flavors):
 Nothing here is a vector database or an embedding model. It is plain structured
 state with explicit keys, which is the point: the agent recalls what it
 actually recorded, not the nearest fuzzy match.
+
+## Managed Agent Setup
+
+Limner runs as a Claude Managed Agent: Anthropic's model does the reasoning
+(the brain), Cloudflare's Worker does the executing (the hands), and the two
+meet at the OAuth-gated MCP surface described above. The agent definition
+itself is narrow by design.
+
+- **What's on the agent.** Model `claude-sonnet-4-6`, an A4-framed system
+  prompt (the framing is code-enforced: `assertA4()` refuses to build the
+  agent plan if the verbatim disclaimer is missing), and 16 Agent Skills
+  uploaded through the Skills API. That's it.
+- **What's deliberately not on the agent.** Tools and MCP servers never appear
+  in the agent definition. They bind to whichever consumer Worker you deploy,
+  not to the agent's identity, so one agent definition works against any
+  Worker you point it at.
+
+Stand up your own agent:
+
+1. Deploy your own `limner-mcp` Worker (Quickstart above) and note its
+   OAuth-protected MCP URL.
+2. Set `ANTHROPIC_API_KEY` in your environment.
+3. Build the agent package: `pnpm --filter @limner/core build && pnpm --filter @limner/limner-agent build`.
+4. Dry run the registration: `pnpm --filter @limner/limner-agent create-agent`.
+   Review the printed request payloads, then re-run with `-- --execute` to
+   create the agent and upload all 16 skills.
+5. Connect the standing agent to your Worker's MCP URL the same way any MCP
+   client would, then verify the wiring with the Test 4 harness
+   (`pnpm --filter @limner/limner-agent test-agent`).
+
+Full reference, including the exact API endpoints, frontmatter validation
+rules, and the Path A / Path B tool-lockstep detail, is in
+[packages/limner-agent/README.md](packages/limner-agent/README.md).
+
+## Skills and Capability Surfaces
+
+One guidance core renders into three public surfaces: a **skill** for
+autonomous multi-step agent work, a **prompt** for a launchable client
+template, and a **resource** for a fact worth consulting. 19 guidance entries
+in `@limner/core` render into 16 skills, 12 prompts, and 3 resources today. A
+CI drift test enforces that a committed skill can never diverge from the
+guidance entry that generated it.
+
+**16 skills** (attach order; S = skill only, S+P = skill and prompt, S+R =
+skill and resource):
+
+| Skill | Surface |
+| --- | --- |
+| `file-types` | S+R |
+| `external-tools` | S+R |
+| `midjourney` | S+P |
+| `dalle` | S+P |
+| `recraft` | S+P |
+| `illuminated-manuscript` | S+P |
+| `pipeline-router` | S+P |
+| `brand-stamp` | S+P |
+| `multi-size-export` | S+P |
+| `captioned-graphic` | S+P |
+| `iterate-on-asset` | S |
+| `style-from-images` | S+P |
+| `brand-kit` | S |
+| `art-research` | S |
+| `vectorize` | S+P |
+| `print-ready` | S+R |
+
+**12 prompts:** `capability-tour`, `midjourney-builder`, `dalle-builder`,
+`recraft-builder`, `illuminated-manuscript`, `pipeline-router`, `brand-stamp`,
+`multi-size-export`, `captioned-graphic`, `aspect-ratio-crops`,
+`style-from-images`, `vectorize`.
+
+**3 resources:** `limner://reference/file-types`,
+`limner://reference/external-tools`, `limner://reference/print-ready`.
+
+Together with the 18 tools in Tool Surface above, that's the whole public
+capability surface. The full matrix (which guidance entry renders into which
+surface, and why `style-profile` backs no standalone surface at all) is in
+[packages/limner-agent/README.md](packages/limner-agent/README.md).
 
 ## Security
 

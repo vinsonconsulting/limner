@@ -25,11 +25,73 @@ diverges. The `file-types` example proves it: its skill section and the MCP
 `file-types` resource are byte-identical because both come from the one
 `file-types` guidance entry.
 
+The one-source rule holds across all 19 guidance entries in
+`@limner/core/src/guidance/entries/`, in registration order (the order
+`listGuidance()` returns):
+
+| Guidance entry | Skill | Prompt | Resource |
+| --- | --- | --- | --- |
+| `file-types` | ✓ | | ✓ |
+| `capabilities-overview` | | ✓ (`capability-tour`) | |
+| `external-tools` | ✓ | | ✓ |
+| `midjourney-recipe` | ✓ | ✓ (`midjourney-builder`) | |
+| `dalle-recipe` | ✓ | ✓ (`dalle-builder`) | |
+| `recraft-recipe` | ✓ | ✓ (`recraft-builder`) | |
+| `style-profile` | | | |
+| `illuminated-manuscript` | ✓ | ✓ | |
+| `pipeline-router` | ✓ | ✓ | |
+| `brand-stamp` | ✓ | ✓ | |
+| `multi-size-export` | ✓ | ✓ | |
+| `captioned-graphic` | ✓ | ✓ | |
+| `aspect-ratio-crops` | | ✓ | |
+| `iterate-on-asset` | ✓ | | |
+| `style-from-images` | ✓ | ✓ | |
+| `brand-kit` | ✓ | | |
+| `art-research` | ✓ | | |
+| `vectorize` | ✓ | ✓ | |
+| `print-ready` | ✓ | | ✓ |
+
+19 entries render into 16 skills, 12 prompts, and 3 resources. `aspect-ratio-crops`
+and `capabilities-overview` are prompt-only (no skill dir), which is why there are
+16 skills but 12 prompts. `style-profile` backs no standalone surface: it is the
+shared shape (palette, descriptors, medium, provenance) that `brand-kit`,
+`style-from-images`, and `art-research` each read and write via
+`upsertStyleProfile`/`readStyleProfile`, not a concept with its own skill, prompt,
+or resource. The CI drift test (`test/skills-drift.test.ts`) fails the build the
+moment a committed `SKILL.md` diverges from what its guidance entry would
+currently serialize, so this table cannot silently go stale.
+
+## Skills
+
+The 16 skills attached to the Limner agent, in `SKILL_MANIFEST` attach order
+(`agent-def.ts`): the 6 wave-1 concepts first, then 10 wave-2 additions from
+D-RA-24. Surface: **S** skill only, **S+P** skill and MCP prompt, **S+R** skill
+and MCP resource (see the full matrix above).
+
+| # | Skill | Surface | What it does |
+| --- | --- | --- | --- |
+| 1 | `file-types` | S+R | Reference for image and document file formats: compression, alpha, color model, typical use. |
+| 2 | `external-tools` | S+R | When and how to hand an asset off to GIMP, the Affinity suite, Inkscape, or Krita for work Limner doesn't do itself. |
+| 3 | `midjourney` | S+P | How to build a Midjourney prompt: subject and style first, then the parameter flags. |
+| 4 | `dalle` | S+P | How to drive the DALL·E pipeline (gpt-image-1 family): size, quality, format, background, reliable text-in-image. |
+| 5 | `recraft` | S+P | How to drive the Recraft pipeline: style vs. substyle, vector art from scratch, image-to-image transforms. |
+| 6 | `illuminated-manuscript` | S+P | End-to-end illuminated manuscript page: research, generate each element, compose, deliver. |
+| 7 | `pipeline-router` | S+P | Choosing the right pipeline for an asset by output kind, cost, and speed, then finishing with upscale/vectorize/compose. |
+| 8 | `brand-stamp` | S+P | Stamping a logo or watermark onto a finished image with the compose watermark op. |
+| 9 | `multi-size-export` | S+P | Exporting one image at several sizes and formats for web, app, and social. |
+| 10 | `captioned-graphic` | S+P | Rendering a caption or headline and compositing it over a base image. |
+| 11 | `iterate-on-asset` | S | Recalling a prior generation and varying, restyling, or post-processing it using recorded memory and project notes. |
+| 12 | `style-from-images` | S+P | Capturing a user's own reference-image style into a style profile and matching it with native image input. |
+| 13 | `brand-kit` | S | Setting a project's brand as a style profile and generating a consistent on-brand batch. |
+| 14 | `art-research` | S | Researching an art style or tradition and distilling it into a style profile that steers generation. |
+| 15 | `vectorize` | S+P | Tracing a raster image into a scalable SVG for logos, icons, and flat art. |
+| 16 | `print-ready` | S+R | Taking an asset toward print: upscaling to print resolution, then CMYK/press handoff. |
+
 ## Layout
 
 ```
-skills/<concept>/SKILL.md    # the six wave-1 skills: file-types, external-tools,
-                             #   midjourney, dalle, recraft, illuminated-manuscript
+skills/<concept>/SKILL.md    # 16 skills in SKILL_MANIFEST attach order (agent-def.ts):
+                             #   6 wave-1 concepts, then 10 wave-2 (D-RA-24)
 prompts/system-prompt.md     # A4-framed Limner agent system prompt
 src/skill-gen.ts             # pure splice + guidance-derived block (shared logic)
 src/gen-skills.ts            # fs entrypoint — writes SKILL.md (the only fs file)
@@ -57,40 +119,80 @@ import specifiers, the repo convention, which only resolve after compilation).
 The drift-check test asserts the committed file matches the serializer, so a
 forgotten regeneration is caught in CI.
 
-## Agent create/version — live registration
+## Agent definition and registration
 
 `src/create-agent.ts` (compiled to `dist/create-agent.js`, run via
 `pnpm --filter @limner/limner-agent create-agent`) registers the agent
-definition and **all skills in `SKILL_MANIFEST`** against the CMA API. It is
+definition and **all 16 skills in `SKILL_MANIFEST`** against the CMA API. It is
 **dry-run by default** and only touches the network under `--execute`.
 
-- **Dry run (default)** — prints the per-skill upload plan for every manifest
-  skill plus the agent attach plan, then exits. No network calls, no credentials.
-- **`--execute`** — performs live registration. Requires `ANTHROPIC_API_KEY` in
-  the environment; `@anthropic-ai/sdk` is dynamically imported only on this
-  path, and the key is never printed or logged.
+### Definition reference
 
-What it registers (the SDK applies both beta headers automatically):
+- **Model**: `claude-sonnet-4-6` (`LIMNER_AGENT_MODEL`, `agent-def.ts`).
+- **Agent name**: `Limner` (`LIMNER_AGENT_NAME`).
+- **Beta headers** (the SDK applies both automatically): `managed-agents-2026-04-01`
+  for the Agents endpoints, `skills-2025-10-02` for the Skills endpoints.
+- **A4 framing is code-enforced, not just written down.** `assertA4()` throws
+  before any agent plan is built unless the system prompt contains the verbatim
+  `A4_FRAMING` string exported from `@limner/core`:
+  > "Limner is an independent third-party project built on Anthropic's CMA
+  > platform; it is not an Anthropic or Claude product."
 
-- **Skills** — each of the six wave-1 skills in `SKILL_MANIFEST` (`agent-def.ts`)
-  is uploaded: `POST /v1/skills` (multipart: `display_title` + `files[]`) to
-  create a fresh skill, or `POST /v1/skills/{id}/versions` to version one whose
-  id is supplied via `--skill-id <skillDir>=<id>` (a bare `--skill-id <id>` or
-  `LIMNER_SKILL_ID` maps to `file-types`, the proven single-skill path). Any
-  skill without a supplied id is created fresh. Beta `skills-2025-10-02`.
-- **Agent** — `POST /v1/agents` by default, or a new version of an existing
-  agent via `--agent-id` (`POST /v1/agents/{id}`, retrieving the current
-  `version` first to pass as the concurrency token) — with **all** uploaded
-  skills attached in the one update. Beta `managed-agents-2026-04-01`.
+  This is a guarantee, not a convention: `prompts/system-prompt.md` carries the
+  string today, and any future edit that drops it fails `buildAgentPlan` before
+  a request is ever sent.
+- **Skill frontmatter validation** (`validateSkillFrontmatter`, `agent-def.ts`):
+  `name` must match `^[a-z0-9-]{1,64}$` and must not contain the reserved
+  substrings `anthropic` or `claude`; `description` must be 1-1024 characters;
+  neither `name` nor `description` may contain `<` or `>`; the separate
+  `display_title` sent to the Skills API must be 1-64 characters.
+- **Tools and MCP servers are deliberately absent from the agent plan.**
+  `buildAgentPlan` returns exactly `{ name, model, system, skills }`. There is
+  no `tools` or `mcp_servers` field in the type at all. They bind to the
+  deployed consumer Worker (the OAuth-protected MCP surface), not to the agent
+  identity, so the agent definition registers independently of which Worker
+  it's pointed at (decision **D-RA-12**).
+- **Endpoints.** Skills: `POST /v1/skills` (multipart: `display_title` +
+  `files[]`) to create, `POST /v1/skills/{id}/versions` to version an existing
+  one (id supplied via `--skill-id <skillDir>=<id>`, or a bare `--skill-id <id>`
+  / `LIMNER_SKILL_ID` mapping to `file-types`, the proven single-skill path).
+  Agent: `POST /v1/agents` to create, `POST /v1/agents/{id}` to version
+  (`--agent-id` / `LIMNER_AGENT_ID`, retrieving the current `version` first as
+  the concurrency token). Versioning-only updates skip `system`/`name`/`model`
+  deliberately, alongside `tools`/`mcp_servers`, so `agents.update` (which
+  leaves omitted fields untouched) preserves whatever the live agent already
+  has wired up outside this script.
 
-The agent payload carries only `{ name, model, system, skills }` — `tools` and
-`mcp_servers` are intentionally omitted. The agent definition (system prompt +
-skills) registers independently of the future Phase-7 consumer Worker: per
-decision **D-RA-12**, the agent reaches Limner's tools over the OAuth-protected
-MCP server (Path B, live now), with the custom-tool consumer Worker (Path A)
-still to come. Because `agents.update` preserves omitted fields, versioning the
-agent through this script leaves any externally-configured `tools`/`mcp_servers`
-wiring intact.
+### Stand-up walkthrough
+
+1. Set `ANTHROPIC_API_KEY` in the environment. It's read only under
+   `--execute`, never printed or logged, and `@anthropic-ai/sdk` is dynamically
+   imported only on that path.
+2. Build the workspace: `pnpm --filter @limner/core build && pnpm --filter @limner/limner-agent build`.
+3. Dry run the registration: `pnpm --filter @limner/limner-agent create-agent`.
+   This validates every one of the 16 skills' frontmatter plus the agent plan,
+   prints the exact `POST /v1/skills` and `POST /v1/agents` request payloads,
+   and exits 0 with no network calls and no credentials required.
+4. Go live: `pnpm --filter @limner/limner-agent create-agent -- --execute`.
+   This uploads (or versions) all 16 skills first, collecting their attachment
+   ids, then creates (or versions) the agent with every skill attached in the
+   one update.
+5. Point the standing agent at your deployed Path B Worker's OAuth-protected
+   MCP URL. Tools are never part of the agent definition; the agent reaches
+   Limner's tools at runtime as any MCP client would, over the consumer Worker
+   you deploy and manage separately from this script.
+6. Confirm the wiring with Test 4: `pnpm --filter @limner/limner-agent test-agent`
+   (dry-validate by default; `-- --execute --stage 1` for the free Midjourney +
+   skill-exercising pass, `-- --stage 2` adds the paid DALL·E/Recraft rendition).
+
+Both registries that expose these 16 skills' sibling tools (`@limner/mcp` and
+`@limner/cma-tools`) ship the identical 18 `limner_`-prefixed tool names in
+lockstep (D-RA-12); there is no runtime renaming in this repo. The CMA
+platform's own dispatcher presents tools to the model under bare names
+(stripping `limner_`), which is why the Test 4 harness's `normalizeToolName()`
+(`src/test-harness.ts`) exists purely to reconcile an expected tool name
+against an observed bare tool-call name when scoring a transcript, not to
+rename anything at runtime.
 
 ## Test 4 — asset-generation harness
 
