@@ -84,9 +84,11 @@ jobs:
   #   gh secret set MCP_REGISTRY_DNS_KEY < ~/.secrets/limner/mcp-registry-dns.pem
   # Until that secret exists this job runs green and no-ops.
   #
-  # NB: confirm the `mcp-publisher` install asset name and `login dns` flag names
-  # against the installed CLI version during the first manual publish; adjust if
-  # the CLI surface has changed.
+  # Confirmed against mcp-publisher 1.7.9 (2026-07-07, manual 1.0.1 publish):
+  # `login dns --private-key` takes the raw hex-encoded EC private scalar, not
+  # a PEM file path (see the openssl derivation below); and server.json
+  # packages[] entries must use registryType/fileSha256 (camelCase) plus a
+  # required transport block, not the snake_case field names used pre-1.0.1.
   publish-registry:
     name: Publish to MCP Registry
     needs: pack
@@ -134,9 +136,10 @@ jobs:
           jq --arg v "$VERSION" --arg url "$URL" --arg sha "$SHA" '
             .version = $v
             | .packages = [ ((.packages[0] // {}) + {
-                registry_type: "mcpb",
+                registryType: "mcpb",
                 identifier: $url,
-                file_sha256: $sha
+                fileSha256: $sha,
+                transport: { type: "stdio" }
               }) ]
           ' server.json > "$tmp" && mv "$tmp" server.json
           echo "Prepared server.json for ${VERSION}:"
@@ -150,7 +153,16 @@ jobs:
           set -euo pipefail
           umask 077
           printf '%s' "$MCP_REGISTRY_DNS_KEY" > mcp-dns.pem
-          mcp-publisher login dns --domain limner.us --private-key mcp-dns.pem --algorithm ecdsap384
+          # mcp-publisher wants the raw hex-encoded EC private scalar, not a PEM
+          # file path -- derive it and scrub the PEM immediately.
+          PRIV_HEX="$(openssl ec -in mcp-dns.pem -noout -text 2>/dev/null \
+            | awk '/priv:/{f=1;next} /pub:/{f=0} f' | tr -d ' :\n')"
+          rm -f mcp-dns.pem
+          if [ "${#PRIV_HEX}" -ne 96 ]; then
+            echo "::error::derived DNS key is not 96 hex chars (got ${#PRIV_HEX})"
+            exit 1
+          fi
+          mcp-publisher login dns --domain limner.us --private-key "$PRIV_HEX" --algorithm ecdsap384
 
       - name: Publish (tolerate already-published version)
         if: steps.gate.outputs.has_key == 'true'
