@@ -6,6 +6,15 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- Deepened the managed-agent and capability-surface docs: the root README
+  gains Managed Agent Setup and Skills and Capability Surfaces sections, the
+  `limner-agent` package README gains a 16-skill table, an agent-definition
+  reference, a reproducible stand-up walkthrough, and the full 19-entry
+  guidance-to-surface matrix, and the `limner-mcp` package README gains
+  Prompts (12) and Resources (3) sections alongside a tool-count correction
+  (17 to 18).
+
 ## [1.0.1] - 2026-07-07
 
 Distribution and documentation release. Generation, composition, memory, and
