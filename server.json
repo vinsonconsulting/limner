@@ -11,7 +11,7 @@
     {
       "registry_type": "mcpb",
       "identifier": "https://github.com/vinsonconsulting/limner/releases/download/mcpb-v1.0.1/limner-mcp.mcpb",
-      "file_sha256": "PLACEHOLDER_FILL_TUESDAY"
+      "file_sha256": "e5c5eab81378792f2292354cf0575f406b9939432d8c528363c8f3303d06bcb6"
     }
   ],
   "remotes": [
