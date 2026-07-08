@@ -1,6 +1,6 @@
 # @limner/cma-tools
 
-Limner's **Path A** surface (D-RA-12) — CMA sandbox custom tools deployed alongside the Anthropic CMA agent definition. Ships as a library exporting `LIMNER_TOOLS`, a 15-tool array compatible with the [cloudflare/claude-managed-agents](https://github.com/cloudflare/claude-managed-agents) template's `defineTool` shape.
+Limner's **Path A** surface (D-RA-12): CMA sandbox custom tools deployed alongside the Anthropic CMA agent definition. Ships as a library exporting `LIMNER_TOOLS`, an 18-tool array compatible with the [cloudflare/claude-managed-agents](https://github.com/cloudflare/claude-managed-agents) template's `defineTool` shape.
 
 **v1 ships the library; the CMA agent dogfoods Path B (`@limner/mcp`)** per D-RA-12. Once dogfood criteria are met, the agent migrates to Path A to reclaim OAuth-handshake latency. Path B stays the durable contract for all non-CMA consumers.
 
@@ -53,7 +53,7 @@ export const CUSTOM_TOOLS = [
 
 6. Initialize the compose WASM (required — see the next section).
 
-7. `npm run deploy`. The 15 Limner tools appear in the agent form's toggle list automatically.
+7. `npm run deploy`. The 18 Limner tools appear in the agent form's toggle list automatically.
 
 ## Compose WASM (consumer requirement)
 
@@ -107,9 +107,10 @@ paid-plan limit, over the free-tier 3 MB cap.
 
 ## Tool surface
 
-18 tools, mirroring `@limner/mcp` exactly (D-RA-12 lockstep). Exposed under their BARE
-names (no `limner_` prefix) to the CMA agent; `@limner/mcp` registers the same tools with
-the `limner_` prefix:
+18 tools, mirroring `@limner/mcp` exactly (D-RA-12 lockstep): both packages ship the
+identical `limner_`-prefixed tool names. The Claude Managed Agents platform's own
+dispatcher is what presents tools to the model under bare names; nothing in this
+package renames them.
 
 | Tool | Description | Required bindings | Returns |
 |---|---|---|---|
@@ -120,7 +121,7 @@ the `limner_` prefix:
 | `limner_vectorize` | Recraft raster→SVG vectorization (image input) | BUCKET, RECRAFT_API_KEY | image envelope |
 | `limner_compose` | Hybrid V8 stack — 16 ops behind discriminated-union | BUCKET (+ IMAGES for cf-*) | image envelope or JSON |
 | `limner_recall` / `limner_record` / `limner_forget` / `limner_list_categories` | Memory ops | DB | structured JSON |
-| `limner_list_projects` / `limner_get_project_context` / `limner_record_project_note` | Project ops | DB | structured JSON |
+| `limner_create_project` / `limner_list_projects` / `limner_get_project_context` / `limner_record_project_note` | Project ops | DB | structured JSON |
 | `limner_health` / `limner_version` / `limner_list_pipelines` / `limner_pipeline_capabilities` | Meta / discovery | (none) | structured JSON |
 
 Image envelope shape:

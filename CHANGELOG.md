@@ -14,6 +14,9 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   guidance-to-surface matrix, and the `limner-mcp` package README gains
   Prompts (12) and Resources (3) sections alongside a tool-count correction
   (17 to 18).
+- Corrected `limner-cma-tools`'s README: stale 15-tool count (now 18), an
+  inaccurate bare-tool-name claim, and a tool table missing
+  `limner_create_project`.
 
 ## [1.0.1] - 2026-07-07
 
