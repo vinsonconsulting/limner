@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "us.limner/limner",
-  "description": "AI visual generation agent: multi-pipeline rendering, prompt crafting, and image composition.",
+  "description": "MCP image-generation agent with a quality gate: Claude reasons, Cloudflare executes, D1 remembers.",
   "version": "1.0.1",
   "repository": {
     "url": "https://github.com/vinsonconsulting/limner",
